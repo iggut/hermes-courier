@@ -20,6 +20,12 @@ data class HermesAuthChallengeResponse(
     val trustLevel: String,
 )
 
+data class HermesAuthResponseRequest(
+    val challengeId: String,
+    val signedNonce: String,
+    val device: HermesDeviceIdentity,
+)
+
 data class HermesAuthSession(
     val sessionId: String,
     val accessToken: String,
@@ -77,4 +83,5 @@ data class HermesCourierUiState(
             timestamp = "now",
         )
     ),
+    val gatewayUrl: String = "https://gateway.hermes.local",
 )

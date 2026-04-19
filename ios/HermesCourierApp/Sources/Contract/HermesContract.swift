@@ -1,26 +1,32 @@
 
 import Foundation
 
-struct HermesDeviceIdentity: Hashable {
+struct HermesDeviceIdentity: Codable, Hashable {
     let deviceId: String
     let platform: String
     let appVersion: String
     let publicKeyFingerprint: String
 }
 
-struct HermesAuthChallengeRequest: Hashable {
+struct HermesAuthChallengeRequest: Codable, Hashable {
     let device: HermesDeviceIdentity
     let nonce: String
 }
 
-struct HermesAuthChallengeResponse: Hashable {
+struct HermesAuthChallengeResponse: Codable, Hashable {
     let challengeId: String
     let nonce: String
     let expiresAt: String
     let trustLevel: String
 }
 
-struct HermesAuthSession: Hashable {
+struct HermesAuthResponseRequest: Codable, Hashable {
+    let challengeId: String
+    let signedNonce: String
+    let device: HermesDeviceIdentity
+}
+
+struct HermesAuthSession: Codable, Hashable {
     let sessionId: String
     let accessToken: String
     let refreshToken: String
@@ -30,14 +36,14 @@ struct HermesAuthSession: Hashable {
     let scope: [String]
 }
 
-struct HermesDashboardSnapshot: Hashable {
+struct HermesDashboardSnapshot: Codable, Hashable {
     let activeSessionCount: Int
     let pendingApprovalCount: Int
     let lastSyncLabel: String
     let connectionState: String
 }
 
-struct HermesSessionSummary: Identifiable, Hashable {
+struct HermesSessionSummary: Codable, Identifiable, Hashable {
     let id = UUID()
     let sessionId: String
     let title: String
@@ -45,7 +51,7 @@ struct HermesSessionSummary: Identifiable, Hashable {
     let updatedAt: String
 }
 
-struct HermesApprovalSummary: Identifiable, Hashable {
+struct HermesApprovalSummary: Codable, Identifiable, Hashable {
     let id = UUID()
     let approvalId: String
     let title: String
@@ -53,7 +59,7 @@ struct HermesApprovalSummary: Identifiable, Hashable {
     let requiresBiometrics: Bool
 }
 
-struct HermesConversationEvent: Identifiable, Hashable {
+struct HermesConversationEvent: Codable, Identifiable, Hashable {
     let id = UUID()
     let eventId: String
     let author: String

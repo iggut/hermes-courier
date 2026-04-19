@@ -5,7 +5,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import com.hermescourier.android.ui.HermesCourierTheme
+import com.hermescourier.android.ui.theme.HermesCourierTheme
 import com.hermescourier.android.ui.HermesCourierApp
 
 class MainActivity : ComponentActivity() {

@@ -19,13 +19,16 @@ final class AppViewModel: ObservableObject {
 
     private let authManager: HermesAuthManaging
     private let gatewayClient: HermesGatewayClientProtocol
+    private let fallbackClient: HermesGatewayClientProtocol
 
     init(
         authManager: HermesAuthManaging = HermesAuthManager(),
-        gatewayClient: HermesGatewayClientProtocol = HermesGatewayClient()
+        gatewayClient: HermesGatewayClientProtocol = HermesGatewayClient(),
+        fallbackClient: HermesGatewayClientProtocol = HermesDemoGatewayClient()
     ) {
         self.authManager = authManager
         self.gatewayClient = gatewayClient
+        self.fallbackClient = fallbackClient
         Task {
             await refresh()
         }
@@ -44,8 +47,26 @@ final class AppViewModel: ObservableObject {
             approvals = try await gatewayClient.fetchApprovals(session: session)
             messages = try await gatewayClient.fetchConversation(session: session)
         } catch {
-            bootstrapState = "Demo fallback active"
-            authStatus = "Using offline-safe sample data (\(error.localizedDescription))"
+            do {
+                let session = try await fallbackBootstrap()
+                bootstrapState = "Demo fallback active"
+                authStatus = "Using offline-safe sample data (\(error.localizedDescription))"
+                dashboard = try await fallbackClient.fetchDashboard(session: session)
+                sessions = try await fallbackClient.fetchSessions(session: session)
+                approvals = try await fallbackClient.fetchApprovals(session: session)
+                messages = try await fallbackClient.fetchConversation(session: session)
+            } catch {
+                authStatus = "Fallback failed: \(error.localizedDescription)"
+            }
         }
+    }
+
+    private func fallbackBootstrap() async throws -> HermesAuthSession {
+        try await fallbackClient.bootstrap(device: HermesDeviceIdentity(
+            deviceId: "ios-demo-device-001",
+            platform: "ios",
+            appVersion: "0.1.0",
+            publicKeyFingerprint: "demo-fingerprint"
+        ))
     }
 }

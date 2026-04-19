@@ -1,0 +1,27 @@
+
+package com.hermescourier.android.domain.gateway
+
+import android.content.Context
+import com.hermescourier.android.domain.auth.AndroidKeystoreChallengeSigner
+import com.hermescourier.android.domain.config.HermesGatewayConfiguration
+import com.hermescourier.android.domain.storage.EncryptedHermesTokenStore
+import com.hermescourier.android.domain.transport.HermesGatewayTransport
+import com.hermescourier.android.domain.transport.HermesOkHttpClientFactory
+import com.hermescourier.android.domain.transport.OkHttpHermesGatewayTransport
+
+object HermesGatewayClientFactory {
+    fun create(context: Context): HermesGatewayClient {
+        val configuration = HermesGatewayConfiguration.from(context)
+        val tokenStore = EncryptedHermesTokenStore(context)
+        val signer = AndroidKeystoreChallengeSigner()
+        val transport: HermesGatewayTransport = OkHttpHermesGatewayTransport(
+            baseUrl = configuration.baseUrl,
+            client = HermesOkHttpClientFactory.create(configuration),
+        )
+        return NetworkHermesGatewayClient(
+            transport = transport,
+            tokenStore = tokenStore,
+            signer = signer,
+        )
+    }
+}

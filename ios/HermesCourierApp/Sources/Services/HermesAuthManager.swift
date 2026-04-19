@@ -1,40 +1,41 @@
 
 import Foundation
 
+#if canImport(UIKit)
+import UIKit
+#endif
+
 protocol HermesAuthManaging {
     func bootstrapSession() async throws -> HermesAuthSession
 }
 
-struct HermesBootstrapResult {
-    let session: HermesAuthSession
-    let bootstrapState: String
-    let authStatus: String
-}
-
 final class HermesAuthManager: HermesAuthManaging {
-    func bootstrapSession() async throws -> HermesAuthSession {
-        let device = HermesDeviceIdentity(
-            deviceId: "ios-demo-device-001",
+    private let gatewayClient: HermesGatewayClientProtocol
+    private let deviceProvider: HermesDeviceIdentity
+
+    init(
+        gatewayClient: HermesGatewayClientProtocol = HermesGatewayClient(),
+        deviceProvider: HermesDeviceIdentity = HermesDeviceIdentity(
+            deviceId: HermesAuthManager.makeDeviceID(),
             platform: "ios",
-            appVersion: "0.1.0",
-            publicKeyFingerprint: "demo-fingerprint"
+            appVersion: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.1.0",
+            publicKeyFingerprint: "pending-keychain-bootstrap"
         )
-        let challenge = HermesAuthChallengeRequest(device: device, nonce: "nonce-\(device.deviceId.suffix(8))")
-        _ = HermesAuthChallengeResponse(
-            challengeId: "challenge-\(device.deviceId.suffix(6))",
-            nonce: challenge.nonce,
-            expiresAt: "2026-04-19T19:15:00Z",
-            trustLevel: "trusted"
-        )
-        try await Task.sleep(nanoseconds: 50_000_000)
-        return HermesAuthSession(
-            sessionId: "session-\(device.deviceId.suffix(6))",
-            accessToken: "demo-access-token",
-            refreshToken: "demo-refresh-token",
-            expiresAt: "2026-04-19T20:15:00Z",
-            gatewayUrl: "https://gateway.hermes.local",
-            mtlsRequired: true,
-            scope: ["dashboard:read", "sessions:read", "approvals:write", "events:read"]
-        )
+    ) {
+        self.gatewayClient = gatewayClient
+        self.deviceProvider = deviceProvider
+    }
+
+    func bootstrapSession() async throws -> HermesAuthSession {
+        try await gatewayClient.bootstrap(device: deviceProvider)
+    }
+
+    private static func makeDeviceID() -> String {
+        #if canImport(UIKit)
+        let vendor = UIDevice.current.identifierForVendor?.uuidString ?? UUID().uuidString
+        return "ios-\(vendor)"
+        #else
+        return "ios-\(UUID().uuidString)"
+        #endif
     }
 }

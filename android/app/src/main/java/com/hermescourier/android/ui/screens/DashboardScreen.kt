@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -37,6 +36,7 @@ fun DashboardScreen(contentPadding: PaddingValues, uiState: HermesCourierUiState
         }
         item {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                HermesCard(title = "Gateway URL", body = uiState.gatewayUrl)
                 HermesCard(title = "Gateway state", body = uiState.dashboard.connectionState, trailing = uiState.bootstrapState)
                 HermesCard(title = "Active session", body = "${uiState.dashboard.activeSessionCount} live session(s)")
                 HermesCard(title = "Pending approvals", body = "${uiState.dashboard.pendingApprovalCount} sensitive actions")
