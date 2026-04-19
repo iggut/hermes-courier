@@ -1,4 +1,3 @@
-
 package com.hermescourier.android.domain.gateway
 
 import android.content.Context
@@ -14,14 +13,17 @@ object HermesGatewayClientFactory {
         val configuration = HermesGatewayConfiguration.from(context)
         val tokenStore = EncryptedHermesTokenStore(context)
         val signer = AndroidKeystoreChallengeSigner()
+        val client = HermesOkHttpClientFactory.create(configuration)
         val transport: HermesGatewayTransport = OkHttpHermesGatewayTransport(
             baseUrl = configuration.baseUrl,
-            client = HermesOkHttpClientFactory.create(configuration),
+            client = client,
         )
         return NetworkHermesGatewayClient(
             transport = transport,
             tokenStore = tokenStore,
             signer = signer,
+            okHttpClient = client,
+            configuration = configuration,
         )
     }
 }

@@ -1,64 +1,77 @@
-
 package com.hermescourier.android.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.hermescourier.android.domain.model.HermesCourierUiState
-import com.hermescourier.android.ui.components.HermesCard
-import com.hermescourier.android.ui.components.PrimaryActionButton
-import com.hermescourier.android.ui.components.SectionTitle
+import com.hermescourier.android.domain.model.HermesGatewaySettings
 
 @Composable
-fun DashboardScreen(contentPadding: PaddingValues, uiState: HermesCourierUiState) {
-    LazyColumn(
+fun DashboardScreen(contentPadding: PaddingValues, uiState: HermesCourierUiState, onRefresh: () -> Unit) {
+    Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(contentPadding)
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+            .padding(16.dp)
+            .verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        item {
-            SectionTitle(
-                title = "Mission control",
-                subtitle = "Monitor your Hermes agent, approve actions, and jump into live conversation.",
-            )
-        }
-        item {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                HermesCard(title = "Gateway URL", body = uiState.gatewayUrl)
-                HermesCard(title = "Gateway state", body = uiState.dashboard.connectionState, trailing = uiState.bootstrapState)
-                HermesCard(title = "Active session", body = "${uiState.dashboard.activeSessionCount} live session(s)")
-                HermesCard(title = "Pending approvals", body = "${uiState.dashboard.pendingApprovalCount} sensitive actions")
-                HermesCard(title = "Latest sync", body = uiState.dashboard.lastSyncLabel)
+        Text(text = "Dashboard", style = MaterialTheme.typography.headlineMedium)
+        Text(text = uiState.bootstrapState, style = MaterialTheme.typography.bodyMedium)
+        Text(text = uiState.authStatus, style = MaterialTheme.typography.bodySmall)
+
+        Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(16.dp)) {
+                Text(text = "Connection", style = MaterialTheme.typography.titleMedium)
+                Text(text = "Gateway: ${uiState.gatewaySettings.baseUrl}")
+                Text(text = "Stream: ${uiState.streamStatus}")
+                Text(text = "Enrollment: ${uiState.enrollmentStatus}")
+                Text(text = "Approval actions: ${uiState.approvalActionStatus}")
+                Button(onClick = onRefresh) {
+                    Text(text = "Refresh now")
+                }
             }
         }
-        item {
-            HermesCard(
-                title = "Auth status",
-                body = uiState.authStatus,
-                trailing = "Zero-trust mobile bootstrap",
-            )
+
+        Card {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(16.dp)) {
+                Text(text = "Snapshot", style = MaterialTheme.typography.titleMedium)
+                Text(text = "Active sessions: ${uiState.dashboard.activeSessionCount}")
+                Text(text = "Pending approvals: ${uiState.dashboard.pendingApprovalCount}")
+                Text(text = "Last sync: ${uiState.dashboard.lastSyncLabel}")
+                Text(text = "State: ${uiState.dashboard.connectionState}")
+            }
         }
-        item {
-            PrimaryActionButton(text = "Refresh secure snapshot") { }
+
+        Card {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(16.dp)) {
+                Text(text = "Recent conversation", style = MaterialTheme.typography.titleMedium)
+                uiState.conversationEvents.takeLast(5).forEach { event ->
+                    Text(text = "${event.author}: ${event.body}", style = MaterialTheme.typography.bodyMedium)
+                    Text(text = event.timestamp, style = MaterialTheme.typography.bodySmall)
+                }
+            }
         }
-        item {
-            Text(
-                text = "Planned modules: sessions, memory, cron jobs, logs, push alerts, and model controls.",
-                style = MaterialTheme.typography.bodyMedium,
-            )
+
+        Card {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(16.dp)) {
+                Text(text = "Device enrollment", style = MaterialTheme.typography.titleMedium)
+                Text(text = "Fingerprint: ${uiState.deviceFingerprint}")
+                Text(text = uiState.enrollmentStatus, style = MaterialTheme.typography.bodySmall)
+            }
         }
-        item { Spacer(modifier = Modifier.height(8.dp)) }
     }
 }

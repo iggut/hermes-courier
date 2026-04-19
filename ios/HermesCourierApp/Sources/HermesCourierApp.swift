@@ -1,4 +1,3 @@
-
 import SwiftUI
 
 @main
@@ -7,7 +6,7 @@ struct HermesCourierApp: App {
 
     var body: some Scene {
         WindowGroup {
-            RootView()
+            ContentView()
                 .environmentObject(viewModel)
         }
     }

@@ -1,10 +1,27 @@
-
 package com.hermescourier.android.domain.config
 
 import android.content.Context
+import androidx.security.crypto.EncryptedSharedPreferences
+import androidx.security.crypto.MasterKey
 import java.io.File
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrl
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
+
+private const val PREFS_NAME = "hermes_courier_gateway"
+private const val KEY_BASE_URL = "gateway_base_url"
+private const val KEY_CERT_PATH = "gateway_certificate_path"
+private const val KEY_CERT_PASSWORD = "gateway_certificate_password"
+
+private fun gatewayPrefs(context: Context) = EncryptedSharedPreferences.create(
+    context,
+    PREFS_NAME,
+    MasterKey.Builder(context)
+        .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+        .build(),
+    EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+    EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
+)
 
 data class HermesGatewayConfiguration(
     val baseUrl: HttpUrl,
@@ -13,15 +30,25 @@ data class HermesGatewayConfiguration(
 ) {
     companion object {
         fun from(context: Context): HermesGatewayConfiguration {
-            val prefs = context.getSharedPreferences("hermes_courier_gateway", Context.MODE_PRIVATE)
-            val baseUrl = prefs.getString("gateway_base_url", "https://gateway.hermes.local")!!.toHttpUrl()
-            val pkcs12Path = prefs.getString("gateway_client_pkcs12_path", null)
-            val pkcs12Password = prefs.getString("gateway_client_pkcs12_password", null)
+            val prefs = gatewayPrefs(context)
+            val baseUrl = prefs.getString(KEY_BASE_URL, "https://gateway.hermes.local")!!.toHttpUrlOrNull()
+                ?: "https://gateway.hermes.local".toHttpUrl()
+            val certificatePath = prefs.getString(KEY_CERT_PATH, null)
+            val certificatePassword = prefs.getString(KEY_CERT_PASSWORD, null)?.toCharArray()
             return HermesGatewayConfiguration(
                 baseUrl = baseUrl,
-                mtlsPkcs12File = pkcs12Path?.let(::File),
-                mtlsPkcs12Password = pkcs12Password?.toCharArray(),
+                mtlsPkcs12File = certificatePath?.takeIf { it.isNotBlank() }?.let(::File)?.takeIf { it.exists() },
+                mtlsPkcs12Password = certificatePassword?.takeIf { it.isNotEmpty() },
             )
+        }
+
+        fun save(context: Context, settings: com.hermescourier.android.domain.model.HermesGatewaySettings) {
+            val prefs = gatewayPrefs(context)
+            prefs.edit()
+                .putString(KEY_BASE_URL, settings.baseUrl)
+                .putString(KEY_CERT_PATH, settings.certificatePath)
+                .putString(KEY_CERT_PASSWORD, settings.certificatePassword)
+                .apply()
         }
     }
 }

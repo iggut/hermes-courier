@@ -1,4 +1,3 @@
-
 import Foundation
 
 struct HermesDeviceIdentity: Codable, Hashable {
@@ -44,7 +43,7 @@ struct HermesDashboardSnapshot: Codable, Hashable {
 }
 
 struct HermesSessionSummary: Codable, Identifiable, Hashable {
-    let id = UUID()
+    var id: String { sessionId }
     let sessionId: String
     let title: String
     let status: String
@@ -52,7 +51,7 @@ struct HermesSessionSummary: Codable, Identifiable, Hashable {
 }
 
 struct HermesApprovalSummary: Codable, Identifiable, Hashable {
-    let id = UUID()
+    var id: String { approvalId }
     let approvalId: String
     let title: String
     let detail: String
@@ -60,9 +59,38 @@ struct HermesApprovalSummary: Codable, Identifiable, Hashable {
 }
 
 struct HermesConversationEvent: Codable, Identifiable, Hashable {
-    let id = UUID()
+    var id: String { eventId }
     let eventId: String
     let author: String
     let body: String
     let timestamp: String
+}
+
+struct HermesApprovalActionRequest: Codable, Hashable {
+    let approvalId: String
+    let action: String
+    let note: String?
+}
+
+struct HermesApprovalActionResult: Codable, Hashable {
+    let approvalId: String
+    let action: String
+    let status: String
+    let detail: String
+    let updatedAt: String
+}
+
+struct HermesRealtimeEnvelope: Codable, Hashable {
+    let type: String
+    let dashboard: HermesDashboardSnapshot?
+    let sessions: [HermesSessionSummary]?
+    let approvals: [HermesApprovalSummary]?
+    let conversation: HermesConversationEvent?
+    let approvalResult: HermesApprovalActionResult?
+}
+
+struct HermesGatewaySettings: Hashable {
+    var baseURL: String = "https://gateway.hermes.local"
+    var certificatePath: String = ""
+    var certificatePassword: String = ""
 }

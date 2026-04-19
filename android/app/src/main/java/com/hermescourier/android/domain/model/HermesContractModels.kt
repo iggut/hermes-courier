@@ -1,4 +1,3 @@
-
 package com.hermescourier.android.domain.model
 
 data class HermesDeviceIdentity(
@@ -64,6 +63,35 @@ data class HermesConversationEvent(
     val timestamp: String,
 )
 
+data class HermesApprovalActionRequest(
+    val approvalId: String,
+    val action: String,
+    val note: String? = null,
+)
+
+data class HermesApprovalActionResult(
+    val approvalId: String,
+    val action: String,
+    val status: String,
+    val detail: String,
+    val updatedAt: String,
+)
+
+data class HermesRealtimeEnvelope(
+    val type: String,
+    val dashboard: HermesDashboardSnapshot? = null,
+    val sessions: List<HermesSessionSummary>? = null,
+    val approvals: List<HermesApprovalSummary>? = null,
+    val conversation: HermesConversationEvent? = null,
+    val approvalResult: HermesApprovalActionResult? = null,
+)
+
+data class HermesGatewaySettings(
+    val baseUrl: String = "https://gateway.hermes.local",
+    val certificatePath: String = "",
+    val certificatePassword: String = "",
+)
+
 data class HermesCourierUiState(
     val bootstrapState: String = "Bootstrapping secure gateway",
     val authStatus: String = "Waiting for device-bound challenge",
@@ -81,7 +109,11 @@ data class HermesCourierUiState(
             author = "Hermes",
             body = "Awaiting secure gateway bootstrap.",
             timestamp = "now",
-        )
+        ),
     ),
-    val gatewayUrl: String = "https://gateway.hermes.local",
+    val gatewaySettings: HermesGatewaySettings = HermesGatewaySettings(),
+    val deviceFingerprint: String = "pending-device-enrollment",
+    val enrollmentStatus: String = "No certificate imported yet",
+    val streamStatus: String = "Realtime stream disconnected",
+    val approvalActionStatus: String = "No approval action submitted",
 )
