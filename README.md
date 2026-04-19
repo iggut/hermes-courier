@@ -78,15 +78,20 @@ Planned protections include:
 - **Notification layer:** push events for approvals, status, and completion alerts
 - **Backend companion:** Hermes Agent + the companion routing/memory stack where applicable
 
+## Repository structure
+
+- `android/` — Jetpack Compose Android app scaffold
+- `ios/` — SwiftUI iOS app scaffold generated from an XcodeGen manifest
+
 ## Roadmap
 
 ### Phase 1 — Foundation
 
 - establish repo structure
 - define API contract with Hermes
-- implement login and secure session handling
-- build the main dashboard and conversation list
-- add read-only status views
+- scaffold Android and iOS clients
+- prototype secure gateway auth
+- wire basic session browsing and approvals
 
 ### Phase 2 — Control surface
 

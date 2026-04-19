@@ -1,0 +1,19 @@
+
+# Android
+.gradle/
+**/build/
+local.properties
+.idea/
+*.iml
+.cxx/
+captures/
+
+# Xcode / Swift
+DerivedData/
+*.xcuserstate
+xcuserdata/
+*.moved-aside
+*.swp
+
+# macOS / general
+.DS_Store
