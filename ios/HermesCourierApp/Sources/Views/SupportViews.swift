@@ -4,7 +4,7 @@ import SwiftUI
 struct SectionCard<Content: View>: View {
     let title: String
     let subtitle: String?
-    @ViewBuilder var content: Content
+    let content: Content
 
     init(title: String, subtitle: String? = nil, @ViewBuilder content: () -> Content) {
         self.title = title

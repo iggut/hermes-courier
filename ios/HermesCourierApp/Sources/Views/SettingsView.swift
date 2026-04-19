@@ -2,18 +2,22 @@
 import SwiftUI
 
 struct SettingsView: View {
+    @EnvironmentObject private var viewModel: AppViewModel
+
     var body: some View {
-        Form {
-            Section("Connection") {
-                Text("Gateway URL, certificate pinning, and trust status")
+        NavigationStack {
+            Form {
+                Section("Connection") {
+                    Text(viewModel.dashboard.connectionState)
+                }
+                Section("Security") {
+                    Text(viewModel.authStatus)
+                }
+                Section("Notifications") {
+                    Text("Approvals, alerts, and completion updates")
+                }
             }
-            Section("Security") {
-                Text("Biometrics, secure enclave storage, and session expiry")
-            }
-            Section("Notifications") {
-                Text("Approvals, alerts, and completion updates")
-            }
+            .navigationTitle("Settings")
         }
-        .navigationTitle("Settings")
     }
 }

@@ -1,10 +1,7 @@
-<p align="center">
-  <img src="https://dummyimage.com/1200x300/111827/ffffff&text=Hermes+Courier" alt="Hermes Courier" width="100%">
-</p>
 
 # Hermes Courier
 
-**Hermes Courier** is a secure Android companion app for controlling [Hermes Agent](https://github.com/iggut/hermes-agent) from your phone.
+**Hermes Courier** is a secure Android and iOS companion app for controlling [Hermes Agent](https://github.com/iggut/hermes-agent) from your phone.
 It is designed for mobile-first operation while preserving the power of the Hermes web experience — and adding a few things only a phone can do well.
 
 Built with the same spirit as [hermes-webui](https://github.com/nesquena/hermes-webui), Hermes Courier aims to provide feature parity with the web UI and extend it with stronger mobile security, faster approvals, and device-native workflows.
@@ -24,7 +21,7 @@ Hermes Courier is built for those moments.
 
 ## Core goals
 
-- **All Hermes WebUI features, on Android**
+- **All Hermes WebUI features, on mobile**
 - **Stronger security by default**
 - **Fast, one-handed control**
 - **Clear status and intervention tools**
@@ -72,6 +69,7 @@ Planned protections include:
 ## Suggested architecture
 
 - **Android app:** Kotlin + Jetpack Compose
+- **iOS app:** Swift + SwiftUI
 - **Auth layer:** secure session bootstrap with short-lived tokens
 - **Transport:** HTTPS / secure websocket channel to Hermes
 - **State:** local encrypted cache for offline-safe views
@@ -82,6 +80,7 @@ Planned protections include:
 
 - `android/` — Jetpack Compose Android app scaffold
 - `ios/` — SwiftUI iOS app scaffold generated from an XcodeGen manifest
+- `shared/contract/` — API contract shared by both mobile clients
 
 ## Roadmap
 
@@ -93,37 +92,22 @@ Planned protections include:
 - prototype secure gateway auth
 - wire basic session browsing and approvals
 
-### Phase 2 — Control surface
+### Phase 2 — Core usage
 
-- send messages
-- approve / deny commands
-- inspect active tasks and recent output
-- browse sessions and memory
-- support model switching and basic automation controls
+- real websocket / event stream support
+- secure token persistence
+- approval workflows
+- session history and search
+- settings and gateway management
 
-### Phase 3 — Mobile-first polish
+### Phase 3 — Mobile polish
 
-- biometric unlock
+- biometrics and device attestation
 - push notifications
-- quick actions
-- richer offline handling
-- voice support
-- accessibility and one-handed UX improvements
-
-## Companion project
-
-Hermes Courier is a companion project for Hermes Agent.
-It is intended to work alongside the core Hermes stack, not replace it.
+- offline-safe queueing
+- dark mode polish and accessibility improvements
+- launch-ready onboarding
 
 ## Status
 
-Early-stage concept repository.
-The first milestone is to define the mobile API and build a secure authentication flow.
-
-## License
-
-To be decided.
-
----
-
-If you want to help shape the project, start by documenting the Hermes endpoints and the minimum secure mobile workflows needed for day-one use.
+This repository currently contains the cross-platform scaffold and secure contract surface. The next step is wiring both apps to the live Hermes gateway.

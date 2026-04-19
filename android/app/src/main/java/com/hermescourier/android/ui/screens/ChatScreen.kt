@@ -2,7 +2,6 @@
 package com.hermescourier.android.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -13,17 +12,12 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.hermescourier.android.domain.model.HermesConversationEvent
 import com.hermescourier.android.ui.components.HermesCard
 import com.hermescourier.android.ui.components.SectionTitle
 
 @Composable
-fun ChatScreen(contentPadding: PaddingValues) {
-    val messages = listOf(
-        "Hermes: Awaiting your next instruction.",
-        "You: Review the latest tool approvals.",
-        "Hermes: I found 2 pending approval requests.",
-    )
-
+fun ChatScreen(contentPadding: PaddingValues, conversationEvents: List<HermesConversationEvent>) {
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -32,8 +26,8 @@ fun ChatScreen(contentPadding: PaddingValues) {
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item { SectionTitle(title = "Live chat", subtitle = "Stream responses and tool events from Hermes.") }
-        items(messages) { message ->
-            HermesCard(title = "Conversation", body = message)
+        items(conversationEvents) { event ->
+            HermesCard(title = event.author, body = event.body, trailing = event.timestamp)
         }
         item {
             Text(

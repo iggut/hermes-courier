@@ -13,17 +13,13 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.hermescourier.android.domain.model.HermesApprovalSummary
 import com.hermescourier.android.ui.components.HermesCard
 import com.hermescourier.android.ui.components.PrimaryActionButton
 import com.hermescourier.android.ui.components.SectionTitle
 
 @Composable
-fun ApprovalsScreen(contentPadding: PaddingValues) {
-    val approvals = listOf(
-        "Approve sending a message to Slack #ops?",
-        "Allow Hermes to restart a long-running task?",
-    )
-
+fun ApprovalsScreen(contentPadding: PaddingValues, approvals: List<HermesApprovalSummary>) {
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -33,7 +29,7 @@ fun ApprovalsScreen(contentPadding: PaddingValues) {
     ) {
         item { SectionTitle(title = "Approvals", subtitle = "Biometric-gated consent for sensitive actions.") }
         items(approvals) { approval ->
-            HermesCard(title = "Pending approval", body = approval)
+            HermesCard(title = approval.title, body = approval.detail, trailing = if (approval.requiresBiometrics) "Requires biometrics" else null)
         }
         item {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {

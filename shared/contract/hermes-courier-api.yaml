@@ -1,0 +1,257 @@
+
+openapi: 3.1.0
+info:
+  title: Hermes Courier Secure API
+  version: 0.1.0
+  description: Shared secure contract for the Hermes Courier Android and iOS apps.
+servers:
+  - url: https://gateway.hermes.local
+tags:
+  - name: auth
+  - name: dashboard
+  - name: sessions
+  - name: approvals
+  - name: events
+components:
+  securitySchemes:
+    mutualTLS:
+      type: mutualTLS
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    DeviceIdentity:
+      type: object
+      additionalProperties: false
+      required: [deviceId, platform, appVersion]
+      properties:
+        deviceId:
+          type: string
+        platform:
+          type: string
+          enum: [android, ios]
+        appVersion:
+          type: string
+        publicKeyFingerprint:
+          type: string
+    AuthChallengeRequest:
+      type: object
+      additionalProperties: false
+      required: [device]
+      properties:
+        device:
+          $ref: '#/components/schemas/DeviceIdentity'
+        nonce:
+          type: string
+    AuthChallengeResponse:
+      type: object
+      additionalProperties: false
+      required: [challengeId, nonce, expiresAt, trustLevel]
+      properties:
+        challengeId:
+          type: string
+        nonce:
+          type: string
+        expiresAt:
+          type: string
+          format: date-time
+        trustLevel:
+          type: string
+          enum: [restricted, trusted, elevated]
+    AuthResponseRequest:
+      type: object
+      additionalProperties: false
+      required: [challengeId, signedNonce, device]
+      properties:
+        challengeId:
+          type: string
+        signedNonce:
+          type: string
+        device:
+          $ref: '#/components/schemas/DeviceIdentity'
+    AuthSession:
+      type: object
+      additionalProperties: false
+      required: [accessToken, refreshToken, expiresAt, gatewayUrl, sessionId]
+      properties:
+        sessionId:
+          type: string
+        accessToken:
+          type: string
+        refreshToken:
+          type: string
+        expiresAt:
+          type: string
+          format: date-time
+        gatewayUrl:
+          type: string
+          format: uri
+        mtlsRequired:
+          type: boolean
+        scope:
+          type: array
+          items:
+            type: string
+    DashboardSnapshot:
+      type: object
+      additionalProperties: false
+      required: [activeSessionCount, pendingApprovalCount, lastSyncLabel, connectionState]
+      properties:
+        activeSessionCount:
+          type: integer
+        pendingApprovalCount:
+          type: integer
+        lastSyncLabel:
+          type: string
+        connectionState:
+          type: string
+    SessionSummary:
+      type: object
+      additionalProperties: false
+      required: [sessionId, title, status, updatedAt]
+      properties:
+        sessionId:
+          type: string
+        title:
+          type: string
+        status:
+          type: string
+        updatedAt:
+          type: string
+    ApprovalSummary:
+      type: object
+      additionalProperties: false
+      required: [approvalId, title, detail, requiresBiometrics]
+      properties:
+        approvalId:
+          type: string
+        title:
+          type: string
+        detail:
+          type: string
+        requiresBiometrics:
+          type: boolean
+    ConversationEvent:
+      type: object
+      additionalProperties: false
+      required: [eventId, author, body, timestamp]
+      properties:
+        eventId:
+          type: string
+        author:
+          type: string
+        body:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+security:
+  - mutualTLS: []
+  - bearerAuth: []
+paths:
+  /v1/auth/challenge:
+    post:
+      tags: [auth]
+      summary: Request a device-bound authentication challenge.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthChallengeRequest'
+      responses:
+        '200':
+          description: Challenge issued.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthChallengeResponse'
+  /v1/auth/response:
+    post:
+      tags: [auth]
+      summary: Complete challenge-response bootstrap and mint a short-lived session.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AuthResponseRequest'
+      responses:
+        '200':
+          description: Session established.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthSession'
+  /v1/dashboard:
+    get:
+      tags: [dashboard]
+      summary: Fetch the current control-room snapshot.
+      responses:
+        '200':
+          description: Dashboard snapshot.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardSnapshot'
+  /v1/sessions:
+    get:
+      tags: [sessions]
+      summary: List current and historical Hermes sessions.
+      responses:
+        '200':
+          description: Session summaries.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SessionSummary'
+  /v1/approvals:
+    get:
+      tags: [approvals]
+      summary: List pending approvals.
+      responses:
+        '200':
+          description: Approval summaries.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ApprovalSummary'
+  /v1/approvals/{approvalId}/decision:
+    post:
+      tags: [approvals]
+      summary: Approve or deny a pending action.
+      parameters:
+        - name: approvalId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [decision]
+              properties:
+                decision:
+                  type: string
+                  enum: [approve, deny]
+                reason:
+                  type: string
+      responses:
+        '204':
+          description: Decision recorded.
+  /v1/events:
+    get:
+      tags: [events]
+      summary: Stream live events using server-sent events or websocket bridging.
+      responses:
+        '200':
+          description: Stream established.

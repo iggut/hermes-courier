@@ -9,16 +9,19 @@ This directory contains the Android app scaffold for Hermes Courier.
 - Jetpack Compose + Material 3
 - Navigation Compose
 - Single-activity architecture
+- coroutine-driven secure gateway bootstrap
 
 ## What is here
 
 - dashboard, chat, approvals, sessions, and settings screens
 - reusable cards and shell chrome
+- gateway/auth layer scaffolding
+- shared secure API contract alignment
 - starter Gradle project files
 
 ## Next steps
 
-- wire up secure gateway auth
-- add local encrypted storage
+- replace demo gateway with real mTLS transport
+- persist tokens in Android Keystore-backed storage
+- add certificate pinning and device attestation
 - connect real Hermes session and approval APIs
-- add biometric gating for sensitive actions
