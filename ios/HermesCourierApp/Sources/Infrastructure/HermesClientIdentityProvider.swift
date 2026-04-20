@@ -29,9 +29,10 @@ final class HermesPKCS12IdentityProvider: HermesClientIdentityProviding {
         guard status == errSecSuccess,
               let items = rawItems as? [[String: Any]],
               let first = items.first,
-              let identity = first[kSecImportItemIdentity as String] as? SecIdentity else {
+              let identityValue = first[kSecImportItemIdentity as String] else {
             throw NSError(domain: NSOSStatusErrorDomain, code: Int(status))
         }
+        let identity = identityValue as! SecIdentity
         let certificates = first[kSecImportItemCertChain as String] as? [SecCertificate]
         return HermesClientIdentity(identity: identity, certificates: certificates)
     }
