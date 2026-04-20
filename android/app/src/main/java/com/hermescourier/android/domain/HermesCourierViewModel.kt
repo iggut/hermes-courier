@@ -41,7 +41,8 @@ import java.time.Instant
 
 class HermesCourierViewModel(application: Application) : AndroidViewModel(application) {
     private val applicationContext = application.applicationContext
-    private val signer = AndroidKeystoreChallengeSigner()
+    private val deviceFingerprint = runCatching { AndroidKeystoreChallengeSigner().publicKeyFingerprint() }
+        .getOrElse { "fingerprint-unavailable" }
     private val fallbackGatewayClient: HermesGatewayClient = DemoHermesGatewayClient()
     private var realtimeHandle: Closeable? = null
     private var currentSession: com.hermescourier.android.domain.model.HermesAuthSession? = null
@@ -56,7 +57,7 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
         deviceId = "android-courier-${android.os.Build.MODEL.lowercase().replace(' ', '-')}",
         platform = "android",
         appVersion = "0.1.0",
-        publicKeyFingerprint = runCatching { signer.publicKeyFingerprint() }.getOrElse { "fingerprint-unavailable" },
+        publicKeyFingerprint = deviceFingerprint,
     )
 
     init {
@@ -77,7 +78,34 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
                     realtimeReconnectCountdown = "Reconnect now",
                 )
             }
-            val liveClient = HermesGatewayClientFactory.create(applicationContext)
+            val liveClient = HermesGatewayClientFactory.createOrNull(applicationContext)
+            if (liveClient == null) {
+                _uiState.update {
+                    it.copy(
+                        bootstrapState = "Gateway unavailable",
+                        authStatus = "Using offline-safe sample data because secure gateway initialization failed",
+                        streamStatus = "Demo realtime stream active",
+                    )
+                }
+                runCatching {
+                    loadFromGateway(fallbackGatewayClient)
+                }.onSuccess { fallbackState ->
+                    _uiState.value = fallbackState.copy(
+                        bootstrapState = "Demo fallback active",
+                        authStatus = "Using offline-safe sample data",
+                        streamStatus = "Demo realtime stream active",
+                    )
+                }.onFailure { fallbackError ->
+                    _uiState.update {
+                        it.copy(
+                            bootstrapState = "Gateway unavailable",
+                            authStatus = fallbackError.localizedMessage ?: fallbackError.toString(),
+                            streamStatus = "Realtime stream unavailable",
+                        )
+                    }
+                }
+                return@launch
+            }
             runCatching {
                 loadFromGateway(liveClient)
             }.onSuccess { state ->
@@ -540,7 +568,7 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
         val settings = HermesGatewayConfiguration.from(applicationContext).toSettings()
         return HermesCourierUiState(
             gatewaySettings = settings,
-            deviceFingerprint = runCatching { signer.publicKeyFingerprint() }.getOrElse { "fingerprint-unavailable" },
+            deviceFingerprint = deviceFingerprint,
             enrollmentStatus = enrollmentStatus(settings),
             enrollmentQrPayload = enrollmentPayload(settings),
             queuedApprovalActions = queuedApprovalActions.size,

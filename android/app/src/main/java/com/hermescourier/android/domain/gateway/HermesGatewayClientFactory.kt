@@ -26,4 +26,6 @@ object HermesGatewayClientFactory {
             configuration = configuration,
         )
     }
+
+    fun createOrNull(context: Context): HermesGatewayClient? = runCatching { create(context) }.getOrNull()
 }
