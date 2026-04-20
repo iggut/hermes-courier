@@ -16,6 +16,14 @@ struct ApprovalsView: View {
         NavigationStack {
             ScrollView {
                 LazyVStack(spacing: 12) {
+                    if viewModel.approvals.isEmpty {
+                        Text("No pending approvals. When the gateway assigns items, they appear here. Use Refresh on the dashboard or settings if the list looks stale.")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding()
+                            .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 16))
+                    }
                     ForEach(viewModel.approvals) { approval in
                         VStack(alignment: .leading, spacing: 10) {
                             Text(approval.title).font(.headline)
@@ -45,16 +53,16 @@ struct ApprovalsView: View {
             .sheet(item: $pendingDecision) { decision in
                 NavigationStack {
                     Form {
-                        Section("Decision") {
+                        Section("Summary") {
                             Text(Self.displayVerb(for: decision.action) + " — " + decision.title)
-                            Text("Add a note before submitting the approval action.")
+                            Text("Add a short comment before sending the decision.")
                         }
                         Section("Comment") {
                             TextField("Note / comment", text: $noteDraft, axis: .vertical)
                                 .lineLimit(3, reservesSpace: true)
                         }
                     }
-                    .navigationTitle(Self.displayVerb(for: decision.action))
+                    .navigationTitle(HermesApprovalDisplay.decisionSheetNavigationTitle(for: decision.action))
                     .toolbar {
                         ToolbarItem(placement: .cancellationAction) {
                             Button("Cancel") { pendingDecision = nil }
@@ -63,7 +71,7 @@ struct ApprovalsView: View {
                             Button("Send") {
                                 let note = noteDraft.trimmingCharacters(in: .whitespacesAndNewlines)
                                 let submittedNote = note.isEmpty ? nil : note
-                                if decision.action == "approve" {
+                                if decision.action.lowercased() == "approve" {
                                     viewModel.approveApproval(decision.approvalId, note: submittedNote)
                                 } else {
                                     viewModel.rejectApproval(decision.approvalId, note: submittedNote)

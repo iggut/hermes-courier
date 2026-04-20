@@ -103,8 +103,9 @@ data class HermesQueuedApprovalAction(
 )
 
 /** UI label: wire uses `deny` while surfaces say "Reject". */
-fun userFacingApprovalVerb(action: String): String = when (action.lowercase()) {
-    "deny" -> "Reject"
+fun userFacingApprovalVerb(action: String): String = when (action.trim().lowercase()) {
+    "deny", "reject" -> "Reject"
+    "approve" -> "Approve"
     else -> action.replaceFirstChar { it.uppercaseChar() }
 }
 

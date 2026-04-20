@@ -3,12 +3,32 @@ import SwiftUI
 struct DashboardView: View {
     @EnvironmentObject private var viewModel: AppViewModel
 
+    private var connectionModeLine: String {
+        let s = viewModel.bootstrapState
+        if s.localizedCaseInsensitiveContains("demo") {
+            return "Mode: sample data (not connected to a live gateway)."
+        }
+        if s.localizedCaseInsensitiveContains("unavailable") {
+            return "Mode: gateway unavailable."
+        }
+        if s.localizedCaseInsensitiveContains("negotiating") || s.localizedCaseInsensitiveContains("bootstrapping") {
+            return "Mode: connecting…"
+        }
+        if s.localizedCaseInsensitiveContains("ready") {
+            return "Mode: live gateway."
+        }
+        return "Mode: \(viewModel.bootstrapState)"
+    }
+
     var body: some View {
         NavigationStack {
             ScrollView {
                 LazyVStack(spacing: 16) {
                     section(title: "Mission control", subtitle: "Monitor your Hermes agent and intervene safely.") {
                         VStack(alignment: .leading, spacing: 8) {
+                            Text(connectionModeLine)
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
                             Text("Bootstrap: \(viewModel.bootstrapState)")
                             Text("Auth: \(viewModel.authStatus)")
                             Text("Gateway: \(viewModel.gatewaySettings.baseURL)")

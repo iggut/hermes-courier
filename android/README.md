@@ -3,6 +3,10 @@
 
 This directory contains the Android app scaffold for Hermes Courier.
 
+## Build
+
+Use **JDK 17** or **JDK 21** for Gradle (Android Gradle Plugin aligns with LTS releases). JDK 25+ may fail early in the Gradle run.
+
 ## Stack
 
 - Kotlin

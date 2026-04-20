@@ -112,12 +112,31 @@ struct HermesGatewaySettings: Hashable {
 
 /// UI labels: wire uses `deny` while surfaces say "Reject".
 enum HermesApprovalDisplay {
+    private static func normalizedAction(_ action: String) -> String {
+        action.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+    }
+
+    /// Short verb for inline labels (buttons, queue rows, status snippets).
     static func userFacingVerb(for action: String) -> String {
-        switch action.lowercased() {
-        case "deny":
+        switch normalizedAction(action) {
+        case "deny", "reject":
             return "Reject"
+        case "approve":
+            return "Approve"
         default:
             return action.capitalized
+        }
+    }
+
+    /// Navigation titles for the approval note sheet (matches Android dialog titles).
+    static func decisionSheetNavigationTitle(for wireAction: String) -> String {
+        switch normalizedAction(wireAction) {
+        case "approve":
+            return "Approve approval"
+        case "deny", "reject":
+            return "Reject approval"
+        default:
+            return "\(userFacingVerb(for: wireAction)) approval"
         }
     }
 }

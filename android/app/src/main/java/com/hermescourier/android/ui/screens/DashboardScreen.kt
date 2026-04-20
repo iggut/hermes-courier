@@ -30,6 +30,11 @@ fun DashboardScreen(contentPadding: PaddingValues, uiState: HermesCourierUiState
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Text(text = "Dashboard", style = MaterialTheme.typography.headlineMedium)
+        Text(
+            text = connectionModeLine(uiState.bootstrapState),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
         Text(text = uiState.bootstrapState, style = MaterialTheme.typography.bodyMedium)
         Text(text = uiState.authStatus, style = MaterialTheme.typography.bodySmall)
 
@@ -79,4 +84,17 @@ fun DashboardScreen(contentPadding: PaddingValues, uiState: HermesCourierUiState
             }
         }
     }
+}
+
+private fun connectionModeLine(bootstrapState: String): String = when {
+    bootstrapState.contains("demo", ignoreCase = true) ->
+        "Mode: sample data (not connected to a live gateway)."
+    bootstrapState.contains("unavailable", ignoreCase = true) ->
+        "Mode: gateway unavailable."
+    bootstrapState.contains("negotiating", ignoreCase = true) ||
+        bootstrapState.contains("bootstrapping", ignoreCase = true) ->
+        "Mode: connecting…"
+    bootstrapState.contains("ready", ignoreCase = true) ->
+        "Mode: live gateway."
+    else -> "Mode: $bootstrapState"
 }

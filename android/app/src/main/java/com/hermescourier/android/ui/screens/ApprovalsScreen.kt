@@ -44,6 +44,12 @@ fun ApprovalsScreen(
     ) {
         Text(text = "Approvals", style = MaterialTheme.typography.headlineMedium)
         Text(text = "Review pending approvals and attach a secure note before sending a decision.")
+        if (approvals.isEmpty()) {
+            Text(
+                text = "No pending approvals. When the gateway assigns items, they appear here. Use Refresh on the dashboard or settings if the list looks stale.",
+                style = MaterialTheme.typography.bodyMedium,
+            )
+        }
         LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             items(approvals, key = { it.approvalId }) { approval ->
                 Card(modifier = Modifier.fillMaxWidth()) {

@@ -60,7 +60,11 @@ fun HermesCourierApp(viewModel: HermesCourierViewModel = viewModel()) {
                 DashboardScreen(contentPadding = contentPadding, uiState = uiState, onRefresh = viewModel::refresh)
             }
             composable(HermesCourierRoute.Sessions.route) {
-                SessionsScreen(contentPadding = contentPadding, sessions = uiState.sessions)
+                SessionsScreen(
+                    contentPadding = contentPadding,
+                    sessions = uiState.sessions,
+                    bootstrapState = uiState.bootstrapState,
+                )
             }
             composable(HermesCourierRoute.Approvals.route) {
                 ApprovalsScreen(

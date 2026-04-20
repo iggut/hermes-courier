@@ -16,7 +16,7 @@ import androidx.compose.ui.unit.dp
 import com.hermescourier.android.domain.model.HermesSessionSummary
 
 @Composable
-fun SessionsScreen(contentPadding: PaddingValues, sessions: List<HermesSessionSummary>) {
+fun SessionsScreen(contentPadding: PaddingValues, sessions: List<HermesSessionSummary>, bootstrapState: String) {
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -30,18 +30,28 @@ fun SessionsScreen(contentPadding: PaddingValues, sessions: List<HermesSessionSu
                 Text(text = "Browse active and historical Hermes runs.")
             }
         }
-        items(sessions) { session ->
-            Card {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(16.dp)) {
-                    Text(text = session.title, style = MaterialTheme.typography.titleMedium)
-                    Text(text = session.status, style = MaterialTheme.typography.bodyMedium)
-                    Text(text = session.updatedAt, style = MaterialTheme.typography.bodySmall)
-                }
-            }
-        }
-                if (sessions.isEmpty()) {
+        if (sessions.isEmpty()) {
             item {
-                Text(text = "No sessions yet. After you refresh from the dashboard or settings, new gateway activity appears here.")
+                val message = when {
+                    bootstrapState.contains("Negotiating", ignoreCase = true) ||
+                        bootstrapState.contains("Bootstrapping", ignoreCase = true) ->
+                        "Loading sessions…"
+                    bootstrapState.contains("Gateway unavailable", ignoreCase = true) ->
+                        "Sessions unavailable. The gateway could not be reached. Check connection in Settings, then refresh."
+                    else ->
+                        "No sessions yet. After you refresh from the dashboard or settings, new gateway activity appears here."
+                }
+                Text(text = message, style = MaterialTheme.typography.bodyMedium)
+            }
+        } else {
+            items(sessions) { session ->
+                Card {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(16.dp)) {
+                        Text(text = session.title, style = MaterialTheme.typography.titleMedium)
+                        Text(text = session.status, style = MaterialTheme.typography.bodyMedium)
+                        Text(text = session.updatedAt, style = MaterialTheme.typography.bodySmall)
+                    }
+                }
             }
         }
     }
