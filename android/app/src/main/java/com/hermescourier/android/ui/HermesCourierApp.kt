@@ -37,6 +37,11 @@ fun HermesCourierApp(viewModel: HermesCourierViewModel = viewModel()) {
         bottomBar = {
             NavigationBar {
                 HermesCourierRoute.values().forEach { destination ->
+                    val label = when (destination) {
+                        HermesCourierRoute.Sessions -> navigationLabel(destination.label, uiState.sessions.size)
+                        HermesCourierRoute.Approvals -> navigationLabel(destination.label, uiState.approvals.size)
+                        else -> destination.label
+                    }
                     NavigationBarItem(
                         selected = currentRoute == destination.route,
                         onClick = {
@@ -49,7 +54,7 @@ fun HermesCourierApp(viewModel: HermesCourierViewModel = viewModel()) {
                             }
                         },
                         icon = { Text(text = destination.label.first().uppercase()) },
-                        label = { Text(text = destination.label) },
+                        label = { Text(text = label) },
                     )
                 }
             }
@@ -57,7 +62,14 @@ fun HermesCourierApp(viewModel: HermesCourierViewModel = viewModel()) {
     ) { contentPadding ->
         NavHost(navController = navController, startDestination = HermesCourierRoute.Dashboard.route) {
             composable(HermesCourierRoute.Dashboard.route) {
-                DashboardScreen(contentPadding = contentPadding, uiState = uiState, onRefresh = viewModel::refresh)
+                DashboardScreen(
+                    contentPadding = contentPadding,
+                    uiState = uiState,
+                    onRefresh = viewModel::refresh,
+                    onOpenSessions = { navController.navigate(HermesCourierRoute.Sessions.route) },
+                    onOpenApprovals = { navController.navigate(HermesCourierRoute.Approvals.route) },
+                    onOpenSettings = { navController.navigate(HermesCourierRoute.Settings.route) },
+                )
             }
             composable(HermesCourierRoute.Sessions.route) {
                 SessionsScreen(

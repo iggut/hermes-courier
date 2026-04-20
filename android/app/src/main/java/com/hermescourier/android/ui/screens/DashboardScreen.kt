@@ -18,9 +18,17 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.hermescourier.android.domain.model.HermesCourierUiState
+import com.hermescourier.android.ui.dashboardNextStep
 
 @Composable
-fun DashboardScreen(contentPadding: PaddingValues, uiState: HermesCourierUiState, onRefresh: () -> Unit) {
+fun DashboardScreen(
+    contentPadding: PaddingValues,
+    uiState: HermesCourierUiState,
+    onRefresh: () -> Unit,
+    onOpenSessions: () -> Unit,
+    onOpenApprovals: () -> Unit,
+    onOpenSettings: () -> Unit,
+) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -50,8 +58,24 @@ fun DashboardScreen(contentPadding: PaddingValues, uiState: HermesCourierUiState
                 )
                 Text(text = "Enrollment: ${uiState.enrollmentStatus}")
                 Text(text = "Approval actions: ${uiState.approvalActionStatus}")
-                Button(onClick = onRefresh) {
-                    Text(text = "Refresh now")
+            }
+        }
+
+        Card {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.padding(16.dp)) {
+                Text(text = "Next step", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    text = dashboardNextStep(
+                        bootstrapState = uiState.bootstrapState,
+                        pendingApprovals = uiState.dashboard.pendingApprovalCount,
+                        activeSessions = uiState.dashboard.activeSessionCount,
+                    ),
+                )
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(onClick = onRefresh) { Text(text = "Refresh now") }
+                    Button(onClick = onOpenSessions) { Text(text = "Open sessions") }
+                    Button(onClick = onOpenApprovals) { Text(text = "Open approvals") }
+                    Button(onClick = onOpenSettings) { Text(text = "Open settings") }
                 }
             }
         }
@@ -69,9 +93,16 @@ fun DashboardScreen(contentPadding: PaddingValues, uiState: HermesCourierUiState
         Card {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(16.dp)) {
                 Text(text = "Recent conversation", style = MaterialTheme.typography.titleMedium)
-                uiState.conversationEvents.takeLast(5).forEach { event ->
-                    Text(text = "${event.author}: ${event.body}", style = MaterialTheme.typography.bodyMedium)
-                    Text(text = event.timestamp, style = MaterialTheme.typography.bodySmall)
+                if (uiState.conversationEvents.isEmpty()) {
+                    Text(
+                        text = "No conversation history yet. Refresh to pull in the latest live updates from the gateway.",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                } else {
+                    uiState.conversationEvents.takeLast(5).forEach { event ->
+                        Text(text = "${event.author}: ${event.body}", style = MaterialTheme.typography.bodyMedium)
+                        Text(text = event.timestamp, style = MaterialTheme.typography.bodySmall)
+                    }
                 }
             }
         }
