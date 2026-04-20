@@ -221,6 +221,19 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/ApprovalSummary'
+  /v1/conversation:
+    get:
+      tags: [dashboard]
+      summary: Recent conversation events for the dashboard companion feed.
+      responses:
+        '200':
+          description: Conversation events (newest may be last or first depending on gateway; clients accept an array).
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ConversationEvent'
   /v1/approvals/{approvalId}/decision:
     post:
       tags: [approvals]
@@ -251,7 +264,7 @@ paths:
   /v1/events:
     get:
       tags: [events]
-      summary: Stream live events using server-sent events or websocket bridging.
+      summary: Live events stream. Mobile clients typically open a WebSocket to this path; some gateways may expose SSE on the same route.
       responses:
         '200':
-          description: Stream established.
+          description: Stream established (SSE) or WebSocket upgrade negotiated per gateway.

@@ -62,7 +62,7 @@ fun ApprovalsScreen(
                             }
                             Button(onClick = {
                                 selectedApprovalId = approval.approvalId
-                                selectedAction = "reject"
+                                selectedAction = "deny"
                                 noteDraft = ""
                             }) {
                                 Text(text = "Reject with note")

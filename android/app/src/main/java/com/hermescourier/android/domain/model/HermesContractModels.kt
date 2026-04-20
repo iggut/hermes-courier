@@ -63,11 +63,6 @@ data class HermesConversationEvent(
     val timestamp: String,
 )
 
-data class HermesApprovalActionRequest(
-    val approvalId: String,
-    val action: String,
-    val note: String? = null,
-)
 
 data class HermesApprovalActionResult(
     val approvalId: String,

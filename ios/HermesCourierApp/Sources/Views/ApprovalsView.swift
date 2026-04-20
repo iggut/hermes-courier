@@ -30,7 +30,7 @@ struct ApprovalsView: View {
                                 }
                                 Button("Reject with note") {
                                     noteDraft = ""
-                                    pendingDecision = PendingApprovalDecision(approvalId: approval.approvalId, action: "reject", title: approval.title)
+                                    pendingDecision = PendingApprovalDecision(approvalId: approval.approvalId, action: "deny", title: approval.title)
                                 }
                             }
                         }

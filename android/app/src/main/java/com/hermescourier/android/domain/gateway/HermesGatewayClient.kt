@@ -2,7 +2,6 @@ package com.hermescourier.android.domain.gateway
 
 import com.hermescourier.android.domain.auth.HermesChallengeSigner
 import com.hermescourier.android.domain.config.HermesGatewayConfiguration
-import com.hermescourier.android.domain.model.HermesApprovalActionRequest
 import com.hermescourier.android.domain.model.HermesApprovalActionResult
 import com.hermescourier.android.domain.model.HermesApprovalSummary
 import com.hermescourier.android.domain.model.HermesAuthChallengeRequest
@@ -68,7 +67,7 @@ class NetworkHermesGatewayClient(
         val challenge = requestChallenge(device)
         val signedNonce = signer.sign(challenge.nonce, device)
         val response = transport.post(
-            path = "/v1/auth/response",
+            path = "/${HermesApiPaths.AUTH_RESPONSE}",
             body = HermesAuthResponseRequest(
                 challengeId = challenge.challengeId,
                 signedNonce = signedNonce,
@@ -81,19 +80,19 @@ class NetworkHermesGatewayClient(
     }
 
     override suspend fun fetchDashboard(session: HermesAuthSession): HermesDashboardSnapshot = withContext(Dispatchers.IO) {
-        transport.get("/v1/dashboard", session.accessToken).toJsonObject().toDashboard()
+        transport.get("/${HermesApiPaths.DASHBOARD}", session.accessToken).toJsonObject().toDashboard()
     }
 
     override suspend fun fetchSessions(session: HermesAuthSession): List<HermesSessionSummary> = withContext(Dispatchers.IO) {
-        transport.get("/v1/sessions", session.accessToken).toJsonArrayOrObject().toSessionList()
+        transport.get("/${HermesApiPaths.SESSIONS}", session.accessToken).toJsonArrayOrObject().toSessionList()
     }
 
     override suspend fun fetchApprovals(session: HermesAuthSession): List<HermesApprovalSummary> = withContext(Dispatchers.IO) {
-        transport.get("/v1/approvals", session.accessToken).toJsonArrayOrObject().toApprovalList()
+        transport.get("/${HermesApiPaths.APPROVALS}", session.accessToken).toJsonArrayOrObject().toApprovalList()
     }
 
     override suspend fun fetchConversation(session: HermesAuthSession): List<HermesConversationEvent> = withContext(Dispatchers.IO) {
-        transport.get("/v1/conversation", session.accessToken).toJsonArrayOrObject().toConversationList()
+        transport.get("/${HermesApiPaths.CONVERSATION}", session.accessToken).toJsonArrayOrObject().toConversationList()
     }
 
     override suspend fun submitApprovalAction(
@@ -102,16 +101,25 @@ class NetworkHermesGatewayClient(
         action: String,
         note: String?,
     ): HermesApprovalActionResult = withContext(Dispatchers.IO) {
+        val decision = normalizeApprovalDecision(action)
+        val body = JSONObject()
+            .put("decision", decision)
+            .put("reason", note)
         val result = transport.post(
-            path = "/v1/approvals/$approvalId/actions",
+            path = "/${HermesApiPaths.approvalDecision(approvalId)}",
             bearerToken = session.accessToken,
-            body = HermesApprovalActionRequest(
-                approvalId = approvalId,
-                action = action,
-                note = note,
-            ).toJson(),
+            body = body,
         )
-        result.toJsonObject().toApprovalActionResult()
+        if (result.isBlank()) {
+            return@withContext HermesApprovalActionResult(
+                approvalId = approvalId,
+                action = decision,
+                status = "recorded",
+                detail = note ?: "Decision recorded.",
+                updatedAt = "now",
+            )
+        }
+        result.toJsonObject().toApprovalActionResult(approvalId, decision)
     }
 
     override fun connectRealtime(
@@ -132,7 +140,7 @@ class NetworkHermesGatewayClient(
 
     private suspend fun requestChallenge(device: HermesDeviceIdentity): HermesAuthChallengeResponse = withContext(Dispatchers.IO) {
         val response = transport.post(
-            path = "/v1/auth/challenge",
+            path = "/${HermesApiPaths.AUTH_CHALLENGE}",
             body = HermesAuthChallengeRequest(device = device, nonce = generateNonce()).toJson(),
         )
         response.toJsonObject().toChallenge()
@@ -164,7 +172,7 @@ private class RealtimeConnectionManager(
             while (isActive && !cancelled) {
                 val completed = CompletableDeferred<Int>()
                 val request = Request.Builder()
-                    .url(configuration.baseUrl.newBuilder().addPathSegments("v1/stream").build())
+                    .url(configuration.baseUrl.newBuilder().addPathSegments(HermesApiPaths.EVENTS_STREAM).build())
                     .addHeader("Authorization", "Bearer ${session.accessToken}")
                     .build()
                 onStatus(if (attempt == 0) "Realtime stream connecting" else "Realtime stream reconnecting")
@@ -292,10 +300,10 @@ private fun HermesAuthResponseRequest.toJson(): JSONObject = JSONObject()
     .put("signedNonce", signedNonce)
     .put("device", device.toJson())
 
-private fun HermesApprovalActionRequest.toJson(): JSONObject = JSONObject()
-    .put("approvalId", approvalId)
-    .put("action", action)
-    .put("note", note)
+private fun normalizeApprovalDecision(raw: String): String = when (raw.lowercase()) {
+    "reject" -> "deny"
+    else -> raw.lowercase()
+}
 
 private fun HermesDeviceIdentity.toJson(): JSONObject = JSONObject()
     .put("deviceId", deviceId)
@@ -362,9 +370,20 @@ private fun JSONObject.toConversationEvent(): HermesConversationEvent = HermesCo
     timestamp = optString("timestamp", "now"),
 )
 
+private fun JSONObject.toApprovalActionResult(
+    fallbackApprovalId: String,
+    fallbackDecision: String,
+): HermesApprovalActionResult = HermesApprovalActionResult(
+    approvalId = optString("approvalId", fallbackApprovalId),
+    action = optString("action", optString("decision", fallbackDecision)),
+    status = optString("status", "submitted"),
+    detail = optString("detail", optString("message", "Approval action submitted.")),
+    updatedAt = optString("updatedAt", "now"),
+)
+
 private fun JSONObject.toApprovalActionResult(): HermesApprovalActionResult = HermesApprovalActionResult(
     approvalId = optString("approvalId", "unknown"),
-    action = optString("action", "unknown"),
+    action = optString("action", optString("decision", "unknown")),
     status = optString("status", "submitted"),
     detail = optString("detail", optString("message", "Approval action submitted.")),
     updatedAt = optString("updatedAt", "now"),

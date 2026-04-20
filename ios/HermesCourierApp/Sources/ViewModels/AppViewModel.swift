@@ -56,6 +56,7 @@ final class AppViewModel: ObservableObject {
         reconnectCountdownTask?.cancel()
         reconnectCountdownTask = nil
         realtimeReconnectCountdown = "Reconnect now"
+        realtimeReconnectProgress = 0
 
         do {
             let authManager = HermesAuthManager()
@@ -187,8 +188,7 @@ final class AppViewModel: ObservableObject {
             "Action: \(queued.action)",
             "Queued at: \(queued.createdAt)",
             "Note: \(queued.note ?? "(none)")",
-        ].joined(separator: "
-")
+        ].joined(separator: "\n")
         UIPasteboard.general.string = details
         approvalActionStatus = "Queued approval details copied to clipboard"
     }
@@ -225,7 +225,7 @@ final class AppViewModel: ObservableObject {
     }
 
     func rejectApproval(_ approvalId: String, note: String? = nil) {
-        submitApprovalAction(approvalId: approvalId, action: "reject", note: note)
+        submitApprovalAction(approvalId: approvalId, action: "deny", note: note)
     }
 
     private func submitApprovalAction(approvalId: String, action: String, note: String?) {
@@ -329,11 +329,15 @@ final class AppViewModel: ObservableObject {
         guard let match = pattern?.firstMatch(in: status, options: [], range: range), match.numberOfRanges > 1,
               let secondsRange = Range(match.range(at: 1), in: status),
               let seconds = Int(status[secondsRange]) else {
+            reconnectCountdownTask?.cancel()
+            reconnectCountdownTask = nil
             if status.localizedCaseInsensitiveContains("connected") {
                 realtimeReconnectCountdown = "Connected"
                 realtimeReconnectProgress = 0
             } else if status.localizedCaseInsensitiveContains("disconnected") || status.localizedCaseInsensitiveContains("error") {
                 realtimeReconnectCountdown = "Reconnect now"
+                realtimeReconnectProgress = 0
+            } else {
                 realtimeReconnectProgress = 0
             }
             return
@@ -439,9 +443,21 @@ final class AppViewModel: ObservableObject {
             return
         }
         do {
-            queuedActions = try JSONDecoder().decode([HermesQueuedApprovalAction].self, from: data)
+            let decoded = try JSONDecoder().decode([HermesQueuedApprovalAction].self, from: data)
+            var needsPersist = false
+            queuedActions = decoded.map { queued in
+                let normalized = queued.action.lowercased() == "reject" ? "deny" : queued.action
+                if normalized != queued.action { needsPersist = true }
+                return HermesQueuedApprovalAction(
+                    approvalId: queued.approvalId,
+                    action: normalized,
+                    note: queued.note,
+                    createdAt: queued.createdAt
+                )
+            }
             queuedApprovalActions = queuedActions.count
             queuedApprovalActionQueue = queuedActions
+            if needsPersist { persistQueuedApprovalActions() }
         } catch {
             queuedActions = []
             queuedApprovalActions = 0

@@ -34,7 +34,7 @@ final class HermesGatewayClient: HermesGatewayClientProtocol {
             device: device
         )
         let data = try await transport.post(
-            path: "/v1/auth/response",
+            path: HermesAPIPaths.authResponse,
             body: JSONEncoder().encode(request),
             bearerToken: nil
         )
@@ -44,31 +44,41 @@ final class HermesGatewayClient: HermesGatewayClientProtocol {
     }
 
     func fetchDashboard(session: HermesAuthSession) async throws -> HermesDashboardSnapshot {
-        let data = try await transport.get(path: "/v1/dashboard", bearerToken: session.accessToken)
+        let data = try await transport.get(path: HermesAPIPaths.dashboard, bearerToken: session.accessToken)
         return try JSONDecoder().decode(HermesDashboardSnapshot.self, from: data)
     }
 
     func fetchSessions(session: HermesAuthSession) async throws -> [HermesSessionSummary] {
-        let data = try await transport.get(path: "/v1/sessions", bearerToken: session.accessToken)
+        let data = try await transport.get(path: HermesAPIPaths.sessions, bearerToken: session.accessToken)
         return try decodeCollection(HermesSessionSummary.self, from: data)
     }
 
     func fetchApprovals(session: HermesAuthSession) async throws -> [HermesApprovalSummary] {
-        let data = try await transport.get(path: "/v1/approvals", bearerToken: session.accessToken)
+        let data = try await transport.get(path: HermesAPIPaths.approvals, bearerToken: session.accessToken)
         return try decodeCollection(HermesApprovalSummary.self, from: data)
     }
 
     func fetchConversation(session: HermesAuthSession) async throws -> [HermesConversationEvent] {
-        let data = try await transport.get(path: "/v1/conversation", bearerToken: session.accessToken)
+        let data = try await transport.get(path: HermesAPIPaths.conversation, bearerToken: session.accessToken)
         return try decodeCollection(HermesConversationEvent.self, from: data)
     }
 
     func submitApprovalAction(session: HermesAuthSession, approvalId: String, action: String, note: String?) async throws -> HermesApprovalActionResult {
+        let decision = Self.normalizeApprovalDecision(action)
         let data = try await transport.post(
-            path: "/v1/approvals/\(approvalId)/actions",
-            body: JSONEncoder().encode(HermesApprovalActionRequest(approvalId: approvalId, action: action, note: note)),
+            path: HermesAPIPaths.approvalDecision(approvalId: approvalId),
+            body: JSONEncoder().encode(HermesApprovalDecisionBody(decision: decision, reason: note)),
             bearerToken: session.accessToken
         )
+        if data.isEmpty {
+            return HermesApprovalActionResult(
+                approvalId: approvalId,
+                action: decision,
+                status: "recorded",
+                detail: note ?? "Decision recorded.",
+                updatedAt: "now"
+            )
+        }
         return try JSONDecoder().decode(HermesApprovalActionResult.self, from: data)
     }
 
@@ -95,7 +105,7 @@ final class HermesGatewayClient: HermesGatewayClientProtocol {
     ) async {
         var attempt = 0
         while !Task.isCancelled {
-            let socket = transport.webSocketTask(path: "/v1/stream", bearerToken: session.accessToken)
+            let socket = transport.webSocketTask(path: HermesAPIPaths.eventsStream, bearerToken: session.accessToken)
             handle.register(socket: socket)
             onStatus(attempt == 0 ? "Realtime stream connecting" : "Realtime stream reconnecting")
             socket.resume()
@@ -141,11 +151,18 @@ final class HermesGatewayClient: HermesGatewayClientProtocol {
     private func requestChallenge(device: HermesDeviceIdentity) async throws -> HermesAuthChallengeResponse {
         let request = HermesAuthChallengeRequest(device: device, nonce: UUID().uuidString)
         let data = try await transport.post(
-            path: "/v1/auth/challenge",
+            path: HermesAPIPaths.authChallenge,
             body: JSONEncoder().encode(request),
             bearerToken: nil
         )
         return try JSONDecoder().decode(HermesAuthChallengeResponse.self, from: data)
+    }
+
+    private static func normalizeApprovalDecision(_ raw: String) -> String {
+        switch raw.lowercased() {
+        case "reject": return "deny"
+        default: return raw.lowercased()
+        }
     }
 
     private func decodeCollection<T: Decodable>(_ type: T.Type, from data: Data) throws -> [T] {

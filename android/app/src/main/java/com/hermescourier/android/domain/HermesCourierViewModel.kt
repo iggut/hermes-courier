@@ -64,11 +64,15 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
 
     fun refresh() {
         viewModelScope.launch {
+            reconnectCountdownJob?.cancel()
+            reconnectCountdownJob = null
             syncSettingsFromDisk()
             _uiState.update {
                 it.copy(
                     bootstrapState = "Negotiating secure gateway",
                     authStatus = "Requesting device challenge",
+                    realtimeReconnectProgress = 0f,
+                    realtimeReconnectCountdown = "Reconnect now",
                 )
             }
             val liveClient = HermesGatewayClientFactory.create(applicationContext)
@@ -319,7 +323,7 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
     }
 
     fun rejectApproval(approvalId: String, note: String? = null) {
-        submitApprovalAction(approvalId = approvalId, action = "reject", note = note)
+        submitApprovalAction(approvalId = approvalId, action = "deny", note = note)
     }
 
     private fun submitApprovalAction(approvalId: String, action: String, note: String?) {
@@ -464,6 +468,12 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
             reconnectCountdownJob?.cancel()
             _uiState.update { it.copy(realtimeReconnectCountdown = "Connected", realtimeReconnectProgress = 0f) }
         } else if (status.contains("disconnected", ignoreCase = true) || status.contains("error", ignoreCase = true)) {
+            reconnectCountdownJob?.cancel()
+            reconnectCountdownJob = null
+            _uiState.update { it.copy(realtimeReconnectProgress = 0f) }
+        } else {
+            reconnectCountdownJob?.cancel()
+            reconnectCountdownJob = null
             _uiState.update { it.copy(realtimeReconnectProgress = 0f) }
         }
     }
@@ -594,17 +604,22 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
         if (!queuedActionsFile.exists()) return
         runCatching {
             val json = JSONArray(queuedActionsFile.readText())
+            var migrated = false
             for (index in 0 until json.length()) {
                 val item = json.getJSONObject(index)
+                val rawAction = item.getString("action")
+                val normalizedAction = if (rawAction.equals("reject", ignoreCase = true)) "deny" else rawAction
+                if (rawAction != normalizedAction) migrated = true
                 queuedApprovalActions.addLast(
                     HermesQueuedApprovalAction(
                         approvalId = item.getString("approvalId"),
-                        action = item.getString("action"),
+                        action = normalizedAction,
                         note = item.optString("note").takeIf { it.isNotBlank() },
                         createdAt = item.optLong("createdAt", System.currentTimeMillis()),
                     )
                 )
             }
+            if (migrated) persistQueuedApprovalActions()
         }
     }
 

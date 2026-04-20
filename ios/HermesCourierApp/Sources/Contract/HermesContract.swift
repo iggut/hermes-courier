@@ -1,5 +1,21 @@
 import Foundation
 
+/// Canonical paths aligned with `shared/contract/hermes-courier-api.yaml`.
+enum HermesAPIPaths {
+    static let authChallenge = "/v1/auth/challenge"
+    static let authResponse = "/v1/auth/response"
+    static let dashboard = "/v1/dashboard"
+    static let sessions = "/v1/sessions"
+    static let approvals = "/v1/approvals"
+    static let conversation = "/v1/conversation"
+    /// Mobile uses a WebSocket at this path; the contract describes live events.
+    static let eventsStream = "/v1/events"
+
+    static func approvalDecision(approvalId: String) -> String {
+        "/v1/approvals/\(approvalId)/decision"
+    }
+}
+
 struct HermesDeviceIdentity: Codable, Hashable {
     let deviceId: String
     let platform: String
@@ -66,10 +82,9 @@ struct HermesConversationEvent: Codable, Identifiable, Hashable {
     let timestamp: String
 }
 
-struct HermesApprovalActionRequest: Codable, Hashable {
-    let approvalId: String
-    let action: String
-    let note: String?
+struct HermesApprovalDecisionBody: Codable, Hashable {
+    let decision: String
+    let reason: String?
 }
 
 struct HermesApprovalActionResult: Codable, Hashable {

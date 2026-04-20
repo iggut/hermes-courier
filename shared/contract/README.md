@@ -17,7 +17,8 @@ This directory defines the shared API contract used by both the Android and iOS 
 - `GET /v1/dashboard`
 - `GET /v1/sessions`
 - `GET /v1/approvals`
-- `POST /v1/approvals/{approvalId}/decision`
-- `GET /v1/events` for streaming updates
+- `POST /v1/approvals/{approvalId}/decision` (body: `decision` = `approve` \| `deny`, optional `reason`)
+- `GET /v1/conversation` for the dashboard companion feed
+- `GET /v1/events` for streaming updates (mobile clients use a WebSocket to this path)
 
 The first release uses demo/local implementations in both apps while the backend gateway is completed.
