@@ -1,24 +1,34 @@
 package com.hermescourier.android.ui.screens
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import com.hermescourier.android.domain.model.HermesCourierUiState
+import com.hermescourier.android.ui.courierCardElevation
 import com.hermescourier.android.ui.dashboardNextStep
 
 @Composable
@@ -44,6 +54,7 @@ fun DashboardScreen(
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         Card(
+            elevation = courierCardElevation(),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
         ) {
             Column(
@@ -101,7 +112,7 @@ fun DashboardScreen(
             )
         }
 
-        Card {
+        Card(elevation = courierCardElevation()) {
             Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text(text = "What to do next", style = MaterialTheme.typography.titleMedium)
                 Text(
@@ -116,19 +127,44 @@ fun DashboardScreen(
             }
         }
 
-        Card {
+        Card(elevation = courierCardElevation()) {
             Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text(text = "Live snapshot", style = MaterialTheme.typography.titleMedium)
                 if (uiState.sessions.isEmpty() && uiState.approvals.isEmpty()) {
-                    Text(
-                        text = "No live items yet. That is normal while the gateway is bootstrapping or when the demo dataset is in use.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Text(
-                        text = "Tip: refresh from the top app bar, then open Settings to confirm the gateway URL and certificate if nothing shows up.",
-                        style = MaterialTheme.typography.bodySmall,
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(72.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.primaryContainer),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Home,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                modifier = Modifier.size(34.dp),
+                            )
+                        }
+                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text(
+                                text = "No live items yet",
+                                style = MaterialTheme.typography.titleMedium,
+                            )
+                            Text(
+                                text = "That is normal while the gateway is bootstrapping or when the demo dataset is in use.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            Text(
+                                text = "Tip: refresh from the top app bar, then open Settings to confirm the gateway URL and certificate if nothing shows up.",
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                        }
+                    }
                 } else {
                     DashboardSnapshotRow(label = "Active sessions", value = activeSessions.toString())
                     DashboardSnapshotRow(label = "Pending approvals", value = pendingApprovals.toString())
@@ -147,7 +183,7 @@ private fun MetricCard(
     value: String,
     caption: String,
 ) {
-    Card(modifier = modifier) {
+    Card(elevation = courierCardElevation(), modifier = modifier) {
         Column(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp),
@@ -171,8 +207,8 @@ private fun DashboardSnapshotRow(
 }
 
 private fun connectionModeLine(bootstrapState: String): String = when {
-    bootstrapState.contains("demo", ignoreCase = true) -> "Demo mode: the app is using the built-in sample snapshot."
-    bootstrapState.contains("ready", ignoreCase = true) -> "Live mode: the gateway is connected and streaming data."
-    bootstrapState.contains("unavailable", ignoreCase = true) -> "Gateway unavailable: check Settings to reconnect."
-    else -> "Bootstrapping: waiting on the gateway handshake and secure session setup."
+    bootstrapState.contains("demo", ignoreCase = true) -> "Demo mode: the app is using the built-in sample data."
+    bootstrapState.contains("unavailable", ignoreCase = true) -> "Gateway unavailable. Open Settings to adjust connection details."
+    bootstrapState.contains("ready", ignoreCase = true) -> "Gateway ready. Refresh to pull the latest sessions and approvals."
+    else -> "Gateway status: $bootstrapState"
 }

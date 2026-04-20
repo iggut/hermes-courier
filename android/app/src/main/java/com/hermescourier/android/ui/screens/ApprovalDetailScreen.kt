@@ -20,6 +20,7 @@ import androidx.compose.ui.unit.dp
 import com.hermescourier.android.domain.model.HermesApprovalSummary
 import com.hermescourier.android.ui.approvalCardSummary
 import com.hermescourier.android.ui.approvalDetailSubtitle
+import com.hermescourier.android.ui.courierCardElevation
 
 @Composable
 fun ApprovalDetailScreen(
@@ -44,7 +45,7 @@ fun ApprovalDetailScreen(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
 
-        Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
+        Card(elevation = courierCardElevation(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(text = "Approval overview", style = MaterialTheme.typography.titleMedium)
                 Text(text = approval.detail)

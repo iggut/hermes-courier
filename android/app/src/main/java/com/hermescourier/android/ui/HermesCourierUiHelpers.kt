@@ -1,7 +1,16 @@
 package com.hermescourier.android.ui
 
+import androidx.compose.material3.CardDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.unit.dp
 import com.hermescourier.android.domain.model.HermesApprovalSummary
 import com.hermescourier.android.domain.model.HermesSessionSummary
+
+@Composable
+internal fun courierCardElevation() = CardDefaults.cardElevation(
+    defaultElevation = 2.dp,
+    pressedElevation = 6.dp,
+)
 
 internal fun navigationLabel(baseLabel: String, count: Int): String =
     if (count > 0) "$baseLabel ($count)" else baseLabel

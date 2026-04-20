@@ -1,6 +1,8 @@
 package com.hermescourier.android.ui.screens
 
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -11,9 +13,14 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -36,6 +43,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
@@ -46,6 +55,7 @@ import com.hermescourier.android.ui.approvalDetailSubtitle
 import com.hermescourier.android.ui.approvalEmptyStateMessage
 import com.hermescourier.android.ui.approvalEmptyStateTitle
 import com.hermescourier.android.ui.approvalStatusBadge
+import com.hermescourier.android.ui.courierCardElevation
 
 private val ApprovalFilters = listOf("All", "Biometrics required", "Standard review")
 
@@ -81,7 +91,7 @@ fun ApprovalsScreen(
             .padding(horizontal = 20.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
+        Card(elevation = courierCardElevation(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
             Column(
                 modifier = Modifier.padding(20.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -145,17 +155,38 @@ fun ApprovalsScreen(
         }
 
         if (filteredApprovals.isEmpty()) {
-            Card {
-                Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(
-                        text = approvalEmptyStateTitle(searchQuery),
-                        style = MaterialTheme.typography.titleMedium,
-                    )
-                    Text(
-                        text = approvalEmptyStateMessage(searchQuery),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+            Card(elevation = courierCardElevation()) {
+                Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(72.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.primaryContainer),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.CheckCircle,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                modifier = Modifier.size(34.dp),
+                            )
+                        }
+                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text(
+                                text = approvalEmptyStateTitle(searchQuery),
+                                style = MaterialTheme.typography.titleMedium,
+                            )
+                            Text(
+                                text = approvalEmptyStateMessage(searchQuery),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         if (searchQuery.isNotBlank()) {
                             OutlinedButton(onClick = { searchQuery = "" }) { Text(text = "Clear search") }
@@ -246,7 +277,7 @@ private fun MetricCard(
     value: String,
     caption: String,
 ) {
-    Card(modifier = modifier) {
+    Card(elevation = courierCardElevation(), modifier = modifier) {
         Column(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp),
@@ -309,37 +340,79 @@ private fun ApprovalListCard(
     SwipeToDismissBox(
         state = dismissState,
         backgroundContent = {
-            Row(
+            val swipeProgress = dismissState.progress.coerceIn(0f, 1f)
+            val isApproveAction = dismissState.targetValue == SwipeToDismissBoxValue.StartToEnd
+            val actionLabel = if (isApproveAction) "Approve" else "Reject"
+            val actionIcon = if (isApproveAction) Icons.Filled.CheckCircle else Icons.Filled.Close
+            val actionContainerColor by animateColorAsState(
+                targetValue = when (dismissState.targetValue) {
+                    SwipeToDismissBoxValue.StartToEnd -> MaterialTheme.colorScheme.primaryContainer
+                    SwipeToDismissBoxValue.EndToStart -> MaterialTheme.colorScheme.errorContainer
+                    SwipeToDismissBoxValue.Settled -> MaterialTheme.colorScheme.surfaceVariant
+                },
+                label = "approvalSwipeBackgroundColor",
+            )
+            val actionContentColor by animateColorAsState(
+                targetValue = when (dismissState.targetValue) {
+                    SwipeToDismissBoxValue.StartToEnd -> MaterialTheme.colorScheme.onPrimaryContainer
+                    SwipeToDismissBoxValue.EndToStart -> MaterialTheme.colorScheme.onErrorContainer
+                    SwipeToDismissBoxValue.Settled -> MaterialTheme.colorScheme.onSurfaceVariant
+                },
+                label = "approvalSwipeContentColor",
+            )
+            Box(
                 modifier = Modifier
                     .fillMaxSize()
+                    .background(actionContainerColor)
                     .padding(horizontal = 20.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
             ) {
                 Row(
+                    modifier = Modifier.fillMaxSize(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        Icon(
+                            imageVector = actionIcon,
+                            contentDescription = null,
+                            tint = actionContentColor,
+                            modifier = Modifier.graphicsLayer {
+                                val scale = 0.94f + (0.18f * swipeProgress)
+                                scaleX = scale
+                                scaleY = scale
+                                alpha = 0.55f + (0.45f * swipeProgress)
+                            },
+                        )
+                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text(
+                                text = actionLabel,
+                                style = MaterialTheme.typography.labelLarge,
+                                color = actionContentColor,
+                            )
+                            Text(
+                                text = if (isApproveAction) {
+                                    "Send it through with confidence"
+                                } else {
+                                    "Send it back for another look"
+                                },
+                                style = MaterialTheme.typography.bodySmall,
+                                color = actionContentColor.copy(alpha = 0.85f),
+                            )
+                        }
+                    }
                     Text(
-                        text = "Approve",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer,
-                    )
-                }
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    Text(
-                        text = "Reject",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onErrorContainer,
+                        text = if (isApproveAction) "→" else "←",
+                        style = MaterialTheme.typography.titleLarge,
+                        color = actionContentColor,
                     )
                 }
             }
         },
     ) {
-        Card(
+        Card(elevation = courierCardElevation(), 
             modifier = Modifier
                 .fillMaxWidth()
                 .combinedClickable(

@@ -1,6 +1,8 @@
 package com.hermescourier.android.ui.screens
 
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -11,9 +13,14 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -35,12 +42,15 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.hermescourier.android.domain.model.HermesSessionSummary
 import com.hermescourier.android.ui.archiveHint
+import com.hermescourier.android.ui.courierCardElevation
 import com.hermescourier.android.ui.sessionCardSummary
 import com.hermescourier.android.ui.sessionDetailSubtitle
 import com.hermescourier.android.ui.sessionEmptyStateMessage
@@ -86,7 +96,7 @@ fun SessionsScreen(
             .padding(horizontal = 20.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
+        Card(elevation = courierCardElevation(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
             Column(
                 modifier = Modifier.padding(20.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -155,17 +165,38 @@ fun SessionsScreen(
         }
 
         if (visibleSessions.isEmpty()) {
-            Card {
-                Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(
-                        text = sessionEmptyStateTitle(statusFilter, searchQuery),
-                        style = MaterialTheme.typography.titleMedium,
-                    )
-                    Text(
-                        text = sessionEmptyStateMessage(statusFilter, searchQuery),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+            Card(elevation = courierCardElevation()) {
+                Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(72.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.primaryContainer),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.List,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                modifier = Modifier.size(34.dp),
+                            )
+                        }
+                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text(
+                                text = sessionEmptyStateTitle(statusFilter, searchQuery),
+                                style = MaterialTheme.typography.titleMedium,
+                            )
+                            Text(
+                                text = sessionEmptyStateMessage(statusFilter, searchQuery),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         if (searchQuery.isNotBlank()) {
                             OutlinedButton(onClick = { searchQuery = "" }) { Text(text = "Clear search") }
@@ -240,7 +271,7 @@ private fun MetricCard(
     value: String,
     caption: String,
 ) {
-    Card(modifier = modifier) {
+    Card(elevation = courierCardElevation(), modifier = modifier) {
         Column(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp),
@@ -315,31 +346,79 @@ private fun SessionListCard(
     SwipeToDismissBox(
         state = dismissState,
         backgroundContent = {
-            val containerColor = if (isArchived) {
-                MaterialTheme.colorScheme.primaryContainer
-            } else {
-                MaterialTheme.colorScheme.errorContainer
-            }
-            val contentColor = if (isArchived) {
-                MaterialTheme.colorScheme.onPrimaryContainer
-            } else {
-                MaterialTheme.colorScheme.onErrorContainer
-            }
+            val swipeProgress = dismissState.progress.coerceIn(0f, 1f)
+            val isRestoreAction = isArchived
+            val actionLabel = if (isRestoreAction) "Restore" else "Archive"
+            val actionIcon = if (isRestoreAction) Icons.Filled.Refresh else Icons.Filled.List
+            val actionContainerColor by animateColorAsState(
+                targetValue = when (dismissState.targetValue) {
+                    SwipeToDismissBoxValue.StartToEnd, SwipeToDismissBoxValue.EndToStart -> {
+                        if (isRestoreAction) {
+                            MaterialTheme.colorScheme.primaryContainer
+                        } else {
+                            MaterialTheme.colorScheme.errorContainer
+                        }
+                    }
+                    SwipeToDismissBoxValue.Settled -> MaterialTheme.colorScheme.surfaceVariant
+                },
+                label = "sessionSwipeBackgroundColor",
+            )
+            val actionContentColor by animateColorAsState(
+                targetValue = when (dismissState.targetValue) {
+                    SwipeToDismissBoxValue.StartToEnd, SwipeToDismissBoxValue.EndToStart -> {
+                        if (isRestoreAction) {
+                            MaterialTheme.colorScheme.onPrimaryContainer
+                        } else {
+                            MaterialTheme.colorScheme.onErrorContainer
+                        }
+                    }
+                    SwipeToDismissBoxValue.Settled -> MaterialTheme.colorScheme.onSurfaceVariant
+                },
+                label = "sessionSwipeContentColor",
+            )
             Box(
                 modifier = Modifier
                     .fillMaxSize()
+                    .background(actionContainerColor)
                     .padding(horizontal = 20.dp),
                 contentAlignment = if (isArchived) Alignment.CenterStart else Alignment.CenterEnd,
             ) {
-                Text(
-                    text = if (isArchived) "Restore" else "Archive",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = contentColor,
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    Icon(
+                        imageVector = actionIcon,
+                        contentDescription = null,
+                        tint = actionContentColor,
+                        modifier = Modifier.graphicsLayer {
+                            val scale = 0.94f + (0.18f * swipeProgress)
+                            scaleX = scale
+                            scaleY = scale
+                            alpha = 0.55f + (0.45f * swipeProgress)
+                        },
+                    )
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(
+                            text = actionLabel,
+                            style = MaterialTheme.typography.labelLarge,
+                            color = actionContentColor,
+                        )
+                        Text(
+                            text = if (isRestoreAction) {
+                                "Bring it back to the main list"
+                            } else {
+                                "Move it out of the active queue"
+                            },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = actionContentColor.copy(alpha = 0.85f),
+                        )
+                    }
+                }
             }
         },
     ) {
-        Card(
+        Card(elevation = courierCardElevation(), 
             modifier = Modifier
                 .fillMaxWidth()
                 .combinedClickable(

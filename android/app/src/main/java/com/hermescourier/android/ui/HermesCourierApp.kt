@@ -4,6 +4,9 @@ import android.net.Uri
 import androidx.compose.foundation.layout.Column
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -119,7 +122,17 @@ fun HermesCourierApp(viewModel: HermesCourierViewModel = viewModel()) {
                                     }
                                 }
                             },
-                            icon = { Text(text = destination.label.first().uppercase()) },
+                            icon = {
+                                Icon(
+                                    imageVector = when (destination) {
+                                        HermesCourierRoute.Dashboard -> Icons.Filled.Home
+                                        HermesCourierRoute.Sessions -> Icons.Filled.List
+                                        HermesCourierRoute.Approvals -> Icons.Filled.CheckCircle
+                                        HermesCourierRoute.Settings -> Icons.Filled.Settings
+                                    },
+                                    contentDescription = destination.label,
+                                )
+                            },
                             label = { Text(text = label) },
                         )
                     }
