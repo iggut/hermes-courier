@@ -22,6 +22,7 @@ final class AppViewModel: ObservableObject {
     @Published var approvalActionStatus: String = "No approval action submitted"
     @Published var enrollmentQrPayload: String = ""
     @Published var queuedApprovalActions: Int = 0
+    @Published var queuedApprovalActionQueue: [HermesQueuedApprovalAction] = []
 
     private let fallbackClient: HermesGatewayClientProtocol = HermesDemoGatewayClient()
     private var currentSession: HermesAuthSession?
@@ -126,6 +127,21 @@ final class AppViewModel: ObservableObject {
         Task { await refresh() }
     }
 
+    func retryQueuedApprovalActionsNow() {
+        Task {
+            guard let session = currentSession, !isDemoGateway else {
+                approvalActionStatus = "Queued approval actions can be retried after connecting to the live gateway"
+                return
+            }
+            let liveClient = HermesGatewayClient()
+            await flushQueuedApprovalActions(using: liveClient, session: session)
+        }
+    }
+
+    func reconnectRealtime() {
+        Task { await refresh() }
+    }
+
     func approveApproval(_ approvalId: String, note: String? = nil) {
         submitApprovalAction(approvalId: approvalId, action: "approve", note: note)
     }
@@ -199,11 +215,13 @@ final class AppViewModel: ObservableObject {
         persistQueuedApprovalActions()
         approvalActionStatus = reason
         queuedApprovalActions = queuedActions.count
+        queuedApprovalActionQueue = queuedActions
     }
 
     private func flushQueuedApprovalActions(using client: HermesGatewayClientProtocol, session: HermesAuthSession) async {
         guard !isDemoGateway, !queuedActions.isEmpty else {
             queuedApprovalActions = queuedActions.count
+            queuedApprovalActionQueue = queuedActions
             return
         }
         while !queuedActions.isEmpty {
@@ -214,9 +232,11 @@ final class AppViewModel: ObservableObject {
                 persistQueuedApprovalActions()
                 approvalActionStatus = "Flushed queued \(result.action) for \(result.approvalId): \(result.status)"
                 queuedApprovalActions = queuedActions.count
+                queuedApprovalActionQueue = queuedActions
             } catch {
                 approvalActionStatus = "Queued approval action still pending: \(error.localizedDescription)"
                 queuedApprovalActions = queuedActions.count
+                queuedApprovalActionQueue = queuedActions
                 return
             }
         }
@@ -234,6 +254,7 @@ final class AppViewModel: ObservableObject {
         enrollmentStatus = enrollmentStatusMessage(for: gatewaySettings)
         enrollmentQrPayload = enrollmentPayload(for: gatewaySettings)
         queuedApprovalActions = queuedActions.count
+        queuedApprovalActionQueue = queuedActions
     }
 
     private func currentDeviceIdentity() -> HermesDeviceIdentity {
@@ -300,12 +321,18 @@ final class AppViewModel: ObservableObject {
     private func loadQueuedApprovalActions() {
         guard let data = try? Data(contentsOf: queuedActionsURL) else {
             queuedActions = []
+            queuedApprovalActions = 0
+            queuedApprovalActionQueue = []
             return
         }
         do {
             queuedActions = try JSONDecoder().decode([HermesQueuedApprovalAction].self, from: data)
+            queuedApprovalActions = queuedActions.count
+            queuedApprovalActionQueue = queuedActions
         } catch {
             queuedActions = []
+            queuedApprovalActions = 0
+            queuedApprovalActionQueue = []
         }
     }
 

@@ -133,4 +133,5 @@ data class HermesCourierUiState(
     val enrollmentStatus: String = "No certificate imported yet",
     val enrollmentQrPayload: String = "",
     val queuedApprovalActions: Int = 0,
+    val queuedApprovalActionQueue: List<HermesQueuedApprovalAction> = emptyList(),
 )

@@ -1,6 +1,5 @@
 package com.hermescourier.android.ui.screens
 
-import android.graphics.Bitmap
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.foundation.Image
@@ -39,6 +38,9 @@ fun SettingsScreen(
     onEnrollmentQrScanned: (String) -> Unit,
     onSaveSettings: () -> Unit,
     onRefresh: () -> Unit,
+    onFlushQueuedActions: () -> Unit,
+    onReconnectRealtime: () -> Unit,
+    onShareEnrollmentQr: () -> Unit,
 ) {
     val certificatePicker = rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.OpenDocument()) { uri ->
         uri?.let(onImportCertificate)
@@ -62,7 +64,7 @@ fun SettingsScreen(
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Text(text = "Settings", style = MaterialTheme.typography.headlineMedium)
-        Text(text = "Configure the secure gateway endpoint, import the device certificate bundle, and enroll with QR-based provisioning.")
+        Text(text = "Configure the secure gateway endpoint, enroll the device, and manage queued approvals from the companion app.")
 
         Card(colors = CardDefaults.cardColors()) {
             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -82,6 +84,11 @@ fun SettingsScreen(
                 Text(text = "Certificate path: ${uiState.gatewaySettings.certificatePath.ifBlank { "Not imported" }}")
                 Text(text = "Enrollment status: ${uiState.enrollmentStatus}")
                 Text(text = "Queued approvals: ${uiState.queuedApprovalActions}")
+                Text(text = "Realtime status: ${uiState.streamStatus}")
+                Text(text = "Connection state: ${uiState.dashboard.connectionState}")
+                Button(onClick = onSaveSettings) { Text(text = "Save settings") }
+                Button(onClick = onRefresh) { Text(text = "Refresh connection") }
+                Button(onClick = onReconnectRealtime) { Text(text = "Reconnect realtime now") }
             }
         }
 
@@ -97,9 +104,32 @@ fun SettingsScreen(
                     )
                 }
                 Text(text = uiState.enrollmentQrPayload)
+                Button(onClick = onShareEnrollmentQr) { Text(text = "Share enrollment QR") }
                 Button(onClick = { qrScanner.launch(com.journeyapps.barcodescanner.ScanOptions()) }) {
                     Text(text = "Scan enrollment QR")
                 }
+            }
+        }
+
+        Card(colors = CardDefaults.cardColors()) {
+            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(text = "Queued approval actions", style = MaterialTheme.typography.titleMedium)
+                Text(text = "Queued decisions are persisted locally until the live gateway is reachable again.")
+                Button(onClick = onFlushQueuedActions) { Text(text = "Flush queued actions now") }
+                if (uiState.queuedApprovalActionQueue.isEmpty()) {
+                    Text(text = "No queued approval actions.")
+                } else {
+                    uiState.queuedApprovalActionQueue.forEach { queued ->
+                        Card(colors = CardDefaults.cardColors()) {
+                            Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Text(text = "${queued.action.uppercase()} • ${queued.approvalId}", style = MaterialTheme.typography.titleSmall)
+                                queued.note?.let { Text(text = it) }
+                                Text(text = "Queued at: ${queued.createdAt}", style = MaterialTheme.typography.labelSmall)
+                            }
+                        }
+                    }
+                }
+                Text(text = "Retry status: ${uiState.approvalActionStatus}")
             }
         }
 
@@ -111,12 +141,6 @@ fun SettingsScreen(
                     certificatePicker.launch(arrayOf("application/x-pkcs12", "application/octet-stream", "*/*"))
                 }) {
                     Text(text = "Import certificate bundle")
-                }
-                Button(onClick = onSaveSettings) {
-                    Text(text = "Save settings")
-                }
-                Button(onClick = onRefresh) {
-                    Text(text = "Refresh connection")
                 }
             }
         }

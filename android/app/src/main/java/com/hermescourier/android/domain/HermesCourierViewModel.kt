@@ -1,7 +1,11 @@
 package com.hermescourier.android.domain
 
 import android.app.Application
+import android.content.ClipData
+import android.content.Intent
+import android.graphics.Bitmap
 import android.net.Uri
+import androidx.core.content.FileProvider
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.hermescourier.android.domain.auth.AndroidKeystoreChallengeSigner
@@ -15,6 +19,8 @@ import com.hermescourier.android.domain.model.HermesDeviceIdentity
 import com.hermescourier.android.domain.model.HermesEnrollmentPayload
 import com.hermescourier.android.domain.model.HermesGatewaySettings
 import com.hermescourier.android.domain.model.HermesQueuedApprovalAction
+import com.google.zxing.BarcodeFormat
+import com.journeyapps.barcodescanner.BarcodeEncoder
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -141,9 +147,78 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
                     enrollmentStatus = "Gateway settings saved securely",
                     enrollmentQrPayload = enrollmentPayload(it.gatewaySettings),
                     queuedApprovalActions = queuedApprovalActions.size,
+                    queuedApprovalActionQueue = queuedApprovalActions.toList(),
                 )
             }
             refresh()
+        }
+    }
+
+    fun retryQueuedApprovalActions() {
+        viewModelScope.launch {
+            val liveClient = runCatching { HermesGatewayClientFactory.create(applicationContext) }.getOrNull()
+            if (liveClient == null) {
+                _uiState.update { state ->
+                    state.copy(
+                        approvalActionStatus = "Unable to retry queued actions: live gateway unavailable",
+                        queuedApprovalActions = queuedApprovalActions.size,
+                        queuedApprovalActionQueue = queuedApprovalActions.toList(),
+                    )
+                }
+                return@launch
+            }
+            flushQueuedApprovalActions(liveClient, currentSession)
+        }
+    }
+
+    fun reconnectRealtime() {
+        viewModelScope.launch {
+            val session = currentSession ?: run {
+                refresh()
+                return@launch
+            }
+            val liveClient = runCatching { HermesGatewayClientFactory.create(applicationContext) }.getOrNull()
+            if (liveClient == null) {
+                _uiState.update { state -> state.copy(streamStatus = "Realtime reconnect unavailable: live gateway client could not be created") }
+                return@launch
+            }
+            _uiState.update { state -> state.copy(streamStatus = "Manual realtime reconnect requested") }
+            startRealtime(liveClient, session)
+        }
+    }
+
+    fun shareEnrollmentQr() {
+        viewModelScope.launch {
+            val payload = _uiState.value.enrollmentQrPayload
+            if (payload.isBlank()) {
+                _uiState.update { it.copy(enrollmentStatus = "No enrollment QR payload available to share") }
+                return@launch
+            }
+            runCatching {
+                val bitmap = BarcodeEncoder().encodeBitmap(payload, BarcodeFormat.QR_CODE, 1024, 1024)
+                val shareFile = File(applicationContext.cacheDir, "hermes-enrollment-qr.png")
+                FileOutputStream(shareFile).use { output ->
+                    bitmap.compress(Bitmap.CompressFormat.PNG, 100, output)
+                }
+                val uri = FileProvider.getUriForFile(
+                    applicationContext,
+                    "${applicationContext.packageName}.fileprovider",
+                    shareFile,
+                )
+                val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                    type = "image/png"
+                    putExtra(Intent.EXTRA_STREAM, uri)
+                    clipData = ClipData.newUri(applicationContext.contentResolver, "Enrollment QR", uri)
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                val chooser = Intent.createChooser(shareIntent, "Share enrollment QR").apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                applicationContext.startActivity(chooser)
+            }.onFailure { error ->
+                _uiState.update { it.copy(enrollmentStatus = "Unable to share enrollment QR: ${error.localizedMessage ?: error}") }
+            }
         }
     }
 
@@ -173,6 +248,7 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
                     it.copy(
                         approvalActionStatus = approvalActionMessage(result),
                         queuedApprovalActions = queuedApprovalActions.size,
+                        queuedApprovalActionQueue = queuedApprovalActions.toList(),
                     )
                 }
                 refresh()
@@ -204,6 +280,7 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
             enrollmentStatus = enrollmentStatus(settings),
             enrollmentQrPayload = enrollmentPayload(settings),
             queuedApprovalActions = queuedCount,
+            queuedApprovalActionQueue = queuedApprovalActions.toList(),
             streamStatus = "Realtime stream connected",
         )
     }
@@ -250,6 +327,7 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
                     it.copy(
                         approvalActionStatus = "Flushed queued ${result.action} for ${result.approvalId}: ${result.status}",
                         queuedApprovalActions = queuedApprovalActions.size,
+                        queuedApprovalActionQueue = queuedApprovalActions.toList(),
                     )
                 }
             }.onFailure { error ->
@@ -257,6 +335,7 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
                     it.copy(
                         approvalActionStatus = "Queued approval action still pending: ${error.localizedMessage ?: error}",
                         queuedApprovalActions = queuedApprovalActions.size,
+                        queuedApprovalActionQueue = queuedApprovalActions.toList(),
                     )
                 }
                 return
@@ -278,6 +357,7 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
             it.copy(
                 approvalActionStatus = reason,
                 queuedApprovalActions = queuedApprovalActions.size,
+                queuedApprovalActionQueue = queuedApprovalActions.toList(),
             )
         }
     }
@@ -291,6 +371,7 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
                 enrollmentStatus = enrollmentStatus(loadedSettings),
                 enrollmentQrPayload = enrollmentPayload(loadedSettings),
                 queuedApprovalActions = queuedApprovalActions.size,
+                queuedApprovalActionQueue = queuedApprovalActions.toList(),
             )
         }
     }
@@ -325,6 +406,7 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
             enrollmentStatus = enrollmentStatus(settings),
             enrollmentQrPayload = enrollmentPayload(settings),
             queuedApprovalActions = queuedApprovalActions.size,
+            queuedApprovalActionQueue = queuedApprovalActions.toList(),
         )
     }
 

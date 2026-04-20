@@ -8,6 +8,8 @@ struct SettingsView: View {
     @EnvironmentObject private var viewModel: AppViewModel
     @State private var showingCertificateImporter = false
     @State private var showingEnrollmentScanner = false
+    @State private var showingEnrollmentShareSheet = false
+    @State private var shareItems: [Any] = []
 
     var body: some View {
         NavigationStack {
@@ -28,9 +30,11 @@ struct SettingsView: View {
                     Text("Certificate path: \(viewModel.gatewaySettings.certificatePath.isEmpty ? "Not imported" : viewModel.gatewaySettings.certificatePath)")
                     Text("Enrollment status: \(viewModel.enrollmentStatus)")
                     Text("Queued approvals: \(viewModel.queuedApprovalActions)")
+                    Text("Realtime status: \(viewModel.streamStatus)")
+                    Text("Connection state: \(viewModel.dashboard.connectionState)")
                 }
 
-                Section("QR enrollment") {
+                Section("Enrollment QR") {
                     if let qrImage = makeQRCodeImage(from: viewModel.enrollmentQrPayload) {
                         Image(uiImage: qrImage)
                             .interpolation(.none)
@@ -42,9 +46,46 @@ struct SettingsView: View {
                     Text(viewModel.enrollmentQrPayload)
                         .font(.caption)
                         .textSelection(.enabled)
+
+                    Button("Share enrollment QR") {
+                        if let qrImage = makeQRCodeImage(from: viewModel.enrollmentQrPayload) {
+                            shareItems = [qrImage, viewModel.enrollmentQrPayload]
+                        } else {
+                            shareItems = [viewModel.enrollmentQrPayload]
+                        }
+                        showingEnrollmentShareSheet = true
+                    }
                     Button("Scan enrollment QR") {
                         showingEnrollmentScanner = true
                     }
+                }
+
+                Section("Queued approval actions") {
+                    Text("Queued decisions are persisted locally until the live gateway is reachable again.")
+                    Button("Flush queued actions now") {
+                        viewModel.retryQueuedApprovalActionsNow()
+                    }
+                    Button("Reconnect realtime now") {
+                        viewModel.reconnectRealtime()
+                    }
+                    if viewModel.queuedApprovalActionQueue.isEmpty {
+                        Text("No queued approval actions.")
+                    } else {
+                        ForEach(viewModel.queuedApprovalActionQueue, id: \.self) { queued in
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("\(queued.action.uppercased()) • \(queued.approvalId)")
+                                    .font(.headline)
+                                if let note = queued.note, !note.isEmpty {
+                                    Text(note)
+                                }
+                                Text("Queued at: \(queued.createdAt)")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .padding(.vertical, 4)
+                        }
+                    }
+                    Text("Retry status: \(viewModel.approvalActionStatus)")
                 }
 
                 Section("Bootstrap") {
@@ -75,18 +116,23 @@ struct SettingsView: View {
                     showingEnrollmentScanner = false
                 }
             }
+            .sheet(isPresented: $showingEnrollmentShareSheet) {
+                ShareSheetView(items: shareItems)
+            }
         }
     }
 
     private func makeQRCodeImage(from payload: String) -> UIImage? {
         guard !payload.isEmpty else { return nil }
+        let data = Data(payload.utf8)
         let filter = CIFilter.qrCodeGenerator()
-        filter.message = Data(payload.utf8)
+        filter.setValue(data, forKey: "inputMessage")
         filter.correctionLevel = "M"
         guard let outputImage = filter.outputImage else { return nil }
-        let scaled = outputImage.transformed(by: CGAffineTransform(scaleX: 10, y: 10))
+        let transform = CGAffineTransform(scaleX: 10, y: 10)
+        let scaledImage = outputImage.transformed(by: transform)
         let context = CIContext()
-        guard let cgImage = context.createCGImage(scaled, from: scaled.extent) else { return nil }
+        guard let cgImage = context.createCGImage(scaledImage, from: scaledImage.extent) else { return nil }
         return UIImage(cgImage: cgImage)
     }
 }

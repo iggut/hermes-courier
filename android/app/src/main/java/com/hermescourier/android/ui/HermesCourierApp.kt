@@ -80,6 +80,9 @@ fun HermesCourierApp(viewModel: HermesCourierViewModel = viewModel()) {
                     onEnrollmentQrScanned = viewModel::applyEnrollmentQr,
                     onSaveSettings = viewModel::saveSettings,
                     onRefresh = viewModel::refresh,
+                    onFlushQueuedActions = viewModel::retryQueuedApprovalActions,
+                    onReconnectRealtime = viewModel::reconnectRealtime,
+                    onShareEnrollmentQr = viewModel::shareEnrollmentQr,
                 )
             }
         }
