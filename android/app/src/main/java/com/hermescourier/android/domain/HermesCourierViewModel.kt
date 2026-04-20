@@ -50,15 +50,15 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
     private val queuedApprovalActions = ArrayDeque<HermesQueuedApprovalAction>()
     private val queuedActionsFile = File(applicationContext.filesDir, "hermes-queued-approval-actions.json")
 
-    private val _uiState = MutableStateFlow(initialState())
-    val uiState: StateFlow<HermesCourierUiState> = _uiState.asStateFlow()
-
     private val deviceIdentity = HermesDeviceIdentity(
         deviceId = "android-courier-${android.os.Build.MODEL.lowercase().replace(' ', '-')}",
         platform = "android",
         appVersion = "0.1.0",
         publicKeyFingerprint = deviceFingerprint,
     )
+
+    private val _uiState = MutableStateFlow(initialState())
+    val uiState: StateFlow<HermesCourierUiState> = _uiState.asStateFlow()
 
     init {
         loadQueuedApprovalActions()
