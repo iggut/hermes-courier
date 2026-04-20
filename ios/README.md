@@ -34,6 +34,20 @@ xcodegen generate
 
 After generation, open the produced `HermesCourier.xcodeproj` in Xcode.
 
-### Unit tests (optional)
+### Unit tests (macOS)
 
-Pure logic tests live in `HermesCourierTests/`. In Xcode, select the **HermesCourierTests** scheme and run **Test** (`⌘U`).
+Pure logic tests live in `HermesCourierTests/`. They are verified on **macOS** in CI (`.github/workflows/ci.yml`) and can be run locally in two ways:
+
+1. **Xcode:** open `HermesCourier.xcodeproj`, select the **HermesCourier** scheme, then **Product → Test** (`⌘U`).
+2. **Command line** (after `xcodegen generate`), using the iOS Simulator — pick an available device if `iPhone 16` is not installed (`xcrun simctl list devices available`):
+
+```bash
+cd ios
+xcodegen generate
+xcodebuild \
+  -project HermesCourier.xcodeproj \
+  -scheme HermesCourier \
+  -destination "platform=iOS Simulator,name=iPhone 16" \
+  -only-testing:HermesCourierTests \
+  test
+```
