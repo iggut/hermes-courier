@@ -31,6 +31,7 @@ struct SettingsView: View {
                     Text("Enrollment status: \(viewModel.enrollmentStatus)")
                     Text("Queued approvals: \(viewModel.queuedApprovalActions)")
                     Text("Realtime status: \(viewModel.streamStatus)")
+                    Text("Reconnect backoff: \(viewModel.realtimeReconnectCountdown)")
                     Text("Connection state: \(viewModel.dashboard.connectionState)")
                 }
 
@@ -54,6 +55,9 @@ struct SettingsView: View {
                             shareItems = [viewModel.enrollmentQrPayload]
                         }
                         showingEnrollmentShareSheet = true
+                    }
+                    Button("Copy enrollment QR payload") {
+                        viewModel.copyEnrollmentQrPayload()
                     }
                     Button("Scan enrollment QR") {
                         showingEnrollmentScanner = true

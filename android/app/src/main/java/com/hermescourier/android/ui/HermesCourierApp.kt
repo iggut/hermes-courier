@@ -83,6 +83,9 @@ fun HermesCourierApp(viewModel: HermesCourierViewModel = viewModel()) {
                     onFlushQueuedActions = viewModel::retryQueuedApprovalActions,
                     onReconnectRealtime = viewModel::reconnectRealtime,
                     onShareEnrollmentQr = viewModel::shareEnrollmentQr,
+                    onCopyEnrollmentQrPayload = viewModel::copyEnrollmentQrPayload,
+                    onRetryQueuedApprovalAction = viewModel::retryQueuedApprovalAction,
+                    onDismissQueuedApprovalAction = viewModel::dismissQueuedApprovalAction,
                 )
             }
         }

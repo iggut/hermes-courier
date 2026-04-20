@@ -1,4 +1,5 @@
 import Foundation
+import UIKit
 
 @MainActor
 final class AppViewModel: ObservableObject {
@@ -23,12 +24,14 @@ final class AppViewModel: ObservableObject {
     @Published var enrollmentQrPayload: String = ""
     @Published var queuedApprovalActions: Int = 0
     @Published var queuedApprovalActionQueue: [HermesQueuedApprovalAction] = []
+    @Published var realtimeReconnectCountdown: String = "Reconnect now"
 
     private let fallbackClient: HermesGatewayClientProtocol = HermesDemoGatewayClient()
     private var currentSession: HermesAuthSession?
     private var realtimeHandle: HermesRealtimeStreamHandle?
     private var isDemoGateway = false
     private var queuedActions: [HermesQueuedApprovalAction] = []
+    private var reconnectCountdownTask: Task<Void, Never>?
     private let queuedActionsURL: URL
 
     init() {
@@ -49,6 +52,9 @@ final class AppViewModel: ObservableObject {
         authStatus = "Requesting device challenge"
         realtimeHandle?.cancel()
         realtimeHandle = nil
+        reconnectCountdownTask?.cancel()
+        reconnectCountdownTask = nil
+        realtimeReconnectCountdown = "Reconnect now"
 
         do {
             let authManager = HermesAuthManager()
@@ -142,6 +148,48 @@ final class AppViewModel: ObservableObject {
         Task { await refresh() }
     }
 
+    func copyEnrollmentQrPayload() {
+        let payload = enrollmentQrPayload
+        guard !payload.isEmpty else {
+            enrollmentStatus = "No enrollment QR payload available to copy"
+            return
+        }
+        UIPasteboard.general.string = payload
+        enrollmentStatus = "Enrollment QR payload copied to clipboard"
+    }
+
+    func retryQueuedApprovalAction(_ queued: HermesQueuedApprovalAction) {
+        Task {
+            guard let session = currentSession, !isDemoGateway else {
+                approvalActionStatus = "Unable to retry queued action until connected to the live gateway"
+                return
+            }
+            let client = HermesGatewayClient()
+            do {
+                let result = try await client.submitApprovalAction(session: session, approvalId: queued.approvalId, action: queued.action, note: queued.note)
+                if let index = queuedActions.firstIndex(of: queued) {
+                    queuedActions.remove(at: index)
+                    persistQueuedApprovalActions()
+                }
+                approvalActionStatus = "Retried queued \(result.action) for \(result.approvalId): \(result.status)"
+                queuedApprovalActions = queuedActions.count
+                queuedApprovalActionQueue = queuedActions
+            } catch {
+                approvalActionStatus = "Queued retry failed: \(error.localizedDescription)"
+            }
+        }
+    }
+
+    func dismissQueuedApprovalAction(_ queued: HermesQueuedApprovalAction) {
+        if let index = queuedActions.firstIndex(of: queued) {
+            queuedActions.remove(at: index)
+            persistQueuedApprovalActions()
+        }
+        approvalActionStatus = "Dismissed queued \(queued.action) for \(queued.approvalId)"
+        queuedApprovalActions = queuedActions.count
+        queuedApprovalActionQueue = queuedActions
+    }
+
     func approveApproval(_ approvalId: String, note: String? = nil) {
         submitApprovalAction(approvalId: approvalId, action: "approve", note: note)
     }
@@ -177,6 +225,7 @@ final class AppViewModel: ObservableObject {
             Task { @MainActor in
                 guard let self else { return }
                 self.streamStatus = status
+                self.updateReconnectCountdown(from: status)
                 if status.localizedCaseInsensitiveContains("connected"), !self.isDemoGateway {
                     await self.flushQueuedApprovalActions(using: client, session: session)
                 }
@@ -238,6 +287,36 @@ final class AppViewModel: ObservableObject {
                 queuedApprovalActions = queuedActions.count
                 queuedApprovalActionQueue = queuedActions
                 return
+            }
+        }
+    }
+
+    private func updateReconnectCountdown(from status: String) {
+        reconnectCountdownTask?.cancel()
+        reconnectCountdownTask = nil
+        let pattern = try? NSRegularExpression(pattern: #"Realtime reconnecting in (\d+)s"#, options: [.caseInsensitive])
+        let range = NSRange(status.startIndex..., in: status)
+        guard let match = pattern?.firstMatch(in: status, options: [], range: range), match.numberOfRanges > 1,
+              let secondsRange = Range(match.range(at: 1), in: status),
+              let seconds = Int(status[secondsRange]) else {
+            if status.localizedCaseInsensitiveContains("connected") {
+                realtimeReconnectCountdown = "Connected"
+            } else if status.localizedCaseInsensitiveContains("disconnected") || status.localizedCaseInsensitiveContains("error") {
+                realtimeReconnectCountdown = "Reconnect now"
+            }
+            return
+        }
+        reconnectCountdownTask = Task { [weak self] in
+            guard let self else { return }
+            for remaining in stride(from: seconds, through: 1, by: -1) {
+                await MainActor.run {
+                    self.realtimeReconnectCountdown = "Reconnect retry in \(remaining)s"
+                }
+                try? await Task.sleep(nanoseconds: 1_000_000_000)
+                if Task.isCancelled { return }
+            }
+            await MainActor.run {
+                self.realtimeReconnectCountdown = "Retrying now"
             }
         }
     }

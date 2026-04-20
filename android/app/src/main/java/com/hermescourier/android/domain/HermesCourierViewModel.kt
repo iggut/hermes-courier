@@ -2,6 +2,8 @@ package com.hermescourier.android.domain
 
 import android.app.Application
 import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.net.Uri
@@ -21,6 +23,8 @@ import com.hermescourier.android.domain.model.HermesGatewaySettings
 import com.hermescourier.android.domain.model.HermesQueuedApprovalAction
 import com.google.zxing.BarcodeFormat
 import com.journeyapps.barcodescanner.BarcodeEncoder
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -39,6 +43,7 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
     private val fallbackGatewayClient: HermesGatewayClient = DemoHermesGatewayClient()
     private var realtimeHandle: Closeable? = null
     private var currentSession: com.hermescourier.android.domain.model.HermesAuthSession? = null
+    private var reconnectCountdownJob: Job? = null
     private val queuedApprovalActions = ArrayDeque<HermesQueuedApprovalAction>()
     private val queuedActionsFile = File(applicationContext.filesDir, "hermes-queued-approval-actions.json")
 
@@ -187,6 +192,60 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
         }
     }
 
+    fun copyEnrollmentQrPayload() {
+        val payload = _uiState.value.enrollmentQrPayload
+        if (payload.isBlank()) {
+            _uiState.update { it.copy(enrollmentStatus = "No enrollment QR payload available to copy") }
+            return
+        }
+        val clipboard = applicationContext.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        clipboard.setPrimaryClip(ClipData.newPlainText("Hermes Courier enrollment QR", payload))
+        _uiState.update { it.copy(enrollmentStatus = "Enrollment QR payload copied to clipboard") }
+    }
+
+    fun retryQueuedApprovalAction(queued: HermesQueuedApprovalAction) {
+        viewModelScope.launch {
+            val session = currentSession ?: run {
+                _uiState.update { state -> state.copy(approvalActionStatus = "Unable to retry queued action: no authenticated session available") }
+                return@launch
+            }
+            val liveClient = runCatching { HermesGatewayClientFactory.create(applicationContext) }.getOrNull()
+            if (liveClient == null || liveClient is DemoHermesGatewayClient) {
+                _uiState.update { state ->
+                    state.copy(approvalActionStatus = "Unable to retry queued action: live gateway unavailable", queuedApprovalActions = queuedApprovalActions.size, queuedApprovalActionQueue = queuedApprovalActions.toList())
+                }
+                return@launch
+            }
+            runCatching { liveClient.submitApprovalAction(session, queued.approvalId, queued.action, queued.note) }
+                .onSuccess { result ->
+                    removeQueuedApprovalAction(queued)
+                    _uiState.update {
+                        it.copy(
+                            approvalActionStatus = "Retried queued ${result.action} for ${result.approvalId}: ${result.status}",
+                            queuedApprovalActions = queuedApprovalActions.size,
+                            queuedApprovalActionQueue = queuedApprovalActions.toList(),
+                        )
+                    }
+                }
+                .onFailure { error ->
+                    _uiState.update { state ->
+                        state.copy(approvalActionStatus = "Queued retry failed: ${error.localizedMessage ?: error}", queuedApprovalActions = queuedApprovalActions.size, queuedApprovalActionQueue = queuedApprovalActions.toList())
+                    }
+                }
+        }
+    }
+
+    fun dismissQueuedApprovalAction(queued: HermesQueuedApprovalAction) {
+        removeQueuedApprovalAction(queued)
+        _uiState.update {
+            it.copy(
+                approvalActionStatus = "Dismissed queued ${queued.action} for ${queued.approvalId}",
+                queuedApprovalActions = queuedApprovalActions.size,
+                queuedApprovalActionQueue = queuedApprovalActions.toList(),
+            )
+        }
+    }
+
     fun shareEnrollmentQr() {
         viewModelScope.launch {
             val payload = _uiState.value.enrollmentQrPayload
@@ -282,6 +341,7 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
             queuedApprovalActions = queuedCount,
             queuedApprovalActionQueue = queuedApprovalActions.toList(),
             streamStatus = "Realtime stream connected",
+            realtimeReconnectCountdown = "Connected",
         )
     }
 
@@ -291,6 +351,7 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
             session = session,
             onStatus = { status ->
                 _uiState.update { it.copy(streamStatus = status) }
+                updateReconnectCountdown(status)
                 if (status.contains("connected", ignoreCase = true) && client !is DemoHermesGatewayClient) {
                     viewModelScope.launch { flushQueuedApprovalActions(client, session) }
                 }
@@ -321,7 +382,7 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
             runCatching {
                 client.submitApprovalAction(session, queued.approvalId, queued.action, queued.note)
             }.onSuccess { result ->
-                queuedApprovalActions.removeFirst()
+                removeQueuedApprovalAction(queued)
                 persistQueuedApprovalActions()
                 _uiState.update {
                     it.copy(
@@ -340,6 +401,32 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
                 }
                 return
             }
+        }
+    }
+
+    private fun removeQueuedApprovalAction(queued: HermesQueuedApprovalAction) {
+        val index = queuedApprovalActions.indexOfFirst { it == queued }
+        if (index >= 0) {
+            queuedApprovalActions.removeAt(index)
+            persistQueuedApprovalActions()
+        }
+    }
+
+    private fun updateReconnectCountdown(status: String) {
+        val match = Regex("Realtime reconnecting in (\\d+)s", RegexOption.IGNORE_CASE).find(status)
+        if (match != null) {
+            val seconds = match.groupValues[1].toIntOrNull() ?: return
+            reconnectCountdownJob?.cancel()
+            reconnectCountdownJob = viewModelScope.launch {
+                for (remaining in seconds downTo 1) {
+                    _uiState.update { it.copy(realtimeReconnectCountdown = "Reconnect retry in ${remaining}s") }
+                    delay(1000)
+                }
+                _uiState.update { it.copy(realtimeReconnectCountdown = "Retrying now") }
+            }
+        } else if (status.contains("connected", ignoreCase = true)) {
+            reconnectCountdownJob?.cancel()
+            _uiState.update { it.copy(realtimeReconnectCountdown = "Connected") }
         }
     }
 

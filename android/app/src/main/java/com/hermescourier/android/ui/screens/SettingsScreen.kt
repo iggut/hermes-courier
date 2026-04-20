@@ -27,6 +27,7 @@ import com.journeyapps.barcodescanner.BarcodeEncoder
 import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanIntentResult
 import com.hermescourier.android.domain.model.HermesCourierUiState
+import com.hermescourier.android.domain.model.HermesQueuedApprovalAction
 
 @Composable
 fun SettingsScreen(
@@ -41,6 +42,9 @@ fun SettingsScreen(
     onFlushQueuedActions: () -> Unit,
     onReconnectRealtime: () -> Unit,
     onShareEnrollmentQr: () -> Unit,
+    onCopyEnrollmentQrPayload: () -> Unit,
+    onRetryQueuedApprovalAction: (HermesQueuedApprovalAction) -> Unit,
+    onDismissQueuedApprovalAction: (HermesQueuedApprovalAction) -> Unit,
 ) {
     val certificatePicker = rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.OpenDocument()) { uri ->
         uri?.let(onImportCertificate)
@@ -85,6 +89,7 @@ fun SettingsScreen(
                 Text(text = "Enrollment status: ${uiState.enrollmentStatus}")
                 Text(text = "Queued approvals: ${uiState.queuedApprovalActions}")
                 Text(text = "Realtime status: ${uiState.streamStatus}")
+                Text(text = "Reconnect backoff: ${uiState.realtimeReconnectCountdown}")
                 Text(text = "Connection state: ${uiState.dashboard.connectionState}")
                 Button(onClick = onSaveSettings) { Text(text = "Save settings") }
                 Button(onClick = onRefresh) { Text(text = "Refresh connection") }
@@ -105,6 +110,7 @@ fun SettingsScreen(
                 }
                 Text(text = uiState.enrollmentQrPayload)
                 Button(onClick = onShareEnrollmentQr) { Text(text = "Share enrollment QR") }
+                Button(onClick = onCopyEnrollmentQrPayload) { Text(text = "Copy enrollment QR payload") }
                 Button(onClick = { qrScanner.launch(com.journeyapps.barcodescanner.ScanOptions()) }) {
                     Text(text = "Scan enrollment QR")
                 }
@@ -125,6 +131,10 @@ fun SettingsScreen(
                                 Text(text = "${queued.action.uppercase()} • ${queued.approvalId}", style = MaterialTheme.typography.titleSmall)
                                 queued.note?.let { Text(text = it) }
                                 Text(text = "Queued at: ${queued.createdAt}", style = MaterialTheme.typography.labelSmall)
+                                androidx.compose.foundation.layout.Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Button(onClick = { onRetryQueuedApprovalAction(queued) }) { Text(text = "Retry now") }
+                                    Button(onClick = { onDismissQueuedApprovalAction(queued) }) { Text(text = "Dismiss") }
+                                }
                             }
                         }
                     }

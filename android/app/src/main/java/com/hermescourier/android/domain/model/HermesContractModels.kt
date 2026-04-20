@@ -128,6 +128,7 @@ data class HermesCourierUiState(
     ),
     val approvalActionStatus: String = "No approval action submitted",
     val streamStatus: String = "Realtime stream disconnected",
+    val realtimeReconnectCountdown: String = "Reconnect now",
     val gatewaySettings: HermesGatewaySettings = HermesGatewaySettings(),
     val deviceFingerprint: String = "pending-device-enrollment",
     val enrollmentStatus: String = "No certificate imported yet",
