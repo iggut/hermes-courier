@@ -1,16 +1,131 @@
 package com.hermescourier.android.ui
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import com.hermescourier.android.domain.model.HermesApprovalSummary
 import com.hermescourier.android.domain.model.HermesSessionSummary
 
+internal enum class CourierEmptyStateKind {
+    Dashboard,
+    Sessions,
+    Approvals,
+}
+
+private data class CourierEmptyStatePalette(
+    val baseColor: Color,
+    val haloColor: Color,
+    val accentColor: Color,
+    val icon: ImageVector,
+    val badgeIcon: ImageVector,
+    val contentColor: Color,
+)
+
+@Composable
+internal fun courierHeroCardElevation() = CardDefaults.cardElevation(
+    defaultElevation = 4.dp,
+    pressedElevation = 8.dp,
+)
+
 @Composable
 internal fun courierCardElevation() = CardDefaults.cardElevation(
-    defaultElevation = 2.dp,
-    pressedElevation = 6.dp,
+    defaultElevation = 1.dp,
+    pressedElevation = 3.dp,
 )
+
+@Composable
+internal fun courierEmptyStateIllustration(
+    kind: CourierEmptyStateKind,
+    modifier: Modifier = Modifier,
+) {
+    val palette = when (kind) {
+        CourierEmptyStateKind.Dashboard -> CourierEmptyStatePalette(
+            baseColor = MaterialTheme.colorScheme.primaryContainer,
+            haloColor = MaterialTheme.colorScheme.secondaryContainer,
+            accentColor = MaterialTheme.colorScheme.tertiaryContainer,
+            icon = Icons.Filled.Home,
+            badgeIcon = Icons.Filled.Refresh,
+            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+        )
+
+        CourierEmptyStateKind.Sessions -> CourierEmptyStatePalette(
+            baseColor = MaterialTheme.colorScheme.secondaryContainer,
+            haloColor = MaterialTheme.colorScheme.primaryContainer,
+            accentColor = MaterialTheme.colorScheme.surfaceVariant,
+            icon = Icons.Filled.List,
+            badgeIcon = Icons.Filled.Lock,
+            contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+        )
+
+        CourierEmptyStateKind.Approvals -> CourierEmptyStatePalette(
+            baseColor = MaterialTheme.colorScheme.tertiaryContainer,
+            haloColor = MaterialTheme.colorScheme.primaryContainer,
+            accentColor = MaterialTheme.colorScheme.errorContainer,
+            icon = Icons.Filled.CheckCircle,
+            badgeIcon = Icons.Filled.Lock,
+            contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
+        )
+    }
+
+    Box(
+        modifier = modifier.size(84.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .clip(CircleShape)
+                .background(palette.haloColor.copy(alpha = 0.3f)),
+        )
+        Box(
+            modifier = Modifier
+                .size(66.dp)
+                .clip(CircleShape)
+                .background(palette.baseColor),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                imageVector = palette.icon,
+                contentDescription = null,
+                tint = palette.contentColor,
+                modifier = Modifier.size(34.dp),
+            )
+        }
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .size(24.dp)
+                .clip(CircleShape)
+                .background(palette.accentColor),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                imageVector = palette.badgeIcon,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(12.dp),
+            )
+        }
+    }
+}
 
 internal fun navigationLabel(baseLabel: String, count: Int): String =
     if (count > 0) "$baseLabel ($count)" else baseLabel

@@ -18,7 +18,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.hermescourier.android.domain.model.HermesSessionSummary
-import com.hermescourier.android.ui.courierCardElevation
+import com.hermescourier.android.ui.courierHeroCardElevation
 import com.hermescourier.android.ui.sessionCardSummary
 import com.hermescourier.android.ui.sessionDetailSubtitle
 
@@ -44,7 +44,7 @@ fun SessionDetailScreen(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
 
-        Card(elevation = courierCardElevation(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
+        Card(elevation = courierHeroCardElevation(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(text = "Session overview", style = MaterialTheme.typography.titleMedium)
                 Text(text = "Session ID: ${session.sessionId}")

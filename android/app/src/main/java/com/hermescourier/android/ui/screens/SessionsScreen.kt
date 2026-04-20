@@ -1,6 +1,6 @@
 package com.hermescourier.android.ui.screens
 
-import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
@@ -44,13 +44,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.hermescourier.android.domain.model.HermesSessionSummary
+import com.hermescourier.android.ui.CourierEmptyStateKind
 import com.hermescourier.android.ui.archiveHint
 import com.hermescourier.android.ui.courierCardElevation
+import com.hermescourier.android.ui.courierEmptyStateIllustration
+import com.hermescourier.android.ui.courierHeroCardElevation
 import com.hermescourier.android.ui.sessionCardSummary
 import com.hermescourier.android.ui.sessionDetailSubtitle
 import com.hermescourier.android.ui.sessionEmptyStateMessage
@@ -96,7 +100,7 @@ fun SessionsScreen(
             .padding(horizontal = 20.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        Card(elevation = courierCardElevation(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
+        Card(elevation = courierHeroCardElevation(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
             Column(
                 modifier = Modifier.padding(20.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -165,26 +169,16 @@ fun SessionsScreen(
         }
 
         if (visibleSessions.isEmpty()) {
-            Card(elevation = courierCardElevation()) {
+            Card(elevation = courierHeroCardElevation()) {
                 Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(16.dp),
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .size(72.dp)
-                                .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.primaryContainer),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.List,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                                modifier = Modifier.size(34.dp),
-                            )
-                        }
+                        courierEmptyStateIllustration(
+                            kind = CourierEmptyStateKind.Sessions,
+                            modifier = Modifier.size(84.dp),
+                        )
                         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             Text(
                                 text = sessionEmptyStateTitle(statusFilter, searchQuery),
@@ -346,35 +340,19 @@ private fun SessionListCard(
     SwipeToDismissBox(
         state = dismissState,
         backgroundContent = {
-            val swipeProgress = dismissState.progress.coerceIn(0f, 1f)
+            val swipeProgress = FastOutSlowInEasing.transform(dismissState.progress.coerceIn(0f, 1f))
             val isRestoreAction = isArchived
             val actionLabel = if (isRestoreAction) "Restore" else "Archive"
             val actionIcon = if (isRestoreAction) Icons.Filled.Refresh else Icons.Filled.List
-            val actionContainerColor by animateColorAsState(
-                targetValue = when (dismissState.targetValue) {
-                    SwipeToDismissBoxValue.StartToEnd, SwipeToDismissBoxValue.EndToStart -> {
-                        if (isRestoreAction) {
-                            MaterialTheme.colorScheme.primaryContainer
-                        } else {
-                            MaterialTheme.colorScheme.errorContainer
-                        }
-                    }
-                    SwipeToDismissBoxValue.Settled -> MaterialTheme.colorScheme.surfaceVariant
-                },
-                label = "sessionSwipeBackgroundColor",
+            val actionContainerColor = lerp(
+                MaterialTheme.colorScheme.surfaceVariant,
+                if (isRestoreAction) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.errorContainer,
+                swipeProgress,
             )
-            val actionContentColor by animateColorAsState(
-                targetValue = when (dismissState.targetValue) {
-                    SwipeToDismissBoxValue.StartToEnd, SwipeToDismissBoxValue.EndToStart -> {
-                        if (isRestoreAction) {
-                            MaterialTheme.colorScheme.onPrimaryContainer
-                        } else {
-                            MaterialTheme.colorScheme.onErrorContainer
-                        }
-                    }
-                    SwipeToDismissBoxValue.Settled -> MaterialTheme.colorScheme.onSurfaceVariant
-                },
-                label = "sessionSwipeContentColor",
+            val actionContentColor = lerp(
+                MaterialTheme.colorScheme.onSurfaceVariant,
+                if (isRestoreAction) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onErrorContainer,
+                swipeProgress,
             )
             Box(
                 modifier = Modifier
@@ -392,10 +370,10 @@ private fun SessionListCard(
                         contentDescription = null,
                         tint = actionContentColor,
                         modifier = Modifier.graphicsLayer {
-                            val scale = 0.94f + (0.18f * swipeProgress)
+                            val scale = 0.9f + (0.2f * swipeProgress)
                             scaleX = scale
                             scaleY = scale
-                            alpha = 0.55f + (0.45f * swipeProgress)
+                            alpha = 0.45f + (0.55f * swipeProgress)
                         },
                     )
                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -418,9 +396,17 @@ private fun SessionListCard(
             }
         },
     ) {
-        Card(elevation = courierCardElevation(), 
+        Card(
+            elevation = courierCardElevation(),
             modifier = Modifier
                 .fillMaxWidth()
+                .graphicsLayer {
+                    val swipeProgress = FastOutSlowInEasing.transform(dismissState.progress.coerceIn(0f, 1f))
+                    val scale = 1f - (0.02f * swipeProgress)
+                    scaleX = scale
+                    scaleY = scale
+                    alpha = 1f - (0.05f * swipeProgress)
+                }
                 .combinedClickable(
                     onClick = { onOpenSessionDetail(session.sessionId) },
                     onLongClick = onLongPress,

@@ -28,7 +28,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import com.hermescourier.android.domain.model.HermesCourierUiState
+import com.hermescourier.android.ui.CourierEmptyStateKind
 import com.hermescourier.android.ui.courierCardElevation
+import com.hermescourier.android.ui.courierEmptyStateIllustration
+import com.hermescourier.android.ui.courierHeroCardElevation
 import com.hermescourier.android.ui.dashboardNextStep
 
 @Composable
@@ -54,7 +57,7 @@ fun DashboardScreen(
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         Card(
-            elevation = courierCardElevation(),
+            elevation = courierHeroCardElevation(),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
         ) {
             Column(
@@ -135,20 +138,10 @@ fun DashboardScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(16.dp),
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .size(72.dp)
-                                .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.primaryContainer),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.Home,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                                modifier = Modifier.size(34.dp),
-                            )
-                        }
+                        courierEmptyStateIllustration(
+                            kind = CourierEmptyStateKind.Dashboard,
+                            modifier = Modifier.size(84.dp),
+                        )
                         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             Text(
                                 text = "No live items yet",

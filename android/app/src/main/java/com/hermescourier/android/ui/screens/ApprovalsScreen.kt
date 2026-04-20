@@ -1,6 +1,6 @@
 package com.hermescourier.android.ui.screens
 
-import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
@@ -45,17 +45,21 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.hermescourier.android.domain.model.HermesApprovalSummary
+import com.hermescourier.android.ui.CourierEmptyStateKind
 import com.hermescourier.android.ui.approvalCardSummary
 import com.hermescourier.android.ui.approvalDetailSubtitle
 import com.hermescourier.android.ui.approvalEmptyStateMessage
 import com.hermescourier.android.ui.approvalEmptyStateTitle
 import com.hermescourier.android.ui.approvalStatusBadge
 import com.hermescourier.android.ui.courierCardElevation
+import com.hermescourier.android.ui.courierEmptyStateIllustration
+import com.hermescourier.android.ui.courierHeroCardElevation
 
 private val ApprovalFilters = listOf("All", "Biometrics required", "Standard review")
 
@@ -91,7 +95,7 @@ fun ApprovalsScreen(
             .padding(horizontal = 20.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        Card(elevation = courierCardElevation(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
+        Card(elevation = courierHeroCardElevation(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
             Column(
                 modifier = Modifier.padding(20.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -155,26 +159,16 @@ fun ApprovalsScreen(
         }
 
         if (filteredApprovals.isEmpty()) {
-            Card(elevation = courierCardElevation()) {
+            Card(elevation = courierHeroCardElevation()) {
                 Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(16.dp),
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .size(72.dp)
-                                .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.primaryContainer),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.CheckCircle,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                                modifier = Modifier.size(34.dp),
-                            )
-                        }
+                        courierEmptyStateIllustration(
+                            kind = CourierEmptyStateKind.Approvals,
+                            modifier = Modifier.size(84.dp),
+                        )
                         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             Text(
                                 text = approvalEmptyStateTitle(searchQuery),
@@ -340,25 +334,19 @@ private fun ApprovalListCard(
     SwipeToDismissBox(
         state = dismissState,
         backgroundContent = {
-            val swipeProgress = dismissState.progress.coerceIn(0f, 1f)
+            val swipeProgress = FastOutSlowInEasing.transform(dismissState.progress.coerceIn(0f, 1f))
             val isApproveAction = dismissState.targetValue == SwipeToDismissBoxValue.StartToEnd
             val actionLabel = if (isApproveAction) "Approve" else "Reject"
             val actionIcon = if (isApproveAction) Icons.Filled.CheckCircle else Icons.Filled.Close
-            val actionContainerColor by animateColorAsState(
-                targetValue = when (dismissState.targetValue) {
-                    SwipeToDismissBoxValue.StartToEnd -> MaterialTheme.colorScheme.primaryContainer
-                    SwipeToDismissBoxValue.EndToStart -> MaterialTheme.colorScheme.errorContainer
-                    SwipeToDismissBoxValue.Settled -> MaterialTheme.colorScheme.surfaceVariant
-                },
-                label = "approvalSwipeBackgroundColor",
+            val actionContainerColor = lerp(
+                MaterialTheme.colorScheme.surfaceVariant,
+                if (isApproveAction) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.errorContainer,
+                swipeProgress,
             )
-            val actionContentColor by animateColorAsState(
-                targetValue = when (dismissState.targetValue) {
-                    SwipeToDismissBoxValue.StartToEnd -> MaterialTheme.colorScheme.onPrimaryContainer
-                    SwipeToDismissBoxValue.EndToStart -> MaterialTheme.colorScheme.onErrorContainer
-                    SwipeToDismissBoxValue.Settled -> MaterialTheme.colorScheme.onSurfaceVariant
-                },
-                label = "approvalSwipeContentColor",
+            val actionContentColor = lerp(
+                MaterialTheme.colorScheme.onSurfaceVariant,
+                if (isApproveAction) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onErrorContainer,
+                swipeProgress,
             )
             Box(
                 modifier = Modifier
@@ -380,10 +368,10 @@ private fun ApprovalListCard(
                             contentDescription = null,
                             tint = actionContentColor,
                             modifier = Modifier.graphicsLayer {
-                                val scale = 0.94f + (0.18f * swipeProgress)
+                                val scale = 0.9f + (0.2f * swipeProgress)
                                 scaleX = scale
                                 scaleY = scale
-                                alpha = 0.55f + (0.45f * swipeProgress)
+                                alpha = 0.45f + (0.55f * swipeProgress)
                             },
                         )
                         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -412,9 +400,17 @@ private fun ApprovalListCard(
             }
         },
     ) {
-        Card(elevation = courierCardElevation(), 
+        Card(
+            elevation = courierCardElevation(),
             modifier = Modifier
                 .fillMaxWidth()
+                .graphicsLayer {
+                    val swipeProgress = FastOutSlowInEasing.transform(dismissState.progress.coerceIn(0f, 1f))
+                    val scale = 1f - (0.02f * swipeProgress)
+                    scaleX = scale
+                    scaleY = scale
+                    alpha = 1f - (0.05f * swipeProgress)
+                }
                 .combinedClickable(
                     onClick = { onOpenApprovalDetail(approval.approvalId) },
                     onLongClick = onLongPress,
