@@ -1,10 +1,15 @@
 package com.hermescourier.android.ui
 
 import android.net.Uri
+import androidx.compose.foundation.layout.Column
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -39,36 +44,68 @@ private const val APPROVAL_DETAIL_ARG = "approvalId"
 internal fun sessionDetailRoute(sessionId: String): String = "session/${Uri.encode(sessionId)}"
 internal fun approvalDetailRoute(approvalId: String): String = "approval/${Uri.encode(approvalId)}"
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HermesCourierApp(viewModel: HermesCourierViewModel = viewModel()) {
     val navController = rememberNavController()
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route ?: HermesCourierRoute.Dashboard.route
+    val isDetailRoute = currentRoute.startsWith("session/") || currentRoute.startsWith("approval/")
 
     Scaffold(
-        bottomBar = {
-            NavigationBar {
-                HermesCourierRoute.values().forEach { destination ->
-                    val label = when (destination) {
-                        HermesCourierRoute.Sessions -> navigationLabel(destination.label, uiState.sessions.size)
-                        HermesCourierRoute.Approvals -> navigationLabel(destination.label, uiState.approvals.size)
-                        else -> destination.label
+        topBar = {
+            TopAppBar(
+                title = {
+                    Column {
+                        Text(text = routeTitle(currentRoute))
+                        Text(
+                            text = uiState.bootstrapState,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
                     }
-                    NavigationBarItem(
-                        selected = currentRoute == destination.route,
-                        onClick = {
-                            navController.navigate(destination.route) {
-                                launchSingleTop = true
-                                restoreState = true
-                                popUpTo(navController.graph.findStartDestination().id) {
-                                    saveState = true
+                },
+                navigationIcon = {
+                    if (isDetailRoute) {
+                        TextButton(onClick = { navController.popBackStack() }) {
+                            Text(text = "Back")
+                        }
+                    }
+                },
+                actions = {
+                    if (!isDetailRoute) {
+                        TextButton(onClick = viewModel::refresh) {
+                            Text(text = "Refresh")
+                        }
+                    }
+                },
+            )
+        },
+        bottomBar = {
+            if (!isDetailRoute) {
+                NavigationBar {
+                    HermesCourierRoute.values().forEach { destination ->
+                        val label = when (destination) {
+                            HermesCourierRoute.Sessions -> navigationLabel(destination.label, uiState.sessions.size)
+                            HermesCourierRoute.Approvals -> navigationLabel(destination.label, uiState.approvals.size)
+                            else -> destination.label
+                        }
+                        NavigationBarItem(
+                            selected = currentRoute == destination.route,
+                            onClick = {
+                                navController.navigate(destination.route) {
+                                    launchSingleTop = true
+                                    restoreState = true
+                                    popUpTo(navController.graph.findStartDestination().id) {
+                                        saveState = true
+                                    }
                                 }
-                            }
-                        },
-                        icon = { Text(text = destination.label.first().uppercase()) },
-                        label = { Text(text = label) },
-                    )
+                            },
+                            icon = { Text(text = destination.label.first().uppercase()) },
+                            label = { Text(text = label) },
+                        )
+                    }
                 }
             }
         },
@@ -111,7 +148,6 @@ fun HermesCourierApp(viewModel: HermesCourierViewModel = viewModel()) {
                     SessionDetailScreen(
                         contentPadding = contentPadding,
                         session = session,
-                        onBack = { navController.popBackStack() },
                         onRefresh = viewModel::refresh,
                     )
                 }
@@ -147,7 +183,6 @@ fun HermesCourierApp(viewModel: HermesCourierViewModel = viewModel()) {
                         approval = approval,
                         onApproveApproval = viewModel::approveApproval,
                         onRejectApproval = viewModel::rejectApproval,
-                        onBack = { navController.popBackStack() },
                     )
                 }
             }
@@ -173,4 +208,14 @@ fun HermesCourierApp(viewModel: HermesCourierViewModel = viewModel()) {
             }
         }
     }
+}
+
+private fun routeTitle(route: String): String = when {
+    route == HermesCourierRoute.Dashboard.route -> "Courier Command Center"
+    route == HermesCourierRoute.Sessions.route -> "Sessions"
+    route == HermesCourierRoute.Approvals.route -> "Approvals"
+    route == HermesCourierRoute.Settings.route -> "Settings"
+    route.startsWith("session/") -> "Session detail"
+    route.startsWith("approval/") -> "Approval detail"
+    else -> HermesCourierRoute.Dashboard.label
 }

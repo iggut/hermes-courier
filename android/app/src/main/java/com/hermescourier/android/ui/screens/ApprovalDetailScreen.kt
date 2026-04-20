@@ -6,8 +6,8 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -27,7 +27,6 @@ fun ApprovalDetailScreen(
     approval: HermesApprovalSummary,
     onApproveApproval: (String, String?) -> Unit,
     onRejectApproval: (String, String?) -> Unit,
-    onBack: () -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -39,7 +38,11 @@ fun ApprovalDetailScreen(
     ) {
         Text(text = "Approval details", style = MaterialTheme.typography.headlineMedium)
         Text(text = approval.title, style = MaterialTheme.typography.titleLarge)
-        Text(text = approvalDetailSubtitle(approval), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(
+            text = approvalDetailSubtitle(approval),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
 
         Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -62,7 +65,6 @@ fun ApprovalDetailScreen(
                     Button(onClick = { onRejectApproval(approval.approvalId, null) }, modifier = Modifier.fillMaxWidth()) {
                         Text(text = "Reject now")
                     }
-                    OutlinedButton(onClick = onBack, modifier = Modifier.fillMaxWidth()) { Text(text = "Back to approvals") }
                 }
             }
         }
@@ -71,8 +73,9 @@ fun ApprovalDetailScreen(
             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(text = "Quick guidance", style = MaterialTheme.typography.titleMedium)
                 Text(text = "• Use the detail screen when you want a focused read before deciding.")
-                Text(text = "• Return to the list if you want to compare multiple pending approvals.")
-                Text(text = "• The approval sheet on the main list still supports a note for audit context.")
+                Text(text = "• Return to the approvals list if you want to compare multiple pending approvals.")
+                Text(text = "• biometrics-required items are best handled on a trusted device.")
+                OutlinedButton(onClick = { onApproveApproval(approval.approvalId, null) }, modifier = Modifier.fillMaxWidth()) { Text(text = "Approve without note") }
             }
         }
     }

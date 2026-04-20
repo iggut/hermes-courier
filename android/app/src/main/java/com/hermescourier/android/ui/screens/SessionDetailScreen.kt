@@ -6,8 +6,8 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -25,7 +25,6 @@ import com.hermescourier.android.ui.sessionDetailSubtitle
 fun SessionDetailScreen(
     contentPadding: PaddingValues,
     session: HermesSessionSummary,
-    onBack: () -> Unit,
     onRefresh: () -> Unit,
 ) {
     Column(
@@ -38,7 +37,11 @@ fun SessionDetailScreen(
     ) {
         Text(text = "Session details", style = MaterialTheme.typography.headlineMedium)
         Text(text = session.title, style = MaterialTheme.typography.titleLarge)
-        Text(text = sessionDetailSubtitle(session), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(
+            text = sessionDetailSubtitle(session),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
 
         Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -54,12 +57,9 @@ fun SessionDetailScreen(
             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text(text = "What you can do next", style = MaterialTheme.typography.titleMedium)
                 Text(
-                    text = "Use Refresh to pull the latest state from the gateway. If this session is active, new events and approvals will appear in the dashboard as they arrive.",
+                    text = "Refresh the list from the top app bar to pull the latest gateway state. Active sessions usually mean the agent is working on live tasks.",
                 )
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(onClick = onRefresh, modifier = Modifier.fillMaxWidth()) { Text(text = "Refresh now") }
-                    OutlinedButton(onClick = onBack, modifier = Modifier.fillMaxWidth()) { Text(text = "Back to sessions") }
-                }
+                Button(onClick = onRefresh, modifier = Modifier.fillMaxWidth()) { Text(text = "Refresh now") }
             }
         }
 
@@ -68,7 +68,8 @@ fun SessionDetailScreen(
                 Text(text = "Reading tips", style = MaterialTheme.typography.titleMedium)
                 Text(text = "• Active sessions usually mean the agent is working on live tasks.")
                 Text(text = "• Completed sessions are useful for auditing recent activity.")
-                Text(text = "• If the status looks stale, jump back and refresh from the dashboard.")
+                Text(text = "• Use the sessions tab to compare multiple entries side by side.")
+                OutlinedButton(onClick = onRefresh, modifier = Modifier.fillMaxWidth()) { Text(text = "Sync again") }
             }
         }
     }
