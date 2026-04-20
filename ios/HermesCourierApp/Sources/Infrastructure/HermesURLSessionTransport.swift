@@ -64,12 +64,8 @@ final class HermesURLSessionTransport: NSObject, HermesHTTPTransport, URLSession
         }
         do {
             let identity = try loadIdentity()
-            if let secIdentity = identity.identity as? SecIdentity {
-                let credential = URLCredential(identity: secIdentity, certificates: identity.certificates, persistence: .forSession)
-                completionHandler(.useCredential, credential)
-            } else {
-                completionHandler(.performDefaultHandling, nil)
-            }
+            let credential = URLCredential(identity: identity.identity, certificates: identity.certificates, persistence: .forSession)
+            completionHandler(.useCredential, credential)
         } catch {
             completionHandler(.cancelAuthenticationChallenge, nil)
         }
@@ -88,9 +84,10 @@ final class HermesURLSessionTransport: NSObject, HermesHTTPTransport, URLSession
         guard status == errSecSuccess,
               let array = items as? [[String: Any]],
               let first = array.first,
-              let identity = first[kSecImportItemIdentity as String] as? SecIdentity else {
+              let identityValue = first[kSecImportItemIdentity as String] else {
             throw NSError(domain: "HermesURLSessionTransport", code: Int(status), userInfo: [NSLocalizedDescriptionKey: "Unable to import mTLS identity"])
         }
+        let identity = identityValue as! SecIdentity
         let certificates = (first[kSecImportItemCertChain as String] as? [SecCertificate]) ?? []
         return SecPKCS12Identity(identity: identity, certificates: certificates)
     }
