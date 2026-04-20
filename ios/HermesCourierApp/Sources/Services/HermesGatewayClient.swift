@@ -17,7 +17,7 @@ final class HermesGatewayClient: HermesGatewayClientProtocol {
 
     init(
         transport: HermesURLSessionTransport = HermesURLSessionTransport(configuration: HermesGatewayConfiguration.load()),
-        tokenStore: HermesTokenStoring = HermesKeychainTokenStore(),
+        tokenStore: HermesKeychainTokenStore = HermesKeychainTokenStore(),
         signer: HermesChallengeSigning = HermesKeychainChallengeSigner()
     ) {
         self.transport = transport
@@ -73,10 +73,69 @@ final class HermesGatewayClient: HermesGatewayClientProtocol {
     }
 
     func connectRealtime(session: HermesAuthSession, onStatus: @escaping (String) -> Void, onEnvelope: @escaping (HermesRealtimeEnvelope) -> Void) -> HermesRealtimeStreamHandle {
-        let socket = transport.webSocketTask(path: "/v1/stream", bearerToken: session.accessToken)
-        let handle = HermesRealtimeStreamHandle(socket: socket)
-        handle.start(onStatus: onStatus, onEnvelope: onEnvelope)
+        let handle = HermesRealtimeStreamHandle()
+        handle.start { [transport] streamHandle in
+            await Self.runRealtimeLoop(
+                transport: transport,
+                session: session,
+                handle: streamHandle,
+                onStatus: onStatus,
+                onEnvelope: onEnvelope
+            )
+        }
         return handle
+    }
+
+    private static func runRealtimeLoop(
+        transport: HermesURLSessionTransport,
+        session: HermesAuthSession,
+        handle: HermesRealtimeStreamHandle,
+        onStatus: @escaping (String) -> Void,
+        onEnvelope: @escaping (HermesRealtimeEnvelope) -> Void
+    ) async {
+        var attempt = 0
+        while !Task.isCancelled {
+            let socket = transport.webSocketTask(path: "/v1/stream", bearerToken: session.accessToken)
+            handle.register(socket: socket)
+            onStatus(attempt == 0 ? "Realtime stream connecting" : "Realtime stream reconnecting")
+            socket.resume()
+            onStatus("Realtime stream connected")
+            do {
+                while !Task.isCancelled {
+                    let message = try await socket.receive()
+                    switch message {
+                    case .string(let text):
+                        try emitEnvelope(from: text, onEnvelope: onEnvelope, onStatus: onStatus)
+                    case .data(let data):
+                        if let text = String(data: data, encoding: .utf8) {
+                            try emitEnvelope(from: text, onEnvelope: onEnvelope, onStatus: onStatus)
+                        }
+                    @unknown default:
+                        break
+                    }
+                }
+            } catch {
+                if Task.isCancelled { break }
+                onStatus("Realtime stream error: \(error.localizedDescription)")
+            }
+            if Task.isCancelled { break }
+            socket.cancel(with: .goingAway, reason: nil)
+            attempt = min(attempt + 1, 5)
+            let backoffSeconds = min(pow(2.0, Double(attempt)), 30.0)
+            onStatus("Realtime reconnecting in \(Int(backoffSeconds))s")
+            try? await Task.sleep(nanoseconds: UInt64(backoffSeconds * 1_000_000_000))
+        }
+        onStatus("Realtime stream disconnected")
+    }
+
+    private static func emitEnvelope(from text: String, onEnvelope: @escaping (HermesRealtimeEnvelope) -> Void, onStatus: @escaping (String) -> Void) throws {
+        let data = Data(text.utf8)
+        do {
+            let envelope = try JSONDecoder().decode(HermesRealtimeEnvelope.self, from: data)
+            onEnvelope(envelope)
+        } catch {
+            onStatus("Realtime parse error: \(error.localizedDescription)")
+        }
     }
 
     private func requestChallenge(device: HermesDeviceIdentity) async throws -> HermesAuthChallengeResponse {
@@ -138,9 +197,8 @@ final class HermesDemoGatewayClient: HermesGatewayClientProtocol {
 
     func fetchConversation(session: HermesAuthSession) async throws -> [HermesConversationEvent] {
         [
-            HermesConversationEvent(eventId: "event-01", author: "Hermes", body: "Awaiting your next instruction.", timestamp: "now"),
-            HermesConversationEvent(eventId: "event-02", author: "You", body: "Review the latest approvals.", timestamp: "just now"),
-            HermesConversationEvent(eventId: "event-03", author: "Hermes", body: "I found 2 pending approval requests.", timestamp: "just now"),
+            HermesConversationEvent(eventId: "demo-event-1", author: "Hermes", body: "Demo realtime stream active.", timestamp: "now"),
+            HermesConversationEvent(eventId: "demo-event-2", author: "You", body: "Review the latest approvals.", timestamp: "just now"),
         ]
     }
 
@@ -155,68 +213,21 @@ final class HermesDemoGatewayClient: HermesGatewayClientProtocol {
     }
 
     func connectRealtime(session: HermesAuthSession, onStatus: @escaping (String) -> Void, onEnvelope: @escaping (HermesRealtimeEnvelope) -> Void) -> HermesRealtimeStreamHandle {
-        let handle = HermesRealtimeStreamHandle(socket: nil)
-        onStatus("Realtime stream connected (demo)")
-        onEnvelope(
-            HermesRealtimeEnvelope(
-                type: "conversation",
-                dashboard: nil,
-                sessions: nil,
-                approvals: nil,
-                conversation: HermesConversationEvent(eventId: "demo-stream-1", author: "Hermes", body: "Demo realtime stream active.", timestamp: "now"),
-                approvalResult: nil
+        let handle = HermesRealtimeStreamHandle()
+        handle.start { _ in
+            onStatus("Realtime stream connected (demo)")
+            onEnvelope(
+                HermesRealtimeEnvelope(
+                    type: "conversation",
+                    dashboard: nil,
+                    sessions: nil,
+                    approvals: nil,
+                    conversation: HermesConversationEvent(eventId: "demo-stream-1", author: "Hermes", body: "Demo realtime stream active.", timestamp: "now"),
+                    approvalResult: nil
+                )
             )
-        )
+        }
         return handle
-    }
-}
-
-final class HermesRealtimeStreamHandle {
-    private var socket: URLSessionWebSocketTask?
-    private var task: Task<Void, Never>?
-
-    init(socket: URLSessionWebSocketTask?) {
-        self.socket = socket
-    }
-
-    func start(onStatus: @escaping (String) -> Void, onEnvelope: @escaping (HermesRealtimeEnvelope) -> Void) {
-        guard let socket = socket else {
-            return
-        }
-        socket.resume()
-        task = Task {
-            onStatus("Realtime stream connecting")
-            onStatus("Realtime stream connected")
-            while !Task.isCancelled {
-                do {
-                    let message = try await socket.receive()
-                    switch message {
-                    case .string(let text):
-                        if let data = text.data(using: .utf8), let envelope = try? JSONDecoder().decode(HermesRealtimeEnvelope.self, from: data) {
-                            onEnvelope(envelope)
-                        } else if let data = text.data(using: .utf8), let conversation = try? JSONDecoder().decode(HermesConversationEvent.self, from: data) {
-                            onEnvelope(HermesRealtimeEnvelope(type: "conversation", dashboard: nil, sessions: nil, approvals: nil, conversation: conversation, approvalResult: nil))
-                        }
-                    case .data(let data):
-                        if let envelope = try? JSONDecoder().decode(HermesRealtimeEnvelope.self, from: data) {
-                            onEnvelope(envelope)
-                        }
-                    @unknown default:
-                        break
-                    }
-                } catch {
-                    onStatus("Realtime stream error: \(error.localizedDescription)")
-                    break
-                }
-            }
-        }
-    }
-
-    func cancel() {
-        task?.cancel()
-        task = nil
-        socket?.cancel(with: .goingAway, reason: nil)
-        socket = nil
     }
 }
 

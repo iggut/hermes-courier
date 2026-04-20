@@ -12,15 +12,20 @@ import com.hermescourier.android.domain.gateway.HermesGatewayClientFactory
 import com.hermescourier.android.domain.model.HermesApprovalActionResult
 import com.hermescourier.android.domain.model.HermesCourierUiState
 import com.hermescourier.android.domain.model.HermesDeviceIdentity
+import com.hermescourier.android.domain.model.HermesEnrollmentPayload
 import com.hermescourier.android.domain.model.HermesGatewaySettings
+import com.hermescourier.android.domain.model.HermesQueuedApprovalAction
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import org.json.JSONArray
+import org.json.JSONObject
 import java.io.Closeable
 import java.io.File
 import java.io.FileOutputStream
+import java.time.Instant
 
 class HermesCourierViewModel(application: Application) : AndroidViewModel(application) {
     private val applicationContext = application.applicationContext
@@ -28,6 +33,8 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
     private val fallbackGatewayClient: HermesGatewayClient = DemoHermesGatewayClient()
     private var realtimeHandle: Closeable? = null
     private var currentSession: com.hermescourier.android.domain.model.HermesAuthSession? = null
+    private val queuedApprovalActions = ArrayDeque<HermesQueuedApprovalAction>()
+    private val queuedActionsFile = File(applicationContext.filesDir, "hermes-queued-approval-actions.json")
 
     private val _uiState = MutableStateFlow(initialState())
     val uiState: StateFlow<HermesCourierUiState> = _uiState.asStateFlow()
@@ -40,6 +47,7 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
     )
 
     init {
+        loadQueuedApprovalActions()
         refresh()
     }
 
@@ -57,6 +65,7 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
                 loadFromGateway(liveClient)
             }.onSuccess { state ->
                 _uiState.value = state
+                flushQueuedApprovalActions(liveClient, currentSession)
             }.onFailure { error ->
                 runCatching {
                     loadFromGateway(fallbackGatewayClient)
@@ -70,7 +79,8 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
                     _uiState.update {
                         it.copy(
                             bootstrapState = "Gateway unavailable",
-                            authStatus = fallbackError.message ?: error.message ?: "Unknown error",
+                            authStatus = fallbackError.localizedMessage ?: fallbackError.toString(),
+                            streamStatus = "Realtime stream unavailable",
                         )
                     }
                 }
@@ -78,36 +88,61 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
         }
     }
 
-    fun updateGatewayBaseUrl(baseUrl: String) {
+    fun updateGatewayBaseUrl(value: String) {
         _uiState.update {
-            it.copy(gatewaySettings = it.gatewaySettings.copy(baseUrl = baseUrl.trim()))
+            it.copy(
+                gatewaySettings = it.gatewaySettings.copy(baseUrl = value.trim()),
+                enrollmentStatus = enrollmentStatus(it.gatewaySettings.copy(baseUrl = value.trim())),
+                enrollmentQrPayload = enrollmentPayload(it.gatewaySettings.copy(baseUrl = value.trim())),
+            )
         }
     }
 
-    fun updateCertificatePassword(password: String) {
+    fun updateCertificatePassword(value: String) {
         _uiState.update {
-            it.copy(gatewaySettings = it.gatewaySettings.copy(certificatePassword = password))
+            it.copy(gatewaySettings = it.gatewaySettings.copy(certificatePassword = value))
         }
     }
 
     fun importCertificate(uri: Uri) {
         viewModelScope.launch {
-            val importedFile = copyCertificateToPrivateStorage(uri)
+            val copiedCertificate = copyCertificateToPrivateStorage(uri)
             _uiState.update {
                 it.copy(
-                    gatewaySettings = it.gatewaySettings.copy(certificatePath = importedFile.absolutePath),
-                    enrollmentStatus = "Imported certificate bundle: ${importedFile.name}",
+                    gatewaySettings = it.gatewaySettings.copy(certificatePath = copiedCertificate.absolutePath),
+                    enrollmentStatus = enrollmentStatus(it.gatewaySettings.copy(certificatePath = copiedCertificate.absolutePath)),
+                    enrollmentQrPayload = enrollmentPayload(it.gatewaySettings.copy(certificatePath = copiedCertificate.absolutePath)),
                 )
             }
-            persistGatewaySettings()
-            refresh()
+        }
+    }
+
+    fun applyEnrollmentQr(payload: String) {
+        val parsed = parseEnrollmentPayload(payload)
+        if (parsed == null) {
+            _uiState.update { it.copy(enrollmentStatus = "Enrollment QR could not be parsed") }
+            return
+        }
+        val updatedSettings = _uiState.value.gatewaySettings.copy(baseUrl = parsed.gatewayUrl)
+        _uiState.update {
+            it.copy(
+                gatewaySettings = updatedSettings,
+                enrollmentStatus = "Enrollment QR scanned for ${parsed.gatewayUrl}",
+                enrollmentQrPayload = enrollmentPayload(updatedSettings),
+            )
         }
     }
 
     fun saveSettings() {
         viewModelScope.launch {
             persistGatewaySettings()
-            _uiState.update { it.copy(enrollmentStatus = "Gateway settings saved securely") }
+            _uiState.update {
+                it.copy(
+                    enrollmentStatus = "Gateway settings saved securely",
+                    enrollmentQrPayload = enrollmentPayload(it.gatewaySettings),
+                    queuedApprovalActions = queuedApprovalActions.size,
+                )
+            }
             refresh()
         }
     }
@@ -123,21 +158,27 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
     private fun submitApprovalAction(approvalId: String, action: String, note: String?) {
         viewModelScope.launch {
             val session = currentSession ?: run {
-                _uiState.update { it.copy(approvalActionStatus = "No authenticated session available for approval actions") }
+                queueApprovalAction(approvalId, action, note, reason = "No authenticated session available; queued locally")
                 return@launch
             }
-            val client = HermesGatewayClientFactory.create(applicationContext)
-            val result = runCatching {
-                client.submitApprovalAction(session, approvalId, action, note)
-            }.getOrElse {
-                fallbackGatewayClient.submitApprovalAction(session, approvalId, action, note)
+            val liveClient = runCatching { HermesGatewayClientFactory.create(applicationContext) }.getOrNull()
+            if (liveClient == null) {
+                queueApprovalAction(approvalId, action, note, reason = "Live gateway unavailable; queued locally")
+                return@launch
             }
-            _uiState.update {
-                it.copy(
-                    approvalActionStatus = approvalActionMessage(result),
-                )
+            runCatching {
+                liveClient.submitApprovalAction(session, approvalId, action, note)
+            }.onSuccess { result ->
+                _uiState.update {
+                    it.copy(
+                        approvalActionStatus = approvalActionMessage(result),
+                        queuedApprovalActions = queuedApprovalActions.size,
+                    )
+                }
+                refresh()
+            }.onFailure {
+                queueApprovalAction(approvalId, action, note, reason = "Offline; approval action queued for retry")
             }
-            refresh()
         }
     }
 
@@ -150,6 +191,7 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
         val conversation = client.fetchConversation(session)
         startRealtime(client, session)
         val settings = HermesGatewayConfiguration.from(applicationContext).toSettings()
+        val queuedCount = queuedApprovalActions.size
         return _uiState.value.copy(
             bootstrapState = "Secure gateway ready",
             authStatus = "Session ${session.sessionId} authenticated through ${session.gatewayUrl}",
@@ -160,6 +202,8 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
             gatewaySettings = settings,
             deviceFingerprint = deviceIdentity.publicKeyFingerprint,
             enrollmentStatus = enrollmentStatus(settings),
+            enrollmentQrPayload = enrollmentPayload(settings),
+            queuedApprovalActions = queuedCount,
             streamStatus = "Realtime stream connected",
         )
     }
@@ -170,6 +214,9 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
             session = session,
             onStatus = { status ->
                 _uiState.update { it.copy(streamStatus = status) }
+                if (status.contains("connected", ignoreCase = true) && client !is DemoHermesGatewayClient) {
+                    viewModelScope.launch { flushQueuedApprovalActions(client, session) }
+                }
             },
             onEnvelope = { envelope ->
                 _uiState.update { state ->
@@ -187,6 +234,54 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
         )
     }
 
+    private suspend fun flushQueuedApprovalActions(client: HermesGatewayClient, session: com.hermescourier.android.domain.model.HermesAuthSession?) {
+        if (session == null || client is DemoHermesGatewayClient || queuedApprovalActions.isEmpty()) {
+            _uiState.update { it.copy(queuedApprovalActions = queuedApprovalActions.size) }
+            return
+        }
+        while (queuedApprovalActions.isNotEmpty()) {
+            val queued = queuedApprovalActions.first()
+            runCatching {
+                client.submitApprovalAction(session, queued.approvalId, queued.action, queued.note)
+            }.onSuccess { result ->
+                queuedApprovalActions.removeFirst()
+                persistQueuedApprovalActions()
+                _uiState.update {
+                    it.copy(
+                        approvalActionStatus = "Flushed queued ${result.action} for ${result.approvalId}: ${result.status}",
+                        queuedApprovalActions = queuedApprovalActions.size,
+                    )
+                }
+            }.onFailure { error ->
+                _uiState.update {
+                    it.copy(
+                        approvalActionStatus = "Queued approval action still pending: ${error.localizedMessage ?: error}",
+                        queuedApprovalActions = queuedApprovalActions.size,
+                    )
+                }
+                return
+            }
+        }
+    }
+
+    private fun queueApprovalAction(approvalId: String, action: String, note: String?, reason: String) {
+        queuedApprovalActions.addLast(
+            HermesQueuedApprovalAction(
+                approvalId = approvalId,
+                action = action,
+                note = note,
+                createdAt = System.currentTimeMillis(),
+            )
+        )
+        persistQueuedApprovalActions()
+        _uiState.update {
+            it.copy(
+                approvalActionStatus = reason,
+                queuedApprovalActions = queuedApprovalActions.size,
+            )
+        }
+    }
+
     private suspend fun syncSettingsFromDisk() {
         val loadedSettings = HermesGatewayConfiguration.from(applicationContext).toSettings()
         _uiState.update {
@@ -194,6 +289,8 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
                 gatewaySettings = loadedSettings,
                 deviceFingerprint = deviceIdentity.publicKeyFingerprint,
                 enrollmentStatus = enrollmentStatus(loadedSettings),
+                enrollmentQrPayload = enrollmentPayload(loadedSettings),
+                queuedApprovalActions = queuedApprovalActions.size,
             )
         }
     }
@@ -226,6 +323,8 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
             gatewaySettings = settings,
             deviceFingerprint = runCatching { signer.publicKeyFingerprint() }.getOrElse { "fingerprint-unavailable" },
             enrollmentStatus = enrollmentStatus(settings),
+            enrollmentQrPayload = enrollmentPayload(settings),
+            queuedApprovalActions = queuedApprovalActions.size,
         )
     }
 
@@ -235,6 +334,78 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
         else -> "Certificate bundle enrolled and ready"
     }
 
+    private fun enrollmentPayload(settings: HermesGatewaySettings): String {
+        val payload = HermesEnrollmentPayload(
+            gatewayUrl = settings.baseUrl,
+            deviceId = deviceIdentity.deviceId,
+            publicKeyFingerprint = deviceIdentity.publicKeyFingerprint,
+            appVersion = deviceIdentity.appVersion,
+            issuedAt = Instant.now().toString(),
+        )
+        return Uri.Builder()
+            .scheme("hermes-courier-enroll")
+            .authority("gateway")
+            .appendQueryParameter("gatewayUrl", payload.gatewayUrl)
+            .appendQueryParameter("deviceId", payload.deviceId)
+            .appendQueryParameter("publicKeyFingerprint", payload.publicKeyFingerprint)
+            .appendQueryParameter("appVersion", payload.appVersion)
+            .appendQueryParameter("issuedAt", payload.issuedAt)
+            .build()
+            .toString()
+    }
+
+    private fun parseEnrollmentPayload(payload: String): HermesEnrollmentPayload? {
+        val uri = runCatching { Uri.parse(payload) }.getOrNull() ?: return null
+        if (uri.scheme != "hermes-courier-enroll") return null
+        val gatewayUrl = uri.getQueryParameter("gatewayUrl") ?: return null
+        return HermesEnrollmentPayload(
+            gatewayUrl = gatewayUrl,
+            deviceId = uri.getQueryParameter("deviceId") ?: deviceIdentity.deviceId,
+            publicKeyFingerprint = uri.getQueryParameter("publicKeyFingerprint") ?: deviceIdentity.publicKeyFingerprint,
+            appVersion = uri.getQueryParameter("appVersion") ?: deviceIdentity.appVersion,
+            issuedAt = uri.getQueryParameter("issuedAt") ?: Instant.now().toString(),
+        )
+    }
+
+    private fun persistQueuedApprovalActions() {
+        val json = JSONArray().apply {
+            queuedApprovalActions.forEach { action ->
+                put(
+                    JSONObject().apply {
+                        put("approvalId", action.approvalId)
+                        put("action", action.action)
+                        put("note", action.note)
+                        put("createdAt", action.createdAt)
+                    }
+                )
+            }
+        }
+        queuedActionsFile.writeText(json.toString())
+    }
+
+    private fun loadQueuedApprovalActions() {
+        if (!queuedActionsFile.exists()) return
+        runCatching {
+            val json = JSONArray(queuedActionsFile.readText())
+            for (index in 0 until json.length()) {
+                val item = json.getJSONObject(index)
+                queuedApprovalActions.addLast(
+                    HermesQueuedApprovalAction(
+                        approvalId = item.getString("approvalId"),
+                        action = item.getString("action"),
+                        note = item.optString("note").takeIf { it.isNotBlank() },
+                        createdAt = item.optLong("createdAt", System.currentTimeMillis()),
+                    )
+                )
+            }
+        }
+    }
+
     private fun approvalActionMessage(result: HermesApprovalActionResult): String =
-        "${result.action.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }} approval ${result.approvalId}: ${result.status}"
+        "${result.action.replaceFirstChar { it.uppercaseChar() }} approval ${result.approvalId}: ${result.status}"
+
+    override fun onCleared() {
+        realtimeHandle?.close()
+        super.onCleared()
+    }
 }

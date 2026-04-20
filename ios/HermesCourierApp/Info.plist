@@ -13,6 +13,8 @@
     <string>6.0</string>
     <key>CFBundleName</key>
     <string>Hermes Courier</string>
+    <key>NSCameraUsageDescription</key>
+    <string>Hermes Courier uses the camera to scan enrollment QR codes.</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>

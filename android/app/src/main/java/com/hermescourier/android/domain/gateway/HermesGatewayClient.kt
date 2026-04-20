@@ -20,7 +20,14 @@ import java.io.Closeable
 import java.io.IOException
 import java.security.SecureRandom
 import java.util.Base64
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -112,32 +119,15 @@ class NetworkHermesGatewayClient(
         onStatus: (String) -> Unit,
         onEnvelope: (HermesRealtimeEnvelope) -> Unit,
     ): Closeable {
-        val url = configuration.baseUrl.newBuilder().addPathSegments("v1/stream").build()
-        val request = Request.Builder()
-            .url(url)
-            .addHeader("Authorization", "Bearer ${session.accessToken}")
-            .build()
-        val webSocket = okHttpClient.newWebSocket(request, object : WebSocketListener() {
-            override fun onOpen(webSocket: WebSocket, response: okhttp3.Response) {
-                onStatus("Realtime stream connected")
-            }
-
-            override fun onMessage(webSocket: WebSocket, text: String) {
-                runCatching { text.toJsonObject().toRealtimeEnvelope() }
-                    .onSuccess(onEnvelope)
-                    .onFailure { onStatus("Realtime parse error: ${it.message ?: "unknown"}") }
-            }
-
-            override fun onFailure(webSocket: WebSocket, t: Throwable, response: okhttp3.Response?) {
-                onStatus("Realtime stream error: ${t.message ?: "unknown"}")
-            }
-
-            override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
-                onStatus("Realtime stream closed ($code) $reason")
-            }
-        })
-        onStatus("Realtime stream connecting")
-        return Closeable { webSocket.close(1000, "client disconnect") }
+        val manager = RealtimeConnectionManager(
+            okHttpClient = okHttpClient,
+            configuration = configuration,
+            session = session,
+            onStatus = onStatus,
+            onEnvelope = onEnvelope,
+        )
+        manager.start()
+        return manager
     }
 
     private suspend fun requestChallenge(device: HermesDeviceIdentity): HermesAuthChallengeResponse = withContext(Dispatchers.IO) {
@@ -152,6 +142,74 @@ class NetworkHermesGatewayClient(
         val bytes = ByteArray(32)
         SecureRandom().nextBytes(bytes)
         return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes)
+    }
+}
+
+private class RealtimeConnectionManager(
+    private val okHttpClient: OkHttpClient,
+    private val configuration: HermesGatewayConfiguration,
+    private val session: HermesAuthSession,
+    private val onStatus: (String) -> Unit,
+    private val onEnvelope: (HermesRealtimeEnvelope) -> Unit,
+) : Closeable {
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    @Volatile
+    private var currentSocket: WebSocket? = null
+    @Volatile
+    private var cancelled = false
+
+    fun start() {
+        scope.launch {
+            var attempt = 0
+            while (isActive && !cancelled) {
+                val completed = CompletableDeferred<Int>()
+                val request = Request.Builder()
+                    .url(configuration.baseUrl.newBuilder().addPathSegments("v1/stream").build())
+                    .addHeader("Authorization", "Bearer ${session.accessToken}")
+                    .build()
+                onStatus(if (attempt == 0) "Realtime stream connecting" else "Realtime stream reconnecting")
+                currentSocket = okHttpClient.newWebSocket(request, object : WebSocketListener() {
+                    override fun onOpen(webSocket: WebSocket, response: okhttp3.Response) {
+                        attempt = 0
+                        onStatus("Realtime stream connected")
+                    }
+
+                    override fun onMessage(webSocket: WebSocket, text: String) {
+                        runCatching { text.toJsonObject().toRealtimeEnvelope() }
+                            .onSuccess(onEnvelope)
+                            .onFailure { onStatus("Realtime parse error: ${it.message ?: "unknown"}") }
+                    }
+
+                    override fun onFailure(webSocket: WebSocket, t: Throwable, response: okhttp3.Response?) {
+                        onStatus("Realtime stream error: ${t.message ?: "unknown"}")
+                        completed.complete(-1)
+                    }
+
+                    override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
+                        onStatus("Realtime stream closed ($code) $reason")
+                        completed.complete(code)
+                    }
+                })
+                val closeCode = runCatching { completed.await() }.getOrDefault(-1)
+                if (!isActive || cancelled) {
+                    break
+                }
+                if (closeCode == 1000) {
+                    onStatus("Realtime stream closed cleanly; reconnecting")
+                }
+                attempt = (attempt + 1).coerceAtMost(5)
+                val backoffSeconds = (1L shl attempt).coerceAtMost(30L)
+                onStatus("Realtime reconnecting in ${backoffSeconds}s")
+                delay(backoffSeconds * 1000)
+            }
+        }
+    }
+
+    override fun close() {
+        cancelled = true
+        currentSocket?.close(1000, "client disconnect")
+        currentSocket = null
+        scope.cancel()
     }
 }
 

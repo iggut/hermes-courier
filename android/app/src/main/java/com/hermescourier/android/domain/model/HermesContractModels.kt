@@ -92,6 +92,21 @@ data class HermesGatewaySettings(
     val certificatePassword: String = "",
 )
 
+data class HermesEnrollmentPayload(
+    val gatewayUrl: String,
+    val deviceId: String,
+    val publicKeyFingerprint: String,
+    val appVersion: String,
+    val issuedAt: String,
+)
+
+data class HermesQueuedApprovalAction(
+    val approvalId: String,
+    val action: String,
+    val note: String?,
+    val createdAt: Long,
+)
+
 data class HermesCourierUiState(
     val bootstrapState: String = "Bootstrapping secure gateway",
     val authStatus: String = "Waiting for device-bound challenge",
@@ -109,11 +124,13 @@ data class HermesCourierUiState(
             author = "Hermes",
             body = "Awaiting secure gateway bootstrap.",
             timestamp = "now",
-        ),
+        )
     ),
+    val approvalActionStatus: String = "No approval action submitted",
+    val streamStatus: String = "Realtime stream disconnected",
     val gatewaySettings: HermesGatewaySettings = HermesGatewaySettings(),
     val deviceFingerprint: String = "pending-device-enrollment",
     val enrollmentStatus: String = "No certificate imported yet",
-    val streamStatus: String = "Realtime stream disconnected",
-    val approvalActionStatus: String = "No approval action submitted",
+    val enrollmentQrPayload: String = "",
+    val queuedApprovalActions: Int = 0,
 )

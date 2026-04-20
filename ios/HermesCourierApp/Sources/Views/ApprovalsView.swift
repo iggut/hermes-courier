@@ -1,7 +1,16 @@
 import SwiftUI
 
+private struct PendingApprovalDecision: Identifiable {
+    let id = UUID()
+    let approvalId: String
+    let action: String
+    let title: String
+}
+
 struct ApprovalsView: View {
     @EnvironmentObject private var viewModel: AppViewModel
+    @State private var pendingDecision: PendingApprovalDecision?
+    @State private var noteDraft: String = ""
 
     var body: some View {
         NavigationStack {
@@ -15,30 +24,57 @@ struct ApprovalsView: View {
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                             HStack {
-                                Button("Approve") {
-                                    viewModel.approveApproval(approval.approvalId)
+                                Button("Approve with note") {
+                                    noteDraft = ""
+                                    pendingDecision = PendingApprovalDecision(approvalId: approval.approvalId, action: "approve", title: approval.title)
                                 }
-                                .buttonStyle(.borderedProminent)
-
-                                Button("Reject") {
-                                    viewModel.rejectApproval(approval.approvalId)
+                                Button("Reject with note") {
+                                    noteDraft = ""
+                                    pendingDecision = PendingApprovalDecision(approvalId: approval.approvalId, action: "reject", title: approval.title)
                                 }
-                                .buttonStyle(.bordered)
                             }
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding()
                         .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 16))
                     }
-
-                    if viewModel.approvals.isEmpty {
-                        Text("No approvals are waiting right now.")
-                            .padding()
-                    }
                 }
                 .padding()
             }
             .navigationTitle("Approvals")
+            .sheet(item: $pendingDecision) { decision in
+                NavigationStack {
+                    Form {
+                        Section("Decision") {
+                            Text(decision.action.capitalized + " — " + decision.title)
+                            Text("Add a note before submitting the approval action.")
+                        }
+                        Section("Comment") {
+                            TextField("Note / comment", text: $noteDraft, axis: .vertical)
+                                .lineLimit(3, reservesSpace: true)
+                        }
+                    }
+                    .navigationTitle(decision.action.capitalized)
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("Cancel") { pendingDecision = nil }
+                        }
+                        ToolbarItem(placement: .confirmationAction) {
+                            Button("Send") {
+                                let note = noteDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+                                let submittedNote = note.isEmpty ? nil : note
+                                if decision.action == "approve" {
+                                    viewModel.approveApproval(decision.approvalId, note: submittedNote)
+                                } else {
+                                    viewModel.rejectApproval(decision.approvalId, note: submittedNote)
+                                }
+                                pendingDecision = nil
+                                noteDraft = ""
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }

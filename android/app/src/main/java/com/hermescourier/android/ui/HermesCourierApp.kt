@@ -66,8 +66,8 @@ fun HermesCourierApp(viewModel: HermesCourierViewModel = viewModel()) {
                 ApprovalsScreen(
                     contentPadding = contentPadding,
                     approvals = uiState.approvals,
-                    onApprove = viewModel::approveApproval,
-                    onReject = viewModel::rejectApproval,
+                    onApproveApproval = viewModel::approveApproval,
+                    onRejectApproval = viewModel::rejectApproval,
                 )
             }
             composable(HermesCourierRoute.Settings.route) {
@@ -77,6 +77,7 @@ fun HermesCourierApp(viewModel: HermesCourierViewModel = viewModel()) {
                     onGatewayUrlChange = viewModel::updateGatewayBaseUrl,
                     onCertificatePasswordChange = viewModel::updateCertificatePassword,
                     onImportCertificate = viewModel::importCertificate,
+                    onEnrollmentQrScanned = viewModel::applyEnrollmentQr,
                     onSaveSettings = viewModel::saveSettings,
                     onRefresh = viewModel::refresh,
                 )
