@@ -1,5 +1,5 @@
 import XCTest
-@testable import HermesCourier
+import HermesCourier
 
 final class HermesContractTests: XCTestCase {
 

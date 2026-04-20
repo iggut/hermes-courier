@@ -111,26 +111,26 @@ struct HermesGatewaySettings: Hashable {
 }
 
 /// Wire decision values for approvals (parity with Android `normalizeApprovalDecisionWire` / queue migration).
-enum HermesApprovalWire {
-    static func normalizeDecision(_ raw: String) -> String {
+public enum HermesApprovalWire {
+    public static func normalizeDecision(_ raw: String) -> String {
         let lower = raw.lowercased()
         if lower == "reject" { return "deny" }
         return lower
     }
 
-    static func migrateQueuedAction(_ raw: String) -> String {
+    public static func migrateQueuedAction(_ raw: String) -> String {
         raw.lowercased() == "reject" ? "deny" : raw
     }
 }
 
 /// UI labels: wire uses `deny` while surfaces say "Reject".
-enum HermesApprovalDisplay {
+public enum HermesApprovalDisplay {
     private static func normalizedAction(_ action: String) -> String {
         action.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
     }
 
     /// Short verb for inline labels (buttons, queue rows, status snippets).
-    static func userFacingVerb(for action: String) -> String {
+    public static func userFacingVerb(for action: String) -> String {
         switch normalizedAction(action) {
         case "deny", "reject":
             return "Reject"
@@ -142,7 +142,7 @@ enum HermesApprovalDisplay {
     }
 
     /// Navigation titles for the approval note sheet (matches Android dialog titles).
-    static func decisionSheetNavigationTitle(for wireAction: String) -> String {
+    public static func decisionSheetNavigationTitle(for wireAction: String) -> String {
         switch normalizedAction(wireAction) {
         case "approve":
             return "Approve approval"
