@@ -1,5 +1,7 @@
 package com.hermescourier.android.ui
 
+import com.hermescourier.android.domain.model.HermesApprovalSummary
+import com.hermescourier.android.domain.model.HermesSessionSummary
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -45,5 +47,21 @@ class HermesCourierUiHelpersTest {
                 activeSessions = 0,
             ),
         )
+    }
+
+    @Test
+    fun sessionAndApprovalBadges_readWell_onMobile() {
+        assertEquals("Live session", sessionStatusBadge("active"))
+        assertEquals("Needs attention", sessionStatusBadge("error"))
+        assertEquals("Biometrics required", approvalStatusBadge(HermesApprovalSummary("a", "t", "d", true)))
+        assertEquals("Standard review", approvalStatusBadge(HermesApprovalSummary("a", "t", "d", false)))
+    }
+
+    @Test
+    fun detailSubtitles_includeKeyIdentifiers() {
+        val session = HermesSessionSummary("s-1", "Morning sync", "active", "just now")
+        val approval = HermesApprovalSummary("a-7", "Delete branch", "Dangerous operation", true)
+        assertEquals("Updated just now · Live session", sessionDetailSubtitle(session))
+        assertEquals("Biometrics required · a-7", approvalDetailSubtitle(approval))
     }
 }

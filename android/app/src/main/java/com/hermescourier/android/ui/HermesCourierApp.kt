@@ -1,5 +1,6 @@
 package com.hermescourier.android.ui
 
+import android.net.Uri
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
@@ -8,14 +9,18 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.navArgument
 import com.hermescourier.android.domain.HermesCourierViewModel
+import com.hermescourier.android.ui.screens.ApprovalDetailScreen
 import com.hermescourier.android.ui.screens.ApprovalsScreen
 import com.hermescourier.android.ui.screens.DashboardScreen
+import com.hermescourier.android.ui.screens.SessionDetailScreen
 import com.hermescourier.android.ui.screens.SessionsScreen
 import com.hermescourier.android.ui.screens.SettingsScreen
 
@@ -25,6 +30,14 @@ enum class HermesCourierRoute(val route: String, val label: String) {
     Approvals("approvals", "Approvals"),
     Settings("settings", "Settings"),
 }
+
+private const val SESSION_DETAIL_ROUTE = "session/{sessionId}"
+private const val SESSION_DETAIL_ARG = "sessionId"
+private const val APPROVAL_DETAIL_ROUTE = "approval/{approvalId}"
+private const val APPROVAL_DETAIL_ARG = "approvalId"
+
+internal fun sessionDetailRoute(sessionId: String): String = "session/${Uri.encode(sessionId)}"
+internal fun approvalDetailRoute(approvalId: String): String = "approval/${Uri.encode(approvalId)}"
 
 @Composable
 fun HermesCourierApp(viewModel: HermesCourierViewModel = viewModel()) {
@@ -76,7 +89,32 @@ fun HermesCourierApp(viewModel: HermesCourierViewModel = viewModel()) {
                     contentPadding = contentPadding,
                     sessions = uiState.sessions,
                     bootstrapState = uiState.bootstrapState,
+                    onOpenSessionDetail = { sessionId -> navController.navigate(sessionDetailRoute(sessionId)) },
+                    onRefresh = viewModel::refresh,
                 )
+            }
+            composable(
+                route = SESSION_DETAIL_ROUTE,
+                arguments = listOf(navArgument(SESSION_DETAIL_ARG) { type = NavType.StringType }),
+            ) { entry ->
+                val sessionId = entry.arguments?.getString(SESSION_DETAIL_ARG).orEmpty()
+                val session = uiState.sessions.firstOrNull { it.sessionId == sessionId }
+                if (session == null) {
+                    SessionsScreen(
+                        contentPadding = contentPadding,
+                        sessions = uiState.sessions,
+                        bootstrapState = uiState.bootstrapState,
+                        onOpenSessionDetail = { id -> navController.navigate(sessionDetailRoute(id)) },
+                        onRefresh = viewModel::refresh,
+                    )
+                } else {
+                    SessionDetailScreen(
+                        contentPadding = contentPadding,
+                        session = session,
+                        onBack = { navController.popBackStack() },
+                        onRefresh = viewModel::refresh,
+                    )
+                }
             }
             composable(HermesCourierRoute.Approvals.route) {
                 ApprovalsScreen(
@@ -84,7 +122,34 @@ fun HermesCourierApp(viewModel: HermesCourierViewModel = viewModel()) {
                     approvals = uiState.approvals,
                     onApproveApproval = viewModel::approveApproval,
                     onRejectApproval = viewModel::rejectApproval,
+                    onOpenApprovalDetail = { approvalId -> navController.navigate(approvalDetailRoute(approvalId)) },
+                    onRefresh = viewModel::refresh,
                 )
+            }
+            composable(
+                route = APPROVAL_DETAIL_ROUTE,
+                arguments = listOf(navArgument(APPROVAL_DETAIL_ARG) { type = NavType.StringType }),
+            ) { entry ->
+                val approvalId = entry.arguments?.getString(APPROVAL_DETAIL_ARG).orEmpty()
+                val approval = uiState.approvals.firstOrNull { it.approvalId == approvalId }
+                if (approval == null) {
+                    ApprovalsScreen(
+                        contentPadding = contentPadding,
+                        approvals = uiState.approvals,
+                        onApproveApproval = viewModel::approveApproval,
+                        onRejectApproval = viewModel::rejectApproval,
+                        onOpenApprovalDetail = { id -> navController.navigate(approvalDetailRoute(id)) },
+                        onRefresh = viewModel::refresh,
+                    )
+                } else {
+                    ApprovalDetailScreen(
+                        contentPadding = contentPadding,
+                        approval = approval,
+                        onApproveApproval = viewModel::approveApproval,
+                        onRejectApproval = viewModel::rejectApproval,
+                        onBack = { navController.popBackStack() },
+                    )
+                }
             }
             composable(HermesCourierRoute.Settings.route) {
                 SettingsScreen(

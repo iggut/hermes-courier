@@ -3,6 +3,7 @@ package com.hermescourier.android.ui.screens
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -11,7 +12,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -23,6 +26,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.hermescourier.android.domain.model.HermesApprovalSummary
+import com.hermescourier.android.ui.approvalCardSummary
+import com.hermescourier.android.ui.approvalStatusBadge
 
 @Composable
 fun ApprovalsScreen(
@@ -30,6 +35,8 @@ fun ApprovalsScreen(
     approvals: List<HermesApprovalSummary>,
     onApproveApproval: (String, String?) -> Unit,
     onRejectApproval: (String, String?) -> Unit,
+    onOpenApprovalDetail: (String) -> Unit,
+    onRefresh: () -> Unit,
 ) {
     var selectedApprovalId by rememberSaveable { mutableStateOf<String?>(null) }
     var selectedAction by rememberSaveable { mutableStateOf<String?>(null) }
@@ -44,34 +51,51 @@ fun ApprovalsScreen(
     ) {
         Text(text = "Approvals", style = MaterialTheme.typography.headlineMedium)
         Text(text = "Review pending approvals and attach a secure note before sending a decision.")
-        if (approvals.isEmpty()) {
-            Text(
-                text = "No pending approvals. When the gateway assigns items, they appear here. Use Refresh on the dashboard or settings if the list looks stale.",
-                style = MaterialTheme.typography.bodyMedium,
-            )
+
+        Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
+            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(text = "Approval snapshot", style = MaterialTheme.typography.titleMedium)
+                Text(text = when {
+                    approvals.isEmpty() -> "No approvals are waiting right now."
+                    else -> "${approvals.size} approval${if (approvals.size == 1) "" else "s"} need attention."
+                })
+                Button(onClick = onRefresh) { Text(text = "Refresh") }
+            }
         }
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            items(approvals, key = { it.approvalId }) { approval ->
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(text = approval.title, style = MaterialTheme.typography.titleMedium)
-                        Text(text = approval.detail)
-                        Text(text = if (approval.requiresBiometrics) "Biometrics required" else "Biometrics optional")
-                        Text(text = "Approval ID: ${approval.approvalId}", style = MaterialTheme.typography.labelSmall)
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Button(onClick = {
-                                selectedApprovalId = approval.approvalId
-                                selectedAction = "approve"
-                                noteDraft = ""
-                            }) {
-                                Text(text = "Approve with note")
+
+        if (approvals.isEmpty()) {
+            Card {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(text = "No pending approvals", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        text = "When the gateway assigns items, they appear here. Use Refresh on the dashboard or settings if the list looks stale.",
+                    )
+                    OutlinedButton(onClick = onRefresh) { Text(text = "Try again") }
+                }
+            }
+        } else {
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                items(approvals, key = { it.approvalId }) { approval ->
+                    Card(modifier = Modifier.fillMaxWidth()) {
+                        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text(text = approval.title, style = MaterialTheme.typography.titleMedium)
+                            Text(text = approvalCardSummary(approval), style = MaterialTheme.typography.bodyMedium)
+                            Text(text = approvalStatusBadge(approval), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                            Text(text = "Approval ID: ${approval.approvalId}", style = MaterialTheme.typography.labelSmall)
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Button(onClick = {
+                                    selectedApprovalId = approval.approvalId
+                                    selectedAction = "approve"
+                                    noteDraft = ""
+                                }) { Text(text = "Approve") }
+                                Button(onClick = {
+                                    selectedApprovalId = approval.approvalId
+                                    selectedAction = "deny"
+                                    noteDraft = ""
+                                }) { Text(text = "Reject") }
                             }
-                            Button(onClick = {
-                                selectedApprovalId = approval.approvalId
-                                selectedAction = "deny"
-                                noteDraft = ""
-                            }) {
-                                Text(text = "Reject with note")
+                            OutlinedButton(onClick = { onOpenApprovalDetail(approval.approvalId) }) {
+                                Text(text = "Open details")
                             }
                         }
                     }
@@ -115,18 +139,14 @@ fun ApprovalsScreen(
                     selectedApprovalId = null
                     selectedAction = null
                     noteDraft = ""
-                }) {
-                    Text(text = "Send")
-                }
+                }) { Text(text = "Send") }
             },
             dismissButton = {
-                Button(onClick = {
+                OutlinedButton(onClick = {
                     selectedApprovalId = null
                     selectedAction = null
                     noteDraft = ""
-                }) {
-                    Text(text = "Cancel")
-                }
+                }) { Text(text = "Cancel") }
             },
         )
     }

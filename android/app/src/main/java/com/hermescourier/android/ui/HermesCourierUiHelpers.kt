@@ -1,5 +1,8 @@
 package com.hermescourier.android.ui
 
+import com.hermescourier.android.domain.model.HermesApprovalSummary
+import com.hermescourier.android.domain.model.HermesSessionSummary
+
 internal fun navigationLabel(baseLabel: String, count: Int): String =
     if (count > 0) "$baseLabel ($count)" else baseLabel
 
@@ -30,3 +33,32 @@ internal fun dashboardNextStep(
     else ->
         "Refresh to fetch the latest gateway snapshot and live activity."
 }
+
+internal fun sessionStatusBadge(status: String): String = when {
+    status.contains("active", ignoreCase = true) -> "Live session"
+    status.contains("pending", ignoreCase = true) -> "Waiting"
+    status.contains("completed", ignoreCase = true) -> "Completed"
+    status.contains("error", ignoreCase = true) -> "Needs attention"
+    else -> status.replaceFirstChar { it.uppercaseChar() }
+}
+
+internal fun sessionDetailSubtitle(session: HermesSessionSummary): String =
+    "Updated ${session.updatedAt} · ${sessionStatusBadge(session.status)}"
+
+internal fun approvalStatusBadge(approval: HermesApprovalSummary): String =
+    if (approval.requiresBiometrics) "Biometrics required" else "Standard review"
+
+internal fun approvalDetailSubtitle(approval: HermesApprovalSummary): String =
+    "${approvalStatusBadge(approval)} · ${approval.approvalId}"
+
+internal fun approvalActionLabel(action: String): String = when (action.trim().lowercase()) {
+    "deny", "reject" -> "Reject"
+    "approve" -> "Approve"
+    else -> action.replaceFirstChar { it.uppercaseChar() }
+}
+
+internal fun sessionCardSummary(session: HermesSessionSummary): String =
+    "${session.status} · ${session.updatedAt}"
+
+internal fun approvalCardSummary(approval: HermesApprovalSummary): String =
+    approval.detail
