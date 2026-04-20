@@ -12,6 +12,7 @@ Use **JDK 17** or **JDK 21** for Gradle (Android Gradle Plugin aligns with LTS r
 - JVM unit tests (pure helpers): `./gradlew :app:testDebugUnitTest`
 - Repo script (Android + optional iOS project regen on macOS): `../scripts/platform-validation.sh`
 - CI runs the same unit tests on **JDK 17 and 21** (see `.github/workflows/ci.yml`).
+- On-demand Android builds are available via `.github/workflows/android-on-demand-build.yml`; run it manually from GitHub Actions to produce a debug APK or debug bundle artifact.
 - Use a supported JDK as above; if `java -version` reports JDK 25+, install JDK 17 or 21 and point `JAVA_HOME` at it before running Gradle.
 
 ## Stack

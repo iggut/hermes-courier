@@ -27,6 +27,12 @@ Hermes Courier is built for those moments.
 - **Clear status and intervention tools**
 - **Companion-level visibility without exposing raw secrets**
 
+## CI / builds
+
+- Automated checks run on push and pull request in `.github/workflows/ci.yml`.
+- Manual Android builds are available on demand in `.github/workflows/android-on-demand-build.yml`.
+- The on-demand workflow can produce a debug APK or a debug bundle artifact from GitHub Actions.
+
 ## Planned features
 
 ### WebUI parity
