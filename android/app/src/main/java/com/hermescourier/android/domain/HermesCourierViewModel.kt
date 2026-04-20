@@ -21,6 +21,7 @@ import com.hermescourier.android.domain.model.HermesDeviceIdentity
 import com.hermescourier.android.domain.model.HermesEnrollmentPayload
 import com.hermescourier.android.domain.model.HermesGatewaySettings
 import com.hermescourier.android.domain.model.HermesQueuedApprovalAction
+import com.hermescourier.android.domain.model.migrateQueuedApprovalAction
 import com.hermescourier.android.domain.model.userFacingApprovalVerb
 import com.google.zxing.BarcodeFormat
 import com.journeyapps.barcodescanner.BarcodeEncoder
@@ -610,7 +611,7 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
             for (index in 0 until json.length()) {
                 val item = json.getJSONObject(index)
                 val rawAction = item.getString("action")
-                val normalizedAction = if (rawAction.equals("reject", ignoreCase = true)) "deny" else rawAction
+                val normalizedAction = migrateQueuedApprovalAction(rawAction)
                 if (rawAction != normalizedAction) migrated = true
                 queuedApprovalActions.addLast(
                     HermesQueuedApprovalAction(

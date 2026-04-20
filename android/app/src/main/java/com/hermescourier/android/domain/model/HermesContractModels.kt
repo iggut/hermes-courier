@@ -109,6 +109,20 @@ fun userFacingApprovalVerb(action: String): String = when (action.trim().lowerca
     else -> action.replaceFirstChar { it.uppercaseChar() }
 }
 
+/**
+ * Body `decision` for `POST /v1/approvals/{id}/decision`: lowercases and maps legacy `reject` to `deny`.
+ */
+fun normalizeApprovalDecisionWire(raw: String): String = when (raw.lowercase()) {
+    "reject" -> "deny"
+    else -> raw.lowercase()
+}
+
+/**
+ * When loading persisted queued actions, map legacy `reject` to wire `deny` without lowercasing other values.
+ */
+fun migrateQueuedApprovalAction(raw: String): String =
+    if (raw.equals("reject", ignoreCase = true)) "deny" else raw
+
 data class HermesCourierUiState(
     val bootstrapState: String = "Bootstrapping secure gateway",
     val authStatus: String = "Waiting for device-bound challenge",

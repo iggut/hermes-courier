@@ -451,7 +451,7 @@ final class AppViewModel: ObservableObject {
             let decoded = try JSONDecoder().decode([HermesQueuedApprovalAction].self, from: data)
             var needsPersist = false
             queuedActions = decoded.map { queued in
-                let normalized = queued.action.lowercased() == "reject" ? "deny" : queued.action
+                let normalized = HermesApprovalWire.migrateQueuedAction(queued.action)
                 if normalized != queued.action { needsPersist = true }
                 return HermesQueuedApprovalAction(
                     approvalId: queued.approvalId,

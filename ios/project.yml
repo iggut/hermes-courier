@@ -24,3 +24,14 @@ targets:
       properties:
         CFBundleDisplayName: Hermes Courier
         UILaunchScreen: {}
+
+  HermesCourierTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: HermesCourierTests
+    dependencies:
+      - target: HermesCourier
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES

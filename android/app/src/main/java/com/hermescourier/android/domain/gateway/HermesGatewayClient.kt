@@ -3,6 +3,7 @@ package com.hermescourier.android.domain.gateway
 import com.hermescourier.android.domain.auth.HermesChallengeSigner
 import com.hermescourier.android.domain.config.HermesGatewayConfiguration
 import com.hermescourier.android.domain.model.HermesApprovalActionResult
+import com.hermescourier.android.domain.model.normalizeApprovalDecisionWire
 import com.hermescourier.android.domain.model.HermesApprovalSummary
 import com.hermescourier.android.domain.model.HermesAuthChallengeRequest
 import com.hermescourier.android.domain.model.HermesAuthChallengeResponse
@@ -101,7 +102,7 @@ class NetworkHermesGatewayClient(
         action: String,
         note: String?,
     ): HermesApprovalActionResult = withContext(Dispatchers.IO) {
-        val decision = normalizeApprovalDecision(action)
+        val decision = normalizeApprovalDecisionWire(action)
         val body = JSONObject().put("decision", decision)
         if (!note.isNullOrBlank()) {
             body.put("reason", note)
@@ -300,11 +301,6 @@ private fun HermesAuthResponseRequest.toJson(): JSONObject = JSONObject()
     .put("challengeId", challengeId)
     .put("signedNonce", signedNonce)
     .put("device", device.toJson())
-
-private fun normalizeApprovalDecision(raw: String): String = when (raw.lowercase()) {
-    "reject" -> "deny"
-    else -> raw.lowercase()
-}
 
 private fun HermesDeviceIdentity.toJson(): JSONObject = JSONObject()
     .put("deviceId", deviceId)

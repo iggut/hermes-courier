@@ -64,7 +64,7 @@ final class HermesGatewayClient: HermesGatewayClientProtocol {
     }
 
     func submitApprovalAction(session: HermesAuthSession, approvalId: String, action: String, note: String?) async throws -> HermesApprovalActionResult {
-        let decision = Self.normalizeApprovalDecision(action)
+        let decision = HermesApprovalWire.normalizeDecision(action)
         let data = try await transport.post(
             path: HermesAPIPaths.approvalDecision(approvalId: approvalId),
             body: JSONEncoder().encode(HermesApprovalDecisionBody(decision: decision, reason: note)),
@@ -165,13 +165,6 @@ final class HermesGatewayClient: HermesGatewayClientProtocol {
             bearerToken: nil
         )
         return try JSONDecoder().decode(HermesAuthChallengeResponse.self, from: data)
-    }
-
-    private static func normalizeApprovalDecision(_ raw: String) -> String {
-        switch raw.lowercased() {
-        case "reject": return "deny"
-        default: return raw.lowercased()
-        }
     }
 
     private func decodeCollection<T: Decodable>(_ type: T.Type, from data: Data) throws -> [T] {

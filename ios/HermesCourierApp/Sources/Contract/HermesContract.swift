@@ -110,6 +110,19 @@ struct HermesGatewaySettings: Hashable {
     var certificatePassword: String = ""
 }
 
+/// Wire decision values for approvals (parity with Android `normalizeApprovalDecisionWire` / queue migration).
+enum HermesApprovalWire {
+    static func normalizeDecision(_ raw: String) -> String {
+        let lower = raw.lowercased()
+        if lower == "reject" { return "deny" }
+        return lower
+    }
+
+    static func migrateQueuedAction(_ raw: String) -> String {
+        raw.lowercased() == "reject" ? "deny" : raw
+    }
+}
+
 /// UI labels: wire uses `deny` while surfaces say "Reject".
 enum HermesApprovalDisplay {
     private static func normalizedAction(_ action: String) -> String {

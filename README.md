@@ -78,9 +78,9 @@ Planned protections include:
 
 ## Repository structure
 
-- `android/` — Jetpack Compose Android app scaffold
-- `ios/` — SwiftUI iOS app scaffold generated from an XcodeGen manifest
-- `shared/contract/` — API contract shared by both mobile clients
+- `android/` — Jetpack Compose Android app (contract-aligned gateway client)
+- `ios/` — SwiftUI iOS app generated from `ios/project.yml` (XcodeGen)
+- `shared/contract/` — OpenAPI contract and path definitions shared by both clients
 
 ## Roadmap
 
@@ -110,4 +110,6 @@ Planned protections include:
 
 ## Status
 
-This repository currently contains the cross-platform scaffold and secure contract surface. The next step is wiring both apps to the live Hermes gateway.
+Both mobile apps implement the shared contract paths (dashboard, sessions, approvals, conversation, approval decisions, and `/v1/events` realtime). Local/demo transports and settings flows are in place; production gateway hardening (pinning, attestation, full backend) remains on the roadmap above.
+
+**UI navigation:** there is no separate “chat” tab — the conversation feed is embedded in **Dashboard** on both platforms (tabs: Dashboard, Sessions, Approvals, Settings).
