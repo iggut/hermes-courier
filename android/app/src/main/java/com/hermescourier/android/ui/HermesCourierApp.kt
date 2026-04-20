@@ -2,13 +2,18 @@ package com.hermescourier.android.ui
 
 import android.net.Uri
 import androidx.compose.foundation.layout.Column
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -68,15 +73,27 @@ fun HermesCourierApp(viewModel: HermesCourierViewModel = viewModel()) {
                 },
                 navigationIcon = {
                     if (isDetailRoute) {
-                        TextButton(onClick = { navController.popBackStack() }) {
-                            Text(text = "Back")
+                        IconButton(onClick = { navController.popBackStack() }) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Back",
+                            )
                         }
                     }
                 },
                 actions = {
+                    IconButton(onClick = viewModel::refresh) {
+                        Icon(
+                            imageVector = Icons.Filled.Refresh,
+                            contentDescription = "Refresh",
+                        )
+                    }
                     if (!isDetailRoute) {
-                        TextButton(onClick = viewModel::refresh) {
-                            Text(text = "Refresh")
+                        IconButton(onClick = { navController.navigate(HermesCourierRoute.Settings.route) }) {
+                            Icon(
+                                imageVector = Icons.Filled.Settings,
+                                contentDescription = "Open settings",
+                            )
                         }
                     }
                 },
@@ -217,5 +234,5 @@ private fun routeTitle(route: String): String = when {
     route == HermesCourierRoute.Settings.route -> "Settings"
     route.startsWith("session/") -> "Session detail"
     route.startsWith("approval/") -> "Approval detail"
-    else -> HermesCourierRoute.Dashboard.label
+    else -> "Courier Command Center"
 }

@@ -4,6 +4,7 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -17,17 +18,23 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
@@ -35,6 +42,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.hermescourier.android.domain.model.HermesApprovalSummary
 import com.hermescourier.android.ui.approvalCardSummary
+import com.hermescourier.android.ui.approvalDetailSubtitle
+import com.hermescourier.android.ui.approvalEmptyStateMessage
+import com.hermescourier.android.ui.approvalEmptyStateTitle
 import com.hermescourier.android.ui.approvalStatusBadge
 
 private val ApprovalFilters = listOf("All", "Biometrics required", "Standard review")
@@ -68,18 +78,19 @@ fun ApprovalsScreen(
         modifier = Modifier
             .fillMaxSize()
             .padding(contentPadding)
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+            .padding(horizontal = 20.dp, vertical = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
             Column(
-                modifier = Modifier.padding(16.dp),
+                modifier = Modifier.padding(20.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 Text(text = "Approvals", style = MaterialTheme.typography.headlineMedium)
                 Text(
-                    text = "Filter, search, and long-press approvals to jump straight into decisions or copy the ID.",
+                    text = "Filter, search, and swipe cards to approve or reject quickly. Long-press for notes, copy, and detail actions.",
                     style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedButton(onClick = onRefresh) { Text(text = "Refresh") }
@@ -112,7 +123,7 @@ fun ApprovalsScreen(
             }
         }
 
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             MetricCard(
                 modifier = Modifier.weight(1f),
                 label = "Visible",
@@ -135,9 +146,25 @@ fun ApprovalsScreen(
 
         if (filteredApprovals.isEmpty()) {
             Card {
-                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(text = "No approvals match your filters", style = MaterialTheme.typography.titleMedium)
-                    Text(text = "Try another search term or switch back to All to see every pending item.")
+                Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = approvalEmptyStateTitle(searchQuery),
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                    Text(
+                        text = approvalEmptyStateMessage(searchQuery),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        if (searchQuery.isNotBlank()) {
+                            OutlinedButton(onClick = { searchQuery = "" }) { Text(text = "Clear search") }
+                        }
+                        if (statusFilter != "All") {
+                            OutlinedButton(onClick = { statusFilter = "All" }) { Text(text = "Reset filters") }
+                        }
+                        Button(onClick = onRefresh) { Text(text = "Refresh") }
+                    }
                 }
             }
         } else {
@@ -148,6 +175,8 @@ fun ApprovalsScreen(
                 items(filteredApprovals, key = { it.approvalId }) { approval ->
                     ApprovalListCard(
                         approval = approval,
+                        onApprove = { onApproveApproval(approval.approvalId, null) },
+                        onReject = { onRejectApproval(approval.approvalId, null) },
                         onOpenApprovalDetail = onOpenApprovalDetail,
                         onLongPress = { actionMenuApprovalId = approval.approvalId },
                     )
@@ -210,30 +239,129 @@ fun ApprovalsScreen(
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun MetricCard(
+    modifier: Modifier = Modifier,
+    label: String,
+    value: String,
+    caption: String,
+) {
+    Card(modifier = modifier) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Text(text = label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(text = value, style = MaterialTheme.typography.headlineSmall)
+            Text(text = caption, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
+private fun approvalMatchesFilter(
+    approval: HermesApprovalSummary,
+    query: String,
+    filter: String,
+): Boolean {
+    val text = buildString {
+        append(approval.approvalId)
+        append(' ')
+        append(approval.title)
+        append(' ')
+        append(approval.detail)
+        append(' ')
+        append(approvalCardSummary(approval))
+    }.lowercase()
+    val queryMatches = query.isBlank() || text.contains(query.trim().lowercase())
+
+    val filterMatches = when (filter) {
+        "All" -> true
+        "Biometrics required" -> approval.requiresBiometrics
+        "Standard review" -> !approval.requiresBiometrics
+        else -> true
+    }
+    return queryMatches && filterMatches
+}
+
+@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
 private fun ApprovalListCard(
     approval: HermesApprovalSummary,
+    onApprove: () -> Unit,
+    onReject: () -> Unit,
     onOpenApprovalDetail: (String) -> Unit,
     onLongPress: () -> Unit,
 ) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .combinedClickable(
-                onClick = { onOpenApprovalDetail(approval.approvalId) },
-                onLongClick = onLongPress,
-            ),
+    val dismissState = rememberSwipeToDismissBoxState(confirmValueChange = { target ->
+        when (target) {
+            SwipeToDismissBoxValue.StartToEnd -> {
+                onApprove()
+                true
+            }
+            SwipeToDismissBoxValue.EndToStart -> {
+                onReject()
+                true
+            }
+            SwipeToDismissBoxValue.Settled -> false
+        }
+    })
+
+    SwipeToDismissBox(
+        state = dismissState,
+        backgroundContent = {
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 20.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Text(
+                        text = "Approve",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    )
+                }
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Text(
+                        text = "Reject",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                    )
+                }
+            }
+        },
     ) {
-        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(text = approvalStatusBadge(approval), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
-            Text(text = approval.title, style = MaterialTheme.typography.titleMedium)
-            Text(text = approval.detail, style = MaterialTheme.typography.bodyMedium)
-            Text(
-                text = approvalCardSummary(approval),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .combinedClickable(
+                    onClick = { onOpenApprovalDetail(approval.approvalId) },
+                    onLongClick = onLongPress,
+                ),
+        ) {
+            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(text = approvalStatusBadge(approval), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                Text(text = approval.title, style = MaterialTheme.typography.titleMedium)
+                Text(text = approval.detail, style = MaterialTheme.typography.bodyMedium)
+                Text(
+                    text = approvalCardSummary(approval),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    text = "Swipe right to approve or left to reject. Long-press for notes and copy actions.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
     }
 }
@@ -249,15 +377,20 @@ private fun ApprovalQuickActionsDialog(
 ) {
     Dialog(onDismissRequest = onDismiss) {
         Card {
-            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(text = "Approval quick actions", style = MaterialTheme.typography.titleLarge)
-                Text(text = approval.title, style = MaterialTheme.typography.bodyMedium)
-                Text(text = approval.approvalId, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Button(onClick = onApprove, modifier = Modifier.fillMaxWidth()) { Text(text = "Approve") }
-                Button(onClick = onReject, modifier = Modifier.fillMaxWidth()) { Text(text = "Reject") }
-                OutlinedButton(onClick = onOpenDetails, modifier = Modifier.fillMaxWidth()) { Text(text = "Open details") }
-                OutlinedButton(onClick = onCopyApprovalId, modifier = Modifier.fillMaxWidth()) { Text(text = "Copy approval ID") }
-                OutlinedButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) { Text(text = "Dismiss") }
+            Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(text = approval.title, style = MaterialTheme.typography.titleLarge)
+                Text(text = approval.detail, style = MaterialTheme.typography.bodyMedium)
+                Text(
+                    text = "Quick actions let you approve, reject, or open details without losing your place in the list.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(onClick = onApprove) { Text(text = "Approve") }
+                    OutlinedButton(onClick = onReject) { Text(text = "Reject") }
+                    OutlinedButton(onClick = onOpenDetails) { Text(text = "Open details") }
+                    OutlinedButton(onClick = onCopyApprovalId) { Text(text = "Copy approval ID") }
+                }
             }
         }
     }
@@ -274,22 +407,22 @@ private fun ApprovalNoteDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(text = "${action.replaceFirstChar { it.uppercaseChar() }} approval") },
+        title = { Text(text = "${action.take(1).uppercase()}${action.drop(1)} approval") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(text = approval.title)
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(text = "Add an optional note before you ${action} ${approval.approvalId}.")
                 OutlinedTextField(
                     value = noteDraft,
                     onValueChange = onNoteChange,
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text(text = "Optional note") },
-                    placeholder = { Text(text = "Add context for the reviewer") },
+                    label = { Text(text = "Note") },
+                    placeholder = { Text(text = "Reason, context, or follow-up") },
                 )
             }
         },
         confirmButton = {
             Button(onClick = onConfirm) {
-                Text(text = action.replaceFirstChar { it.uppercaseChar() })
+                Text(text = approvalStatusButtonLabel(action))
             }
         },
         dismissButton = {
@@ -300,49 +433,8 @@ private fun ApprovalNoteDialog(
     )
 }
 
-@Composable
-private fun MetricCard(
-    modifier: Modifier = Modifier,
-    label: String,
-    value: String,
-    caption: String,
-) {
-    Card(
-        modifier = modifier,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-    ) {
-        Column(
-            modifier = Modifier.padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-            Text(text = label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text(text = value, style = MaterialTheme.typography.headlineSmall)
-            Text(text = caption, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-    }
-}
-
-private fun approvalMatchesFilter(
-    approval: HermesApprovalSummary,
-    query: String,
-    filter: String,
-): Boolean {
-    val normalizedQuery = query.trim().lowercase()
-    val searchable = listOf(
-        approval.approvalId,
-        approval.title,
-        approval.detail,
-        approvalCardSummary(approval),
-        approvalStatusBadge(approval),
-    ).joinToString(" ") { it.lowercase() }
-
-    val matchesQuery = normalizedQuery.isBlank() || searchable.contains(normalizedQuery)
-    val matchesFilter = when (filter) {
-        "All" -> true
-        "Biometrics required" -> approval.requiresBiometrics
-        "Standard review" -> !approval.requiresBiometrics
-        else -> true
-    }
-
-    return matchesQuery && matchesFilter
+private fun approvalStatusButtonLabel(action: String): String = when (action.lowercase()) {
+    "approve" -> "Approve"
+    "reject" -> "Reject"
+    else -> action.replaceFirstChar { it.uppercaseChar() }
 }

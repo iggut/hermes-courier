@@ -62,3 +62,29 @@ internal fun sessionCardSummary(session: HermesSessionSummary): String =
 
 internal fun approvalCardSummary(approval: HermesApprovalSummary): String =
     approval.detail
+
+internal fun sessionEmptyStateTitle(filter: String, query: String): String = when {
+    filter == "Archived" -> "No archived sessions yet"
+    query.isNotBlank() -> "No sessions match your search"
+    else -> "No sessions to show"
+}
+
+internal fun sessionEmptyStateMessage(filter: String, query: String): String = when {
+    filter == "Archived" -> "Swipe left on any session card to archive it locally, then use this view to bring it back when you need it."
+    query.isNotBlank() -> "Try a broader search term, clear the filter chips, or refresh from the top app bar."
+    else -> "Live sessions appear here as soon as the gateway starts streaming them."
+}
+
+internal fun approvalEmptyStateTitle(query: String): String =
+    if (query.isNotBlank()) "No approvals match your search" else "No approvals waiting right now"
+
+internal fun approvalEmptyStateMessage(query: String): String = when {
+    query.isNotBlank() -> "Try a broader search term, clear the filter chips, or refresh from the top app bar."
+    else -> "When the gateway needs a decision, the request will appear here with quick approve/reject actions."
+}
+
+internal fun archiveHint(archivedCount: Int): String = when (archivedCount) {
+    0 -> "Swipe left on a session card to archive it locally for later."
+    1 -> "1 session is archived locally. Open Archived to restore it."
+    else -> "$archivedCount sessions are archived locally. Open Archived to restore them."
+}

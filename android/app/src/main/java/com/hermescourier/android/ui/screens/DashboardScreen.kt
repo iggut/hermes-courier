@@ -12,7 +12,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -33,20 +32,22 @@ fun DashboardScreen(
 ) {
     val completedSessions = uiState.sessions.count { it.status.contains("completed", ignoreCase = true) }
     val attentionSessions = uiState.sessions.count { it.status.contains("error", ignoreCase = true) }
+    val pendingApprovals = uiState.approvals.size
+    val activeSessions = uiState.sessions.count { it.status.contains("active", ignoreCase = true) }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(contentPadding)
-            .padding(16.dp)
+            .padding(horizontal = 20.dp, vertical = 16.dp)
             .verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         Card(
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
         ) {
             Column(
-                modifier = Modifier.padding(16.dp),
+                modifier = Modifier.padding(20.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Text(
@@ -57,132 +58,82 @@ fun DashboardScreen(
                 Text(text = "Dashboard", style = MaterialTheme.typography.headlineMedium)
                 Text(
                     text = connectionModeLine(uiState.bootstrapState),
-                    style = MaterialTheme.typography.bodySmall,
+                    style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                Text(text = uiState.bootstrapState, style = MaterialTheme.typography.bodyMedium)
-                Text(text = uiState.authStatus, style = MaterialTheme.typography.bodySmall)
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    OutlinedButton(onClick = onOpenSessions, modifier = Modifier.weight(1f)) {
-                        Text(text = "Sessions")
-                    }
-                    OutlinedButton(onClick = onOpenApprovals, modifier = Modifier.weight(1f)) {
-                        Text(text = "Approvals")
-                    }
-                }
-                Button(onClick = onRefresh, modifier = Modifier.fillMaxWidth()) {
-                    Text(text = "Refresh now")
-                }
-            }
-        }
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            MetricCard(
-                modifier = Modifier.weight(1f),
-                label = "Live",
-                value = uiState.dashboard.activeSessionCount.toString(),
-                caption = "Active sessions",
-            )
-            MetricCard(
-                modifier = Modifier.weight(1f),
-                label = "Queue",
-                value = uiState.dashboard.pendingApprovalCount.toString(),
-                caption = "Pending approvals",
-            )
-            MetricCard(
-                modifier = Modifier.weight(1f),
-                label = "Done",
-                value = completedSessions.toString(),
-                caption = "Completed sessions",
-            )
-        }
-
-        Card {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                Text(text = "Gateway health", style = MaterialTheme.typography.titleMedium)
-                Text(text = "Gateway: ${uiState.gatewaySettings.baseUrl}")
-                Text(text = "Stream: ${uiState.streamStatus}")
-                Text(text = "Stream reconnect: ${uiState.realtimeReconnectCountdown}")
-                LinearProgressIndicator(
-                    progress = uiState.realtimeReconnectProgress,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                Text(text = "Enrollment: ${uiState.enrollmentStatus}")
-                Text(text = "Approval actions: ${uiState.approvalActionStatus}")
-                Text(
-                    text = "Attention sessions: $attentionSessions",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
-
-        Card {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                Text(text = "Next step", style = MaterialTheme.typography.titleMedium)
+                Text(text = uiState.bootstrapState, style = MaterialTheme.typography.bodyLarge)
+                Text(text = uiState.authStatus, style = MaterialTheme.typography.bodyMedium)
                 Text(
                     text = dashboardNextStep(
                         bootstrapState = uiState.bootstrapState,
-                        pendingApprovals = uiState.dashboard.pendingApprovalCount,
-                        activeSessions = uiState.dashboard.activeSessionCount,
+                        pendingApprovals = pendingApprovals,
+                        activeSessions = activeSessions,
                     ),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(onClick = onRefresh) { Text(text = "Refresh") }
+                    Button(onClick = onOpenSessions) { Text(text = "Open sessions") }
+                }
+            }
+        }
+
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            MetricCard(
+                modifier = Modifier.weight(1f),
+                label = "Sessions",
+                value = uiState.sessions.size.toString(),
+                caption = "Visible in the current snapshot",
+            )
+            MetricCard(
+                modifier = Modifier.weight(1f),
+                label = "Approvals",
+                value = pendingApprovals.toString(),
+                caption = "Waiting for your decision",
+            )
+            MetricCard(
+                modifier = Modifier.weight(1f),
+                label = "Completed",
+                value = completedSessions.toString(),
+                caption = "Finished conversations",
+            )
+        }
+
+        Card {
+            Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(text = "What to do next", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    text = "Use the Sessions tab to browse live conversations, or move to Approvals when the gateway needs a fast decision.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = onOpenSessions) {
-                        Text(text = "Review sessions")
-                    }
-                    OutlinedButton(onClick = onOpenApprovals) {
-                        Text(text = "Review approvals")
-                    }
+                    OutlinedButton(onClick = onOpenApprovals) { Text(text = "Open approvals") }
+                    OutlinedButton(onClick = onOpenSettings) { Text(text = "Settings") }
                 }
             }
         }
 
         Card {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                Text(text = "Live activity", style = MaterialTheme.typography.titleMedium)
-                if (uiState.conversationEvents.isEmpty()) {
+            Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(text = "Live snapshot", style = MaterialTheme.typography.titleMedium)
+                if (uiState.sessions.isEmpty() && uiState.approvals.isEmpty()) {
                     Text(
-                        text = "No conversation history yet. Refresh to pull in the latest live updates from the gateway.",
+                        text = "No live items yet. That is normal while the gateway is bootstrapping or when the demo dataset is in use.",
                         style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        text = "Tip: refresh from the top app bar, then open Settings to confirm the gateway URL and certificate if nothing shows up.",
+                        style = MaterialTheme.typography.bodySmall,
                     )
                 } else {
-                    uiState.conversationEvents.takeLast(4).forEach { event ->
-                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                            Text(text = "${event.author} · ${event.timestamp}", style = MaterialTheme.typography.labelMedium)
-                            Text(text = event.body, style = MaterialTheme.typography.bodyMedium)
-                        }
-                    }
-                }
-            }
-        }
-
-        Card {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                Text(text = "Device enrollment", style = MaterialTheme.typography.titleMedium)
-                Text(text = "Fingerprint: ${uiState.deviceFingerprint}")
-                Text(text = uiState.enrollmentStatus, style = MaterialTheme.typography.bodySmall)
-                OutlinedButton(onClick = onOpenSettings) {
-                    Text(text = "Open settings")
+                    DashboardSnapshotRow(label = "Active sessions", value = activeSessions.toString())
+                    DashboardSnapshotRow(label = "Pending approvals", value = pendingApprovals.toString())
+                    DashboardSnapshotRow(label = "Attention needed", value = attentionSessions.toString())
+                    DashboardSnapshotRow(label = "Auth status", value = uiState.authStatus)
                 }
             }
         }
@@ -196,13 +147,10 @@ private fun MetricCard(
     value: String,
     caption: String,
 ) {
-    Card(
-        modifier = modifier,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-    ) {
+    Card(modifier = modifier) {
         Column(
-            modifier = Modifier.padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             Text(text = label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Text(text = value, style = MaterialTheme.typography.headlineSmall)
@@ -211,13 +159,20 @@ private fun MetricCard(
     }
 }
 
+@Composable
+private fun DashboardSnapshotRow(
+    label: String,
+    value: String,
+) {
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+        Text(text = label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(text = value, style = MaterialTheme.typography.bodyMedium)
+    }
+}
+
 private fun connectionModeLine(bootstrapState: String): String = when {
-    bootstrapState.contains("demo", ignoreCase = true) ->
-        "Mode: sample data (not connected to a live gateway)."
-    bootstrapState.contains("unavailable", ignoreCase = true) ->
-        "Mode: gateway unavailable."
-    bootstrapState.contains("negotiating", ignoreCase = true) ||
-        bootstrapState.contains("bootstrapping", ignoreCase = true) ->
-        "Mode: negotiating a secure connection."
-    else -> "Mode: live command center."
+    bootstrapState.contains("demo", ignoreCase = true) -> "Demo mode: the app is using the built-in sample snapshot."
+    bootstrapState.contains("ready", ignoreCase = true) -> "Live mode: the gateway is connected and streaming data."
+    bootstrapState.contains("unavailable", ignoreCase = true) -> "Gateway unavailable: check Settings to reconnect."
+    else -> "Bootstrapping: waiting on the gateway handshake and secure session setup."
 }
