@@ -1,5 +1,8 @@
 name: Android On-Demand Build
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 on:
   workflow_dispatch:
     inputs:
@@ -10,7 +13,6 @@ on:
         type: choice
         options:
           - :app:assembleDebug
-          - :app:bundleDebug
 
 permissions:
   contents: read
@@ -19,32 +21,23 @@ jobs:
   android-build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: 17
           cache: gradle
 
-      - uses: android-actions/setup-android@v3
+      - uses: android-actions/setup-android@v4
 
       - name: Build Android app
         working-directory: android
         run: ./gradlew ${{ inputs.build_task }} --no-daemon
 
       - name: Upload debug APK
-        if: ${{ inputs.build_task == ':app:assembleDebug' }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: hermes-courier-debug-apk
           path: android/app/build/outputs/apk/debug/*.apk
-          if-no-files-found: error
-
-      - name: Upload debug bundle
-        if: ${{ inputs.build_task == ':app:bundleDebug' }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: hermes-courier-debug-bundle
-          path: android/app/build/outputs/bundle/debug/*.aab
           if-no-files-found: error
