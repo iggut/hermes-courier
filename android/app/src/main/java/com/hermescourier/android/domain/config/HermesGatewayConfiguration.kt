@@ -3,6 +3,7 @@ package com.hermescourier.android.domain.config
 import android.content.Context
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
+import com.hermescourier.android.domain.model.HermesGatewaySettings
 import java.io.File
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrl
@@ -29,26 +30,41 @@ data class HermesGatewayConfiguration(
     val mtlsPkcs12Password: CharArray? = null,
 ) {
     companion object {
-        fun from(context: Context): HermesGatewayConfiguration {
+        fun from(context: Context): HermesGatewayConfiguration = runCatching {
             val prefs = gatewayPrefs(context)
             val baseUrl = prefs.getString(KEY_BASE_URL, "https://gateway.hermes.local")!!.toHttpUrlOrNull()
                 ?: "https://gateway.hermes.local".toHttpUrl()
             val certificatePath = prefs.getString(KEY_CERT_PATH, null)
             val certificatePassword = prefs.getString(KEY_CERT_PASSWORD, null)?.toCharArray()
-            return HermesGatewayConfiguration(
+            HermesGatewayConfiguration(
                 baseUrl = baseUrl,
                 mtlsPkcs12File = certificatePath?.takeIf { it.isNotBlank() }?.let(::File)?.takeIf { it.exists() },
                 mtlsPkcs12Password = certificatePassword?.takeIf { it.isNotEmpty() },
             )
+        }.getOrElse {
+            HermesGatewayConfiguration(baseUrl = "https://gateway.hermes.local".toHttpUrl())
         }
 
-        fun save(context: Context, settings: com.hermescourier.android.domain.model.HermesGatewaySettings) {
-            val prefs = gatewayPrefs(context)
-            prefs.edit()
-                .putString(KEY_BASE_URL, settings.baseUrl)
-                .putString(KEY_CERT_PATH, settings.certificatePath)
-                .putString(KEY_CERT_PASSWORD, settings.certificatePassword)
-                .apply()
+        fun save(context: Context, settings: HermesGatewaySettings) {
+            save(
+                context,
+                HermesGatewayConfiguration(
+                    baseUrl = settings.baseUrl.toHttpUrl(),
+                    mtlsPkcs12File = settings.certificatePath.takeIf { it.isNotBlank() }?.let(::File),
+                    mtlsPkcs12Password = settings.certificatePassword.takeIf { it.isNotBlank() }?.toCharArray(),
+                ),
+            )
+        }
+
+        fun save(context: Context, configuration: HermesGatewayConfiguration) {
+            runCatching {
+                val prefs = gatewayPrefs(context)
+                prefs.edit()
+                    .putString(KEY_BASE_URL, configuration.baseUrl.toString())
+                    .putString(KEY_CERT_PATH, configuration.mtlsPkcs12File?.absolutePath.orEmpty())
+                    .putString(KEY_CERT_PASSWORD, configuration.mtlsPkcs12Password?.concatToString().orEmpty())
+                    .apply()
+            }
         }
     }
 }
