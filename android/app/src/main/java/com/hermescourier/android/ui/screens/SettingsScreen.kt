@@ -4,6 +4,8 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.ui.Alignment
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -14,11 +16,17 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.unit.dp
@@ -28,6 +36,7 @@ import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanIntentResult
 import com.hermescourier.android.domain.model.HermesCourierUiState
 import com.hermescourier.android.domain.model.HermesQueuedApprovalAction
+import kotlinx.coroutines.launch
 
 @Composable
 fun SettingsScreen(
@@ -44,7 +53,9 @@ fun SettingsScreen(
     onShareEnrollmentQr: () -> Unit,
     onCopyEnrollmentQrPayload: () -> Unit,
     onRetryQueuedApprovalAction: (HermesQueuedApprovalAction) -> Unit,
-    onDismissQueuedApprovalAction: (HermesQueuedApprovalAction) -> Unit,
+    onCopyQueuedApprovalActionDetails: (HermesQueuedApprovalAction) -> Unit,
+    onDismissQueuedApprovalAction: (HermesQueuedApprovalAction) -> HermesQueuedApprovalAction?,
+    onRestoreQueuedApprovalAction: (HermesQueuedApprovalAction) -> Unit,
 ) {
     val certificatePicker = rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.OpenDocument()) { uri ->
         uri?.let(onImportCertificate)
@@ -58,15 +69,21 @@ fun SettingsScreen(
             BarcodeEncoder().encodeBitmap(uiState.enrollmentQrPayload, BarcodeFormat.QR_CODE, 512, 512)
         }.getOrNull()
     }
+    val snackbarHostState = remember { SnackbarHostState() }
+    val coroutineScope = rememberCoroutineScope()
 
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxSize()
-            .padding(contentPadding)
-            .padding(16.dp)
-            .verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(contentPadding)
+                .padding(16.dp)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
         Text(text = "Settings", style = MaterialTheme.typography.headlineMedium)
         Text(text = "Configure the secure gateway endpoint, enroll the device, and manage queued approvals from the companion app.")
 
@@ -90,6 +107,10 @@ fun SettingsScreen(
                 Text(text = "Queued approvals: ${uiState.queuedApprovalActions}")
                 Text(text = "Realtime status: ${uiState.streamStatus}")
                 Text(text = "Reconnect backoff: ${uiState.realtimeReconnectCountdown}")
+                LinearProgressIndicator(
+                    progress = uiState.realtimeReconnectProgress,
+                    modifier = Modifier.fillMaxWidth(),
+                )
                 Text(text = "Connection state: ${uiState.dashboard.connectionState}")
                 Button(onClick = onSaveSettings) { Text(text = "Save settings") }
                 Button(onClick = onRefresh) { Text(text = "Refresh connection") }
@@ -132,8 +153,23 @@ fun SettingsScreen(
                                 queued.note?.let { Text(text = it) }
                                 Text(text = "Queued at: ${queued.createdAt}", style = MaterialTheme.typography.labelSmall)
                                 androidx.compose.foundation.layout.Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Button(onClick = { onCopyQueuedApprovalActionDetails(queued) }) { Text(text = "Copy details") }
                                     Button(onClick = { onRetryQueuedApprovalAction(queued) }) { Text(text = "Retry now") }
-                                    Button(onClick = { onDismissQueuedApprovalAction(queued) }) { Text(text = "Dismiss") }
+                                    Button(onClick = {
+                                        val dismissed = onDismissQueuedApprovalAction(queued)
+                                        if (dismissed != null) {
+                                            coroutineScope.launch {
+                                                val snackbarResult = snackbarHostState.showSnackbar(
+                                                    message = "Dismissed ${dismissed.action} for ${dismissed.approvalId}",
+                                                    actionLabel = "Undo",
+                                                    duration = SnackbarDuration.Short,
+                                                )
+                                                if (snackbarResult == SnackbarResult.ActionPerformed) {
+                                                    onRestoreQueuedApprovalAction(dismissed)
+                                                }
+                                            }
+                                        }
+                                    }) { Text(text = "Dismiss") }
                                 }
                             }
                         }
@@ -154,5 +190,10 @@ fun SettingsScreen(
                 }
             }
         }
+    }
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier.align(Alignment.BottomCenter),
+        )
     }
 }

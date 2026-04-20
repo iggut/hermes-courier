@@ -25,6 +25,7 @@ final class AppViewModel: ObservableObject {
     @Published var queuedApprovalActions: Int = 0
     @Published var queuedApprovalActionQueue: [HermesQueuedApprovalAction] = []
     @Published var realtimeReconnectCountdown: String = "Reconnect now"
+    @Published var realtimeReconnectProgress: Double = 0
 
     private let fallbackClient: HermesGatewayClientProtocol = HermesDemoGatewayClient()
     private var currentSession: HermesAuthSession?
@@ -180,12 +181,41 @@ final class AppViewModel: ObservableObject {
         }
     }
 
-    func dismissQueuedApprovalAction(_ queued: HermesQueuedApprovalAction) {
-        if let index = queuedActions.firstIndex(of: queued) {
-            queuedActions.remove(at: index)
-            persistQueuedApprovalActions()
+    func copyQueuedApprovalActionDetails(_ queued: HermesQueuedApprovalAction) {
+        let details = [
+            "Approval ID: \(queued.approvalId)",
+            "Action: \(queued.action)",
+            "Queued at: \(queued.createdAt)",
+            "Note: \(queued.note ?? "(none)")",
+        ].joined(separator: "
+")
+        UIPasteboard.general.string = details
+        approvalActionStatus = "Queued approval details copied to clipboard"
+    }
+
+    func dismissQueuedApprovalAction(_ queued: HermesQueuedApprovalAction) -> HermesQueuedApprovalAction? {
+        guard let index = queuedActions.firstIndex(of: queued) else {
+            approvalActionStatus = "Queued approval was already removed"
+            return nil
         }
+        queuedActions.remove(at: index)
+        persistQueuedApprovalActions()
         approvalActionStatus = "Dismissed queued \(queued.action) for \(queued.approvalId)"
+        queuedApprovalActions = queuedActions.count
+        queuedApprovalActionQueue = queuedActions
+        return queued
+    }
+
+    func restoreQueuedApprovalAction(_ queued: HermesQueuedApprovalAction) {
+        guard !queuedActions.contains(queued) else {
+            approvalActionStatus = "Queued approval already present"
+            queuedApprovalActions = queuedActions.count
+            queuedApprovalActionQueue = queuedActions
+            return
+        }
+        queuedActions.insert(queued, at: 0)
+        persistQueuedApprovalActions()
+        approvalActionStatus = "Restored dismissed \(queued.action) for \(queued.approvalId)"
         queuedApprovalActions = queuedActions.count
         queuedApprovalActionQueue = queuedActions
     }
@@ -301,8 +331,10 @@ final class AppViewModel: ObservableObject {
               let seconds = Int(status[secondsRange]) else {
             if status.localizedCaseInsensitiveContains("connected") {
                 realtimeReconnectCountdown = "Connected"
+                realtimeReconnectProgress = 0
             } else if status.localizedCaseInsensitiveContains("disconnected") || status.localizedCaseInsensitiveContains("error") {
                 realtimeReconnectCountdown = "Reconnect now"
+                realtimeReconnectProgress = 0
             }
             return
         }
@@ -311,12 +343,14 @@ final class AppViewModel: ObservableObject {
             for remaining in stride(from: seconds, through: 1, by: -1) {
                 await MainActor.run {
                     self.realtimeReconnectCountdown = "Reconnect retry in \(remaining)s"
+                    self.realtimeReconnectProgress = 1 - (Double(remaining) / Double(seconds))
                 }
                 try? await Task.sleep(nanoseconds: 1_000_000_000)
                 if Task.isCancelled { return }
             }
             await MainActor.run {
                 self.realtimeReconnectCountdown = "Retrying now"
+                self.realtimeReconnectProgress = 1
             }
         }
     }

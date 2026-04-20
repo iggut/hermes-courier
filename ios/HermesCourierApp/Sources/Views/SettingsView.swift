@@ -10,6 +10,9 @@ struct SettingsView: View {
     @State private var showingEnrollmentScanner = false
     @State private var showingEnrollmentShareSheet = false
     @State private var shareItems: [Any] = []
+    @State private var snackbarMessage: String? = nil
+    @State private var snackbarQueuedAction: HermesQueuedApprovalAction? = nil
+    @State private var snackbarDismissTask: Task<Void, Never>? = nil
 
     var body: some View {
         NavigationStack {
@@ -32,6 +35,9 @@ struct SettingsView: View {
                     Text("Queued approvals: \(viewModel.queuedApprovalActions)")
                     Text("Realtime status: \(viewModel.streamStatus)")
                     Text("Reconnect backoff: \(viewModel.realtimeReconnectCountdown)")
+                    ProgressView(value: viewModel.realtimeReconnectProgress) {
+                        Text("Reconnect progress")
+                    }
                     Text("Connection state: \(viewModel.dashboard.connectionState)")
                 }
 
@@ -85,6 +91,19 @@ struct SettingsView: View {
                                 Text("Queued at: \(queued.createdAt)")
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
+                                HStack(spacing: 12) {
+                                    Button("Copy details") {
+                                        viewModel.copyQueuedApprovalActionDetails(queued)
+                                    }
+                                    Button("Retry now") {
+                                        viewModel.retryQueuedApprovalAction(queued)
+                                    }
+                                    Button("Dismiss") {
+                                        if let dismissed = viewModel.dismissQueuedApprovalAction(queued) {
+                                            showDismissSnackbar(for: dismissed)
+                                        }
+                                    }
+                                }
                             }
                             .padding(.vertical, 4)
                         }
@@ -123,7 +142,55 @@ struct SettingsView: View {
             .sheet(isPresented: $showingEnrollmentShareSheet) {
                 ShareSheetView(items: shareItems)
             }
+            .overlay(alignment: .bottom) {
+                if let snackbarMessage {
+                    HStack(spacing: 12) {
+                        Text(snackbarMessage)
+                            .font(.subheadline)
+                            .foregroundStyle(.primary)
+                            .multilineTextAlignment(.leading)
+                        Spacer(minLength: 8)
+                        if snackbarQueuedAction != nil {
+                            Button("Undo") {
+                                if let queued = snackbarQueuedAction {
+                                    viewModel.restoreQueuedApprovalAction(queued)
+                                }
+                                dismissSnackbar()
+                            }
+                            .fontWeight(.semibold)
+                        }
+                    }
+                    .padding()
+                    .background(.ultraThinMaterial)
+                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(.secondary.opacity(0.2)))
+                    .padding(.horizontal)
+                    .padding(.bottom, 12)
+                }
+            }
         }
+    }
+
+    private func showDismissSnackbar(for queued: HermesQueuedApprovalAction) {
+        snackbarDismissTask?.cancel()
+        snackbarQueuedAction = queued
+        snackbarMessage = "Dismissed \(queued.action.uppercased()) for \(queued.approvalId)"
+        snackbarDismissTask = Task { [queued] in
+            try? await Task.sleep(nanoseconds: 4_000_000_000)
+            if Task.isCancelled { return }
+            await MainActor.run {
+                if snackbarQueuedAction == queued {
+                    dismissSnackbar()
+                }
+            }
+        }
+    }
+
+    private func dismissSnackbar() {
+        snackbarDismissTask?.cancel()
+        snackbarDismissTask = nil
+        snackbarMessage = nil
+        snackbarQueuedAction = nil
     }
 
     private func makeQRCodeImage(from payload: String) -> UIImage? {

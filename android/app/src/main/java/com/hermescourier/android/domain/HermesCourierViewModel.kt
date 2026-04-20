@@ -235,11 +235,44 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
         }
     }
 
-    fun dismissQueuedApprovalAction(queued: HermesQueuedApprovalAction) {
-        removeQueuedApprovalAction(queued)
+    fun copyQueuedApprovalActionDetails(queued: HermesQueuedApprovalAction) {
+        val details = buildString {
+            appendLine("Approval ID: ${queued.approvalId}")
+            appendLine("Action: ${queued.action}")
+            appendLine("Queued at: ${queued.createdAt}")
+            appendLine("Note: ${queued.note ?: "(none)"}")
+        }
+        val clipboard = applicationContext.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        clipboard.setPrimaryClip(ClipData.newPlainText("Hermes Courier queued approval details", details))
+        _uiState.update { it.copy(approvalActionStatus = "Queued approval details copied to clipboard") }
+    }
+
+    fun dismissQueuedApprovalAction(queued: HermesQueuedApprovalAction): HermesQueuedApprovalAction? {
+        val removed = removeQueuedApprovalAction(queued)
+        if (removed == null) {
+            _uiState.update { it.copy(approvalActionStatus = "Queued approval was already removed") }
+            return null
+        }
         _uiState.update {
             it.copy(
                 approvalActionStatus = "Dismissed queued ${queued.action} for ${queued.approvalId}",
+                queuedApprovalActions = queuedApprovalActions.size,
+                queuedApprovalActionQueue = queuedApprovalActions.toList(),
+            )
+        }
+        return removed
+    }
+
+    fun restoreQueuedApprovalAction(queued: HermesQueuedApprovalAction) {
+        if (queuedApprovalActions.contains(queued)) {
+            _uiState.update { it.copy(approvalActionStatus = "Queued approval already present", queuedApprovalActions = queuedApprovalActions.size, queuedApprovalActionQueue = queuedApprovalActions.toList()) }
+            return
+        }
+        queuedApprovalActions.addFirst(queued)
+        persistQueuedApprovalActions()
+        _uiState.update {
+            it.copy(
+                approvalActionStatus = "Restored dismissed ${queued.action} for ${queued.approvalId}",
                 queuedApprovalActions = queuedApprovalActions.size,
                 queuedApprovalActionQueue = queuedApprovalActions.toList(),
             )
@@ -404,12 +437,14 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
         }
     }
 
-    private fun removeQueuedApprovalAction(queued: HermesQueuedApprovalAction) {
+    private fun removeQueuedApprovalAction(queued: HermesQueuedApprovalAction): HermesQueuedApprovalAction? {
         val index = queuedApprovalActions.indexOfFirst { it == queued }
         if (index >= 0) {
-            queuedApprovalActions.removeAt(index)
+            val removed = queuedApprovalActions.removeAt(index)
             persistQueuedApprovalActions()
+            return removed
         }
+        return null
     }
 
     private fun updateReconnectCountdown(status: String) {
@@ -419,14 +454,17 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
             reconnectCountdownJob?.cancel()
             reconnectCountdownJob = viewModelScope.launch {
                 for (remaining in seconds downTo 1) {
-                    _uiState.update { it.copy(realtimeReconnectCountdown = "Reconnect retry in ${remaining}s") }
+                    val progress = 1f - (remaining.toFloat() / seconds.toFloat())
+                    _uiState.update { it.copy(realtimeReconnectCountdown = "Reconnect retry in ${remaining}s", realtimeReconnectProgress = progress) }
                     delay(1000)
                 }
-                _uiState.update { it.copy(realtimeReconnectCountdown = "Retrying now") }
+                _uiState.update { it.copy(realtimeReconnectCountdown = "Retrying now", realtimeReconnectProgress = 1f) }
             }
         } else if (status.contains("connected", ignoreCase = true)) {
             reconnectCountdownJob?.cancel()
-            _uiState.update { it.copy(realtimeReconnectCountdown = "Connected") }
+            _uiState.update { it.copy(realtimeReconnectCountdown = "Connected", realtimeReconnectProgress = 0f) }
+        } else if (status.contains("disconnected", ignoreCase = true) || status.contains("error", ignoreCase = true)) {
+            _uiState.update { it.copy(realtimeReconnectProgress = 0f) }
         }
     }
 
