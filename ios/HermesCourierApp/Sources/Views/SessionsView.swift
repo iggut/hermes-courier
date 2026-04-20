@@ -20,7 +20,7 @@ struct SessionsView: View {
                 }
 
                 if viewModel.sessions.isEmpty {
-                    Text("No sessions are available yet.")
+                    Text("No sessions yet. After you refresh from the dashboard or settings, new gateway activity appears here.")
                 }
             }
             .navigationTitle("Sessions")

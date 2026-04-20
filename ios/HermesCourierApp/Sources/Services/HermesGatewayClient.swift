@@ -79,7 +79,16 @@ final class HermesGatewayClient: HermesGatewayClientProtocol {
                 updatedAt: "now"
             )
         }
-        return try JSONDecoder().decode(HermesApprovalActionResult.self, from: data)
+        if let decoded = try? JSONDecoder().decode(HermesApprovalActionResult.self, from: data) {
+            return decoded
+        }
+        return HermesApprovalActionResult(
+            approvalId: approvalId,
+            action: decision,
+            status: "recorded",
+            detail: note ?? "Decision recorded.",
+            updatedAt: "now"
+        )
     }
 
     func connectRealtime(session: HermesAuthSession, onStatus: @escaping (String) -> Void, onEnvelope: @escaping (HermesRealtimeEnvelope) -> Void) -> HermesRealtimeStreamHandle {
@@ -172,6 +181,12 @@ final class HermesGatewayClient: HermesGatewayClientProtocol {
         if let wrapper = try? JSONDecoder().decode(HermesCollectionWrapper<T>.self, from: data) {
             return wrapper.items
         }
+        if let dataWrapper = try? JSONDecoder().decode(HermesCollectionDataWrapper<T>.self, from: data) {
+            return dataWrapper.data
+        }
+        if let resultsWrapper = try? JSONDecoder().decode(HermesCollectionResultsWrapper<T>.self, from: data) {
+            return resultsWrapper.results
+        }
         return []
     }
 }
@@ -250,4 +265,12 @@ final class HermesDemoGatewayClient: HermesGatewayClientProtocol {
 
 private struct HermesCollectionWrapper<T: Decodable>: Decodable {
     let items: [T]
+}
+
+private struct HermesCollectionDataWrapper<T: Decodable>: Decodable {
+    let data: [T]
+}
+
+private struct HermesCollectionResultsWrapper<T: Decodable>: Decodable {
+    let results: [T]
 }

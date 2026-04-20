@@ -102,9 +102,10 @@ class NetworkHermesGatewayClient(
         note: String?,
     ): HermesApprovalActionResult = withContext(Dispatchers.IO) {
         val decision = normalizeApprovalDecision(action)
-        val body = JSONObject()
-            .put("decision", decision)
-            .put("reason", note)
+        val body = JSONObject().put("decision", decision)
+        if (!note.isNullOrBlank()) {
+            body.put("reason", note)
+        }
         val result = transport.post(
             path = "/${HermesApiPaths.approvalDecision(approvalId)}",
             bearerToken = session.accessToken,

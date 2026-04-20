@@ -83,7 +83,7 @@ struct SettingsView: View {
                     } else {
                         ForEach(viewModel.queuedApprovalActionQueue, id: \.self) { queued in
                             VStack(alignment: .leading, spacing: 6) {
-                                Text("\(queued.action.uppercased()) • \(queued.approvalId)")
+                                Text("\(HermesApprovalDisplay.userFacingVerb(for: queued.action).uppercased()) • \(queued.approvalId)")
                                     .font(.headline)
                                 if let note = queued.note, !note.isEmpty {
                                     Text(note)
@@ -174,7 +174,7 @@ struct SettingsView: View {
     private func showDismissSnackbar(for queued: HermesQueuedApprovalAction) {
         snackbarDismissTask?.cancel()
         snackbarQueuedAction = queued
-        snackbarMessage = "Dismissed \(queued.action.uppercased()) for \(queued.approvalId)"
+        snackbarMessage = "Dismissed \(HermesApprovalDisplay.userFacingVerb(for: queued.action)) for \(queued.approvalId)"
         snackbarDismissTask = Task { [queued] in
             try? await Task.sleep(nanoseconds: 4_000_000_000)
             if Task.isCancelled { return }

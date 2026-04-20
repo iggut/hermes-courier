@@ -39,9 +39,9 @@ fun SessionsScreen(contentPadding: PaddingValues, sessions: List<HermesSessionSu
                 }
             }
         }
-        if (sessions.isEmpty()) {
+                if (sessions.isEmpty()) {
             item {
-                Text(text = "No sessions are available yet.")
+                Text(text = "No sessions yet. After you refresh from the dashboard or settings, new gateway activity appears here.")
             }
         }
     }

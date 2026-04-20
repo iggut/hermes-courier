@@ -36,6 +36,7 @@ import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanIntentResult
 import com.hermescourier.android.domain.model.HermesCourierUiState
 import com.hermescourier.android.domain.model.HermesQueuedApprovalAction
+import com.hermescourier.android.domain.model.userFacingApprovalVerb
 import kotlinx.coroutines.launch
 
 @Composable
@@ -149,7 +150,7 @@ fun SettingsScreen(
                     uiState.queuedApprovalActionQueue.forEach { queued ->
                         Card(colors = CardDefaults.cardColors()) {
                             Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Text(text = "${queued.action.uppercase()} • ${queued.approvalId}", style = MaterialTheme.typography.titleSmall)
+                                Text(text = "${userFacingApprovalVerb(queued.action).uppercase()} • ${queued.approvalId}", style = MaterialTheme.typography.titleSmall)
                                 queued.note?.let { Text(text = it) }
                                 Text(text = "Queued at: ${queued.createdAt}", style = MaterialTheme.typography.labelSmall)
                                 androidx.compose.foundation.layout.Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -160,7 +161,7 @@ fun SettingsScreen(
                                         if (dismissed != null) {
                                             coroutineScope.launch {
                                                 val snackbarResult = snackbarHostState.showSnackbar(
-                                                    message = "Dismissed ${dismissed.action} for ${dismissed.approvalId}",
+                                                    message = "Dismissed ${userFacingApprovalVerb(dismissed.action)} for ${dismissed.approvalId}",
                                                     actionLabel = "Undo",
                                                     duration = SnackbarDuration.Short,
                                                 )

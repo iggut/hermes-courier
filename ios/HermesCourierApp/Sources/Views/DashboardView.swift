@@ -13,6 +13,10 @@ struct DashboardView: View {
                             Text("Auth: \(viewModel.authStatus)")
                             Text("Gateway: \(viewModel.gatewaySettings.baseURL)")
                             Text("Stream: \(viewModel.streamStatus)")
+                            Text("Stream reconnect: \(viewModel.realtimeReconnectCountdown)")
+                            ProgressView(value: viewModel.realtimeReconnectProgress) {
+                                Text("Reconnect progress")
+                            }
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
                     }

@@ -102,6 +102,12 @@ data class HermesQueuedApprovalAction(
     val createdAt: Long,
 )
 
+/** UI label: wire uses `deny` while surfaces say "Reject". */
+fun userFacingApprovalVerb(action: String): String = when (action.lowercase()) {
+    "deny" -> "Reject"
+    else -> action.replaceFirstChar { it.uppercaseChar() }
+}
+
 data class HermesCourierUiState(
     val bootstrapState: String = "Bootstrapping secure gateway",
     val authStatus: String = "Waiting for device-bound challenge",

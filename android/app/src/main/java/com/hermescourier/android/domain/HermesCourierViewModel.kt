@@ -21,6 +21,7 @@ import com.hermescourier.android.domain.model.HermesDeviceIdentity
 import com.hermescourier.android.domain.model.HermesEnrollmentPayload
 import com.hermescourier.android.domain.model.HermesGatewaySettings
 import com.hermescourier.android.domain.model.HermesQueuedApprovalAction
+import com.hermescourier.android.domain.model.userFacingApprovalVerb
 import com.google.zxing.BarcodeFormat
 import com.journeyapps.barcodescanner.BarcodeEncoder
 import kotlinx.coroutines.Job
@@ -225,7 +226,7 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
                     removeQueuedApprovalAction(queued)
                     _uiState.update {
                         it.copy(
-                            approvalActionStatus = "Retried queued ${result.action} for ${result.approvalId}: ${result.status}",
+                            approvalActionStatus = "Retried queued ${userFacingApprovalVerb(result.action)} for ${result.approvalId}: ${result.status}",
                             queuedApprovalActions = queuedApprovalActions.size,
                             queuedApprovalActionQueue = queuedApprovalActions.toList(),
                         )
@@ -242,7 +243,7 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
     fun copyQueuedApprovalActionDetails(queued: HermesQueuedApprovalAction) {
         val details = buildString {
             appendLine("Approval ID: ${queued.approvalId}")
-            appendLine("Action: ${queued.action}")
+            appendLine("Decision: ${userFacingApprovalVerb(queued.action)} (wire: ${queued.action})")
             appendLine("Queued at: ${queued.createdAt}")
             appendLine("Note: ${queued.note ?: "(none)"}")
         }
@@ -259,7 +260,7 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
         }
         _uiState.update {
             it.copy(
-                approvalActionStatus = "Dismissed queued ${queued.action} for ${queued.approvalId}",
+                approvalActionStatus = "Dismissed queued ${userFacingApprovalVerb(queued.action)} for ${queued.approvalId}",
                 queuedApprovalActions = queuedApprovalActions.size,
                 queuedApprovalActionQueue = queuedApprovalActions.toList(),
             )
@@ -276,7 +277,7 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
         persistQueuedApprovalActions()
         _uiState.update {
             it.copy(
-                approvalActionStatus = "Restored dismissed ${queued.action} for ${queued.approvalId}",
+                approvalActionStatus = "Restored dismissed ${userFacingApprovalVerb(queued.action)} for ${queued.approvalId}",
                 queuedApprovalActions = queuedApprovalActions.size,
                 queuedApprovalActionQueue = queuedApprovalActions.toList(),
             )
@@ -423,7 +424,7 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
                 persistQueuedApprovalActions()
                 _uiState.update {
                     it.copy(
-                        approvalActionStatus = "Flushed queued ${result.action} for ${result.approvalId}: ${result.status}",
+                        approvalActionStatus = "Flushed queued ${userFacingApprovalVerb(result.action)} for ${result.approvalId}: ${result.status}",
                         queuedApprovalActions = queuedApprovalActions.size,
                         queuedApprovalActionQueue = queuedApprovalActions.toList(),
                     )
@@ -466,15 +467,16 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
             }
         } else if (status.contains("connected", ignoreCase = true)) {
             reconnectCountdownJob?.cancel()
+            reconnectCountdownJob = null
             _uiState.update { it.copy(realtimeReconnectCountdown = "Connected", realtimeReconnectProgress = 0f) }
         } else if (status.contains("disconnected", ignoreCase = true) || status.contains("error", ignoreCase = true)) {
             reconnectCountdownJob?.cancel()
             reconnectCountdownJob = null
-            _uiState.update { it.copy(realtimeReconnectProgress = 0f) }
+            _uiState.update { it.copy(realtimeReconnectCountdown = "Reconnect now", realtimeReconnectProgress = 0f) }
         } else {
             reconnectCountdownJob?.cancel()
             reconnectCountdownJob = null
-            _uiState.update { it.copy(realtimeReconnectProgress = 0f) }
+            _uiState.update { it.copy(realtimeReconnectCountdown = "Reconnect now", realtimeReconnectProgress = 0f) }
         }
     }
 
@@ -624,7 +626,7 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
     }
 
     private fun approvalActionMessage(result: HermesApprovalActionResult): String =
-        "${result.action.replaceFirstChar { it.uppercaseChar() }} approval ${result.approvalId}: ${result.status}"
+        "${userFacingApprovalVerb(result.action)} approval ${result.approvalId}: ${result.status}"
 
     override fun onCleared() {
         realtimeHandle?.close()

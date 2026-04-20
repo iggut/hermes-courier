@@ -70,6 +70,8 @@ final class AppViewModel: ObservableObject {
             sessions = try await liveClient.fetchSessions(session: session)
             approvals = try await liveClient.fetchApprovals(session: session)
             messages = try await liveClient.fetchConversation(session: session)
+            realtimeReconnectCountdown = "Connected"
+            realtimeReconnectProgress = 0
             connectRealtime(using: liveClient, session: session)
             await flushQueuedApprovalActions(using: liveClient, session: session)
         } catch {
@@ -83,6 +85,8 @@ final class AppViewModel: ObservableObject {
                 sessions = try await fallbackClient.fetchSessions(session: session)
                 approvals = try await fallbackClient.fetchApprovals(session: session)
                 messages = try await fallbackClient.fetchConversation(session: session)
+                realtimeReconnectCountdown = "Connected"
+                realtimeReconnectProgress = 0
                 connectRealtime(using: fallbackClient, session: session)
             } catch {
                 bootstrapState = "Gateway unavailable"
@@ -173,7 +177,7 @@ final class AppViewModel: ObservableObject {
                     queuedActions.remove(at: index)
                     persistQueuedApprovalActions()
                 }
-                approvalActionStatus = "Retried queued \(result.action) for \(result.approvalId): \(result.status)"
+                approvalActionStatus = "Retried queued \(HermesApprovalDisplay.userFacingVerb(for: result.action)) for \(result.approvalId): \(result.status)"
                 queuedApprovalActions = queuedActions.count
                 queuedApprovalActionQueue = queuedActions
             } catch {
@@ -185,7 +189,7 @@ final class AppViewModel: ObservableObject {
     func copyQueuedApprovalActionDetails(_ queued: HermesQueuedApprovalAction) {
         let details = [
             "Approval ID: \(queued.approvalId)",
-            "Action: \(queued.action)",
+            "Decision: \(HermesApprovalDisplay.userFacingVerb(for: queued.action)) (wire: \(queued.action))",
             "Queued at: \(queued.createdAt)",
             "Note: \(queued.note ?? "(none)")",
         ].joined(separator: "\n")
@@ -200,7 +204,7 @@ final class AppViewModel: ObservableObject {
         }
         queuedActions.remove(at: index)
         persistQueuedApprovalActions()
-        approvalActionStatus = "Dismissed queued \(queued.action) for \(queued.approvalId)"
+        approvalActionStatus = "Dismissed queued \(HermesApprovalDisplay.userFacingVerb(for: queued.action)) for \(queued.approvalId)"
         queuedApprovalActions = queuedActions.count
         queuedApprovalActionQueue = queuedActions
         return queued
@@ -215,7 +219,7 @@ final class AppViewModel: ObservableObject {
         }
         queuedActions.insert(queued, at: 0)
         persistQueuedApprovalActions()
-        approvalActionStatus = "Restored dismissed \(queued.action) for \(queued.approvalId)"
+        approvalActionStatus = "Restored dismissed \(HermesApprovalDisplay.userFacingVerb(for: queued.action)) for \(queued.approvalId)"
         queuedApprovalActions = queuedActions.count
         queuedApprovalActionQueue = queuedActions
     }
@@ -241,7 +245,7 @@ final class AppViewModel: ObservableObject {
             let client = HermesGatewayClient()
             do {
                 let result = try await client.submitApprovalAction(session: session, approvalId: approvalId, action: action, note: note)
-                approvalActionStatus = "\(result.action.capitalized) approval \(result.approvalId): \(result.status)"
+                approvalActionStatus = "\(HermesApprovalDisplay.userFacingVerb(for: result.action)) approval \(result.approvalId): \(result.status)"
                 await refresh()
             } catch {
                 queueApprovalAction(approvalId, action, note, reason: "Offline; approval action queued for retry")
@@ -276,7 +280,7 @@ final class AppViewModel: ObservableObject {
                     self.messages.append(conversation)
                 }
                 if let result = envelope.approvalResult {
-                    self.approvalActionStatus = "\(result.action.capitalized) approval \(result.approvalId): \(result.status)"
+                    self.approvalActionStatus = "\(HermesApprovalDisplay.userFacingVerb(for: result.action)) approval \(result.approvalId): \(result.status)"
                 }
                 self.streamStatus = "Realtime event: \(envelope.type)"
             }
@@ -309,7 +313,7 @@ final class AppViewModel: ObservableObject {
                 let result = try await client.submitApprovalAction(session: session, approvalId: queued.approvalId, action: queued.action, note: queued.note)
                 queuedActions.removeFirst()
                 persistQueuedApprovalActions()
-                approvalActionStatus = "Flushed queued \(result.action) for \(result.approvalId): \(result.status)"
+                approvalActionStatus = "Flushed queued \(HermesApprovalDisplay.userFacingVerb(for: result.action)) for \(result.approvalId): \(result.status)"
                 queuedApprovalActions = queuedActions.count
                 queuedApprovalActionQueue = queuedActions
             } catch {
@@ -338,6 +342,7 @@ final class AppViewModel: ObservableObject {
                 realtimeReconnectCountdown = "Reconnect now"
                 realtimeReconnectProgress = 0
             } else {
+                realtimeReconnectCountdown = "Reconnect now"
                 realtimeReconnectProgress = 0
             }
             return

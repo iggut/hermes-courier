@@ -4,20 +4,20 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.hermescourier.android.domain.model.HermesCourierUiState
-import com.hermescourier.android.domain.model.HermesGatewaySettings
 
 @Composable
 fun DashboardScreen(contentPadding: PaddingValues, uiState: HermesCourierUiState, onRefresh: () -> Unit) {
@@ -38,6 +38,11 @@ fun DashboardScreen(contentPadding: PaddingValues, uiState: HermesCourierUiState
                 Text(text = "Connection", style = MaterialTheme.typography.titleMedium)
                 Text(text = "Gateway: ${uiState.gatewaySettings.baseUrl}")
                 Text(text = "Stream: ${uiState.streamStatus}")
+                Text(text = "Stream reconnect: ${uiState.realtimeReconnectCountdown}")
+                LinearProgressIndicator(
+                    progress = uiState.realtimeReconnectProgress,
+                    modifier = Modifier.fillMaxWidth(),
+                )
                 Text(text = "Enrollment: ${uiState.enrollmentStatus}")
                 Text(text = "Approval actions: ${uiState.approvalActionStatus}")
                 Button(onClick = onRefresh) {

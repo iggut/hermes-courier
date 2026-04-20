@@ -46,7 +46,7 @@ struct ApprovalsView: View {
                 NavigationStack {
                     Form {
                         Section("Decision") {
-                            Text(decision.action.capitalized + " — " + decision.title)
+                            Text(Self.displayVerb(for: decision.action) + " — " + decision.title)
                             Text("Add a note before submitting the approval action.")
                         }
                         Section("Comment") {
@@ -54,7 +54,7 @@ struct ApprovalsView: View {
                                 .lineLimit(3, reservesSpace: true)
                         }
                     }
-                    .navigationTitle(decision.action.capitalized)
+                    .navigationTitle(Self.displayVerb(for: decision.action))
                     .toolbar {
                         ToolbarItem(placement: .cancellationAction) {
                             Button("Cancel") { pendingDecision = nil }
@@ -76,5 +76,9 @@ struct ApprovalsView: View {
                 }
             }
         }
+    }
+
+    private static func displayVerb(for wireAction: String) -> String {
+        HermesApprovalDisplay.userFacingVerb(for: wireAction)
     }
 }

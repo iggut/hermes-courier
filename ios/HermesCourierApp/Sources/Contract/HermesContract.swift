@@ -109,3 +109,15 @@ struct HermesGatewaySettings: Hashable {
     var certificatePath: String = ""
     var certificatePassword: String = ""
 }
+
+/// UI labels: wire uses `deny` while surfaces say "Reject".
+enum HermesApprovalDisplay {
+    static func userFacingVerb(for action: String) -> String {
+        switch action.lowercased() {
+        case "deny":
+            return "Reject"
+        default:
+            return action.capitalized
+        }
+    }
+}
