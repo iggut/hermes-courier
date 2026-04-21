@@ -6,7 +6,7 @@
     <application
         android:name=".HermesCourierApplication"
         android:allowBackup="false"
-        android:label="Hermes Courier"
+        android:label="@string/app_name"
         android:supportsRtl="true"
         android:usesCleartextTraffic="${usesCleartextTraffic}"
         android:theme="@style/Theme.HermesCourier">
