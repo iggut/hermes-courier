@@ -118,31 +118,59 @@ data class HermesEnrollmentPayload(
     val issuedAt: String,
     val courierMode: String? = null,
     val bearerToken: String? = null,
+    val pairingMode: String? = null,
+    val pairingContractVersion: String? = null,
+    val apiBasePath: String? = null,
 )
 
 fun parseHermesEnrollmentPayload(
     payload: String,
-    defaultDeviceId: String,
-    defaultPublicKeyFingerprint: String,
-    defaultAppVersion: String,
-    defaultIssuedAt: String,
 ): HermesEnrollmentPayload? {
     val uri = runCatching { java.net.URI(payload) }.getOrNull() ?: return null
     if (uri.scheme != "hermes-courier-enroll") return null
     val query = parseQueryParameters(uri.rawQuery)
     val gatewayUrl = query["gatewayUrl"]?.trim().orEmpty()
     if (gatewayUrl.isBlank()) return null
+    val deviceId = query["deviceId"]?.trim().orEmpty()
+    val publicKeyFingerprint = query["publicKeyFingerprint"]?.trim().orEmpty()
+    val appVersion = query["appVersion"]?.trim().orEmpty()
+    val issuedAt = query["issuedAt"]?.trim().orEmpty()
+    if (deviceId.isBlank() || publicKeyFingerprint.isBlank() || appVersion.isBlank() || issuedAt.isBlank()) {
+        return null
+    }
     val courierMode = query["courierMode"]?.trim()?.takeIf { it.isNotBlank() }
     val bearerToken = query["bearerToken"]?.trim()?.takeIf { it.isNotBlank() }
+    val pairingMode = query["pairingMode"]?.trim()?.takeIf { it.isNotBlank() }
+    val pairingContractVersion = query["pairingContractVersion"]?.trim()?.takeIf { it.isNotBlank() }
+    val apiBasePath = query["apiBasePath"]?.trim()?.takeIf { it.isNotBlank() }
     return HermesEnrollmentPayload(
         gatewayUrl = gatewayUrl,
-        deviceId = query["deviceId"] ?: defaultDeviceId,
-        publicKeyFingerprint = query["publicKeyFingerprint"] ?: defaultPublicKeyFingerprint,
-        appVersion = query["appVersion"] ?: defaultAppVersion,
-        issuedAt = query["issuedAt"] ?: defaultIssuedAt,
+        deviceId = deviceId,
+        publicKeyFingerprint = publicKeyFingerprint,
+        appVersion = appVersion,
+        issuedAt = issuedAt,
         courierMode = courierMode,
         bearerToken = bearerToken,
+        pairingMode = pairingMode,
+        pairingContractVersion = pairingContractVersion,
+        apiBasePath = apiBasePath,
     )
+}
+
+fun validateTokenOnlyPairingContract(payload: HermesEnrollmentPayload): String? {
+    if (payload.courierMode?.lowercase() != "bearer-token") {
+        return "Pairing import failed: courierMode must be bearer-token"
+    }
+    if (payload.pairingMode?.lowercase() != "token-only") {
+        return "Pairing import failed: pairingMode must be token-only"
+    }
+    if (payload.gatewayUrl.isBlank()) {
+        return "Pairing import failed: gatewayUrl is required"
+    }
+    if (payload.bearerToken.isNullOrBlank()) {
+        return "Pairing import failed: token-only pairing requires bearerToken"
+    }
+    return null
 }
 
 private fun parseQueryParameters(rawQuery: String?): Map<String, String> {
@@ -241,6 +269,9 @@ data class HermesCourierUiState(
     val queuedApprovalActionQueue: List<HermesQueuedApprovalAction> = emptyList(),
     val endpointVerificationResults: List<HermesEndpointVerificationResult> = emptyList(),
     val verificationMode: String = "Not run",
+    val pairingBackendStatus: String = "Pairing backend status not checked yet",
+    val pairingBackendDetail: String = "Status endpoint has not been queried",
+    val pairingUnavailableReasons: List<String> = emptyList(),
     val sessionControlStatus: String = "No session-control action submitted",
     val sessionDetailLoading: Boolean = false,
     val sessionDetailLoadError: String? = null,

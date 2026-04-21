@@ -76,7 +76,10 @@ class NetworkHermesGatewayClient(
 ) : HermesGatewayClient {
     override suspend fun bootstrap(device: HermesDeviceIdentity): HermesAuthSession = withContext(Dispatchers.IO) {
         tokenStore.load()?.let { paired ->
-            if (paired.accessToken.isNotBlank() && paired.gatewayUrl == configuration.baseUrl.toString()) {
+            if (
+                paired.accessToken.isNotBlank() &&
+                paired.gatewayUrl.trimEnd('/') == configuration.baseUrl.toString().trimEnd('/')
+            ) {
                 return@withContext paired
             }
         }

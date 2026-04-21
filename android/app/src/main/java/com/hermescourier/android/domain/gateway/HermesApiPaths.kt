@@ -2,6 +2,7 @@ package com.hermescourier.android.domain.gateway
 
 /** Canonical paths aligned with [shared/contract/hermes-courier-api.yaml]. */
 object HermesApiPaths {
+    const val PAIRING_STATUS = "api/courier/pairing/status"
     const val AUTH_CHALLENGE = "v1/auth/challenge"
     const val AUTH_RESPONSE = "v1/auth/response"
     const val DASHBOARD = "v1/dashboard"

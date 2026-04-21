@@ -115,6 +115,14 @@ fun SettingsScreen(
                 Text(text = "Certificate path: ${uiState.gatewaySettings.certificatePath.ifBlank { "Not imported" }}")
                 Text(text = "Enrollment status: ${uiState.enrollmentStatus}")
                 Text(text = "Courier pairing: ${uiState.courierPairingStatus}")
+                Text(text = "Pairing backend: ${uiState.pairingBackendStatus}")
+                Text(text = "Pairing details: ${uiState.pairingBackendDetail}", style = MaterialTheme.typography.bodySmall)
+                if (uiState.pairingUnavailableReasons.isNotEmpty()) {
+                    Text(
+                        text = "Unavailable reasons: ${uiState.pairingUnavailableReasons.joinToString()}",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
                 Text(text = "Gateway mode: ${uiState.gatewayConnectionMode} (${uiState.realtimeReconnectCountdown})")
                 LinearProgressIndicator(
                     progress = uiState.realtimeReconnectProgress,
@@ -156,7 +164,7 @@ fun SettingsScreen(
         Card(colors = CardDefaults.cardColors()) {
             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(text = "Device enrollment QR", style = MaterialTheme.typography.titleMedium)
-                Text(text = "Share this QR with the gateway or scan an enrollment QR to prefill the secure gateway address.")
+                Text(text = "Scan the Hermes WebUI pairing QR for token-only scan-and-done pairing. Sharing this QR remains available for fallback workflows.")
                 if (qrBitmap != null) {
                     Image(
                         bitmap = qrBitmap.asImageBitmap(),
@@ -241,16 +249,14 @@ private fun SetupReadinessCard(
     onReconnectRealtime: () -> Unit,
 ) {
     val hasGatewayUrl = uiState.gatewaySettings.baseUrl.isNotBlank()
-    val hasCertificate = uiState.gatewaySettings.certificatePath.isNotBlank()
-    val hasCertificatePassword = uiState.gatewaySettings.certificatePassword.isNotBlank()
     val hasPairingToken = uiState.courierPairingStatus.contains("configured", ignoreCase = true)
+    val backendReady = uiState.pairingBackendStatus.contains("ready", ignoreCase = true)
     val isLiveConnected = uiState.gatewayConnectionMode.contains("live", ignoreCase = true)
 
     val readiness = listOf(
         "Gateway URL" to hasGatewayUrl,
-        "Certificate" to hasCertificate,
-        "Certificate password" to hasCertificatePassword,
-        "Pairing token" to hasPairingToken,
+        "Pairing backend ready" to backendReady,
+        "Token-only pairing token" to hasPairingToken,
         "Live connection test" to isLiveConnected,
     )
     val completed = readiness.count { it.second }
