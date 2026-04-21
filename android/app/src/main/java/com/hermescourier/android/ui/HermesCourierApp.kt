@@ -222,6 +222,7 @@ fun HermesCourierApp(viewModel: HermesCourierViewModel = viewModel()) {
                             onRefresh = viewModel::refresh,
                             onSessionControlAction = viewModel::submitSessionControlAction,
                             sessionControlStatus = uiState.sessionControlStatus,
+                            endpointVerificationResults = uiState.endpointVerificationResults,
                         )
                     }
                     uiState.sessionDetailLoadError != null -> {
@@ -262,6 +263,7 @@ fun HermesCourierApp(viewModel: HermesCourierViewModel = viewModel()) {
                     bootstrapState = uiState.bootstrapState,
                     streamStatus = uiState.streamStatus,
                     queuedApprovalActions = uiState.queuedApprovalActions,
+                    approvalActionStatus = uiState.approvalActionStatus,
                     onApproveApproval = viewModel::approveApproval,
                     onRejectApproval = viewModel::rejectApproval,
                     onOpenApprovalDetail = { approvalId -> navController.navigate(approvalDetailRoute(approvalId)) },
@@ -281,6 +283,7 @@ fun HermesCourierApp(viewModel: HermesCourierViewModel = viewModel()) {
                         bootstrapState = uiState.bootstrapState,
                         streamStatus = uiState.streamStatus,
                         queuedApprovalActions = uiState.queuedApprovalActions,
+                        approvalActionStatus = uiState.approvalActionStatus,
                         onApproveApproval = viewModel::approveApproval,
                         onRejectApproval = viewModel::rejectApproval,
                         onOpenApprovalDetail = { id -> navController.navigate(approvalDetailRoute(id)) },

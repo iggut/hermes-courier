@@ -34,6 +34,7 @@ import com.google.zxing.BarcodeFormat
 import com.journeyapps.barcodescanner.BarcodeEncoder
 import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanIntentResult
+import com.hermescourier.android.domain.model.HermesEndpointVerificationResult
 import com.hermescourier.android.domain.model.HermesCourierUiState
 import com.hermescourier.android.domain.model.HermesQueuedApprovalAction
 import com.hermescourier.android.domain.model.userFacingApprovalVerb
@@ -134,9 +135,14 @@ fun SettingsScreen(
                 if (uiState.endpointVerificationResults.isEmpty()) {
                     Text(text = "No verification report yet.")
                 } else {
+                    val grouped = verificationSummary(uiState.endpointVerificationResults)
+                    Text(
+                        text = "OK ${grouped.ok} · Unsupported ${grouped.unsupported} · Drift ${grouped.drift} · Failed ${grouped.failed} · Skipped ${grouped.skipped}",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
                     uiState.endpointVerificationResults.forEach { result ->
                         Text(
-                            text = "${result.endpoint}: ${result.status} — ${result.reason}",
+                            text = "${result.endpoint}: ${result.status.uppercase()} — ${result.reason}",
                             style = MaterialTheme.typography.bodySmall,
                         )
                     }
@@ -222,4 +228,30 @@ fun SettingsScreen(
             modifier = Modifier.align(Alignment.BottomCenter),
         )
     }
+}
+
+private data class VerificationSummary(
+    val ok: Int,
+    val unsupported: Int,
+    val drift: Int,
+    val failed: Int,
+    val skipped: Int,
+)
+
+private fun verificationSummary(results: List<HermesEndpointVerificationResult>): VerificationSummary {
+    var ok = 0
+    var unsupported = 0
+    var drift = 0
+    var failed = 0
+    var skipped = 0
+    results.forEach { result ->
+        when (result.status.lowercase()) {
+            "ok" -> ok += 1
+            "unsupported" -> unsupported += 1
+            "drift" -> drift += 1
+            "failed" -> failed += 1
+            "skipped" -> skipped += 1
+        }
+    }
+    return VerificationSummary(ok, unsupported, drift, failed, skipped)
 }

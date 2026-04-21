@@ -200,7 +200,10 @@ fun ChatScreen(
                     contentPadding = PaddingValues(16.dp),
                 ) {
                     items(conversationEvents, key = { it.eventId }) { event ->
-                        val isUser = event.author.equals("You", ignoreCase = true)
+                        val author = event.author.ifBlank { "Unknown" }
+                        val body = event.body.ifBlank { "(empty message body)" }
+                        val timestamp = event.timestamp.ifBlank { "unknown time" }
+                        val isUser = author.equals("You", ignoreCase = true)
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start,
@@ -225,7 +228,7 @@ fun ChatScreen(
                                         verticalAlignment = Alignment.CenterVertically,
                                     ) {
                                         Text(
-                                            text = event.author,
+                                            text = author,
                                             style = MaterialTheme.typography.titleMedium,
                                             fontWeight = FontWeight.SemiBold,
                                             color = if (isUser) {
@@ -235,7 +238,7 @@ fun ChatScreen(
                                             },
                                         )
                                         Text(
-                                            text = event.timestamp,
+                                            text = timestamp,
                                             style = MaterialTheme.typography.labelMedium,
                                             color = if (isUser) {
                                                 MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
@@ -245,7 +248,7 @@ fun ChatScreen(
                                         )
                                     }
                                     Text(
-                                        text = event.body,
+                                        text = body,
                                         style = MaterialTheme.typography.bodyMedium,
                                         color = if (isUser) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
                                     )

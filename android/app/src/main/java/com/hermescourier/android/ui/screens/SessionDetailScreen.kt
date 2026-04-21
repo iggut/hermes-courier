@@ -17,6 +17,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.hermescourier.android.domain.model.HermesEndpointVerificationResult
 import com.hermescourier.android.domain.model.HermesSessionSummary
 import com.hermescourier.android.ui.courierHeroCardElevation
 import com.hermescourier.android.ui.sessionCardSummary
@@ -29,7 +30,9 @@ fun SessionDetailScreen(
     onRefresh: () -> Unit,
     onSessionControlAction: (sessionId: String, action: String) -> Unit,
     sessionControlStatus: String,
+    endpointVerificationResults: List<HermesEndpointVerificationResult>,
 ) {
+    val support = rememberSessionControlSupport(endpointVerificationResults)
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -75,16 +78,24 @@ fun SessionDetailScreen(
                 )
                 Button(
                     onClick = { onSessionControlAction(session.sessionId, "pause") },
+                    enabled = support.canInvoke,
                     modifier = Modifier.fillMaxWidth(),
                 ) { Text(text = "Pause session") }
                 Button(
                     onClick = { onSessionControlAction(session.sessionId, "resume") },
+                    enabled = support.canInvoke,
                     modifier = Modifier.fillMaxWidth(),
                 ) { Text(text = "Resume session") }
                 OutlinedButton(
                     onClick = { onSessionControlAction(session.sessionId, "terminate") },
+                    enabled = support.canInvoke,
                     modifier = Modifier.fillMaxWidth(),
                 ) { Text(text = "Terminate session") }
+                Text(
+                    text = support.detail,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
                 Text(
                     text = "Status: $sessionControlStatus",
                     style = MaterialTheme.typography.bodySmall,
@@ -102,5 +113,40 @@ fun SessionDetailScreen(
                 OutlinedButton(onClick = onRefresh, modifier = Modifier.fillMaxWidth()) { Text(text = "Sync again") }
             }
         }
+    }
+}
+
+private data class SessionControlSupport(val canInvoke: Boolean, val detail: String)
+
+private fun rememberSessionControlSupport(
+    results: List<HermesEndpointVerificationResult>,
+): SessionControlSupport {
+    val controlResults = results.filter { it.endpoint.startsWith("session-control", ignoreCase = true) }
+    if (controlResults.isEmpty()) {
+        return SessionControlSupport(
+            canInvoke = true,
+            detail = "Capability unknown until endpoint verification runs; actions stay enabled.",
+        )
+    }
+    val unsupported = controlResults.count { it.status.equals("unsupported", ignoreCase = true) }
+    val ok = controlResults.count { it.status.equals("ok", ignoreCase = true) }
+    val failed = controlResults.count { it.status.equals("failed", ignoreCase = true) }
+    return when {
+        ok > 0 -> SessionControlSupport(
+            canInvoke = true,
+            detail = "Gateway verified at least one session-control endpoint.",
+        )
+        unsupported == controlResults.size -> SessionControlSupport(
+            canInvoke = false,
+            detail = "Gateway reports session-control endpoints unsupported for this environment.",
+        )
+        failed == controlResults.size -> SessionControlSupport(
+            canInvoke = true,
+            detail = "Session-control checks failed during verification; you can retry from Settings.",
+        )
+        else -> SessionControlSupport(
+            canInvoke = true,
+            detail = "Session-control capability is partially available; see Settings verification for endpoint details.",
+        )
     }
 }

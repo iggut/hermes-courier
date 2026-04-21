@@ -70,6 +70,7 @@ fun ApprovalsScreen(
     bootstrapState: String,
     streamStatus: String,
     queuedApprovalActions: Int,
+    approvalActionStatus: String,
     onApproveApproval: (String, String?) -> Unit,
     onRejectApproval: (String, String?) -> Unit,
     onOpenApprovalDetail: (String) -> Unit,
@@ -88,6 +89,7 @@ fun ApprovalsScreen(
     }
     val biometricsRequiredCount = filteredApprovals.count { it.requiresBiometrics }
     val standardReviewCount = filteredApprovals.size - biometricsRequiredCount
+    val pendingCount = approvals.size
     val selectedApproval = selectedApprovalId?.let { id -> approvals.firstOrNull { it.approvalId == id } }
     val actionMenuApproval = actionMenuApprovalId?.let { id -> approvals.firstOrNull { it.approvalId == id } }
 
@@ -174,6 +176,21 @@ fun ApprovalsScreen(
                 value = standardReviewCount.toString(),
                 caption = "Can be reviewed normally",
             )
+        }
+
+        Card(elevation = courierCardElevation()) {
+            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(text = "Delivery state", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    text = "Pending in list: $pendingCount · Queued offline: $queuedApprovalActions",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                Text(
+                    text = "Last action: $approvalActionStatus",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
 
         if (filteredApprovals.isEmpty()) {

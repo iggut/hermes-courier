@@ -31,8 +31,8 @@ Use **JDK 17** or **JDK 21** for Gradle (Android Gradle Plugin aligns with LTS r
 - Android Keystore-backed challenge signing and encrypted token storage scaffolding
 - shared secure API contract (`shared/contract/`) aligned with the gateway paths
 
-## Next steps
+## Operator readiness notes
 
-- replace demo gateway with production mTLS transport
-- add certificate pinning and device attestation where required by deployment
-- deepen integration with live Hermes session and approval APIs
+- `Settings` now includes a per-endpoint verification report with explicit `ok`, `unsupported`, `failed`, `drift`, and `skipped` status labels.
+- `Session detail` exposes pause/resume/terminate controls and disables them when verification reports the control endpoints as unsupported.
+- `Approvals` includes pending-versus-queued visibility and keeps the latest delivery status visible for retry diagnostics.
