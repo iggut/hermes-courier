@@ -158,6 +158,17 @@ internal fun dashboardNextStep(
         "Refresh to fetch the latest gateway snapshot and live activity."
 }
 
+internal fun dashboardFreshnessLabel(
+    lastSyncLabel: String,
+    streamStatus: String,
+): String = when {
+    streamStatus.contains("disconnected", ignoreCase = true) || streamStatus.contains("unavailable", ignoreCase = true) ->
+        "Data may be stale · Last update: $lastSyncLabel"
+    streamStatus.contains("demo", ignoreCase = true) -> "Demo data · Last update: $lastSyncLabel"
+    streamStatus.contains("connected", ignoreCase = true) -> "Live sync · Last update: $lastSyncLabel"
+    else -> "Last update: $lastSyncLabel"
+}
+
 internal fun sessionStatusBadge(status: String): String = when {
     status.contains("active", ignoreCase = true) -> "Live session"
     status.contains("pending", ignoreCase = true) -> "Waiting"

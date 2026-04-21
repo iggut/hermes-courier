@@ -50,6 +50,24 @@ class HermesCourierUiHelpersTest {
     }
 
     @Test
+    fun dashboardFreshnessLabel_callsOutStaleData_whenOffline() {
+        assertEquals(
+            "Data may be stale · Last update: 12:34",
+            dashboardFreshnessLabel(
+                lastSyncLabel = "12:34",
+                streamStatus = "Realtime stream disconnected",
+            ),
+        )
+        assertEquals(
+            "Live sync · Last update: Just now",
+            dashboardFreshnessLabel(
+                lastSyncLabel = "Just now",
+                streamStatus = "Realtime stream connected",
+            ),
+        )
+    }
+
+    @Test
     fun sessionAndApprovalBadges_readWell_onMobile() {
         assertEquals("Live session", sessionStatusBadge("active"))
         assertEquals("Needs attention", sessionStatusBadge("error"))
@@ -60,8 +78,12 @@ class HermesCourierUiHelpersTest {
     @Test
     fun detailSubtitles_includeKeyIdentifiers() {
         val session = HermesSessionSummary("s-1", "Morning sync", "active", "just now")
-        val approval = HermesApprovalSummary("a-7", "Delete branch", "Dangerous operation", true)
+        val approval = HermesApprovalSummary("a-7", "Rotate credentials", "Rotate the shared token", true)
+
         assertEquals("Updated just now · Live session", sessionDetailSubtitle(session))
-        assertEquals("Biometrics required · a-7", approvalDetailSubtitle(approval))
+        assertEquals(
+            "Biometrics required · a-7",
+            approvalDetailSubtitle(approval),
+        )
     }
 }

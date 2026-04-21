@@ -16,6 +16,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.hermescourier.android.domain.model.HermesCourierUiState
+import com.hermescourier.android.ui.dashboardFreshnessLabel
 
 @Composable
 fun GatewayStatusBanner(
@@ -61,6 +62,14 @@ fun GatewayStatusBanner(
             )
             Text(
                 text = uiState.gatewayConnectionDetail,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                text = dashboardFreshnessLabel(
+                    lastSyncLabel = uiState.dashboard.lastSyncLabel,
+                    streamStatus = uiState.streamStatus,
+                ),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

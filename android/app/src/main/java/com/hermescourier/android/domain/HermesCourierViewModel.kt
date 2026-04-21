@@ -24,6 +24,7 @@ import com.hermescourier.android.domain.model.HermesEnrollmentPayload
 import com.hermescourier.android.domain.model.HermesGatewaySettings
 import com.hermescourier.android.domain.model.HermesQueuedApprovalAction
 import com.hermescourier.android.domain.model.migrateQueuedApprovalAction
+import com.hermescourier.android.domain.model.queuedApprovalActionMatchesResult
 import com.hermescourier.android.domain.model.userFacingApprovalVerb
 import com.google.zxing.BarcodeFormat
 import com.journeyapps.barcodescanner.BarcodeEncoder
@@ -588,6 +589,9 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
                 }
             },
             onEnvelope = { envelope ->
+                val reconciledQueuedAction = envelope.approvalResult?.let { result ->
+                    removeQueuedApprovalActionForResult(result)
+                }
                 _uiState.update { state ->
                     val updatedConversation = envelope.conversation?.let { state.conversationEvents.upsertConversationEvent(it) } ?: state.conversationEvents
                     state.copy(
@@ -595,8 +599,16 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
                         sessions = envelope.sessions ?: state.sessions,
                         approvals = envelope.approvals ?: state.approvals,
                         conversationEvents = updatedConversation,
+                        queuedApprovalActions = queuedApprovalActions.size,
+                        queuedApprovalActionQueue = queuedApprovalActions.toList(),
                         streamStatus = "Realtime event: ${envelope.type}",
-                        approvalActionStatus = envelope.approvalResult?.let { approvalActionMessage(it) } ?: state.approvalActionStatus,
+                        approvalActionStatus = when {
+                            envelope.approvalResult != null && reconciledQueuedAction != null -> {
+                                "Live stream confirmed ${userFacingApprovalVerb(envelope.approvalResult.action)} for ${envelope.approvalResult.approvalId}"
+                            }
+                            envelope.approvalResult != null -> approvalActionMessage(envelope.approvalResult)
+                            else -> state.approvalActionStatus
+                        },
                     )
                 }
             },
@@ -645,6 +657,18 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
                 return
             }
         }
+    }
+
+    private fun removeQueuedApprovalActionForResult(result: HermesApprovalActionResult): HermesQueuedApprovalAction? {
+        val index = queuedApprovalActions.indexOfFirst { queued ->
+            queuedApprovalActionMatchesResult(queued, result)
+        }
+        if (index >= 0) {
+            val removed = queuedApprovalActions.removeAt(index)
+            persistQueuedApprovalActions()
+            return removed
+        }
+        return null
     }
 
     private fun removeQueuedApprovalAction(queued: HermesQueuedApprovalAction): HermesQueuedApprovalAction? {

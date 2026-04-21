@@ -122,10 +122,21 @@ fun normalizeApprovalDecisionWire(raw: String): String = when (raw.lowercase()) 
 }
 
 /**
+ * Returns true when a queued approval action has been acknowledged by a live approval result.
+ * We intentionally match by approval ID and normalized action so legacy `reject`/`deny`
+ * variants reconcile cleanly when the live stream reports the server-side decision.
+ */
+fun queuedApprovalActionMatchesResult(
+    queued: HermesQueuedApprovalAction,
+    result: HermesApprovalActionResult,
+): Boolean = queued.approvalId == result.approvalId &&
+    normalizeApprovalDecisionWire(queued.action) == normalizeApprovalDecisionWire(result.action)
+
+/**
  * When loading persisted queued actions, map legacy `reject` to wire `deny` without lowercasing other values.
  */
-fun migrateQueuedApprovalAction(raw: String): String =
-    if (raw.equals("reject", ignoreCase = true)) "deny" else raw
+fun migrateQueuedApprovalAction(action: String): String =
+    if (action.equals("reject", ignoreCase = true)) "deny" else action
 
 enum class HermesConversationActionState {
     Idle,

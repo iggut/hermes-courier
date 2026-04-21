@@ -32,6 +32,7 @@ import com.hermescourier.android.ui.CourierEmptyStateKind
 import com.hermescourier.android.ui.courierCardElevation
 import com.hermescourier.android.ui.courierEmptyStateIllustration
 import com.hermescourier.android.ui.courierHeroCardElevation
+import com.hermescourier.android.ui.dashboardFreshnessLabel
 import com.hermescourier.android.ui.dashboardNextStep
 
 @Composable
@@ -80,6 +81,14 @@ fun DashboardScreen(
                 Text(text = "Gateway mode: ${uiState.gatewayConnectionMode}", style = MaterialTheme.typography.bodyMedium)
                 Text(
                     text = uiState.gatewayConnectionDetail,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    text = dashboardFreshnessLabel(
+                        lastSyncLabel = uiState.dashboard.lastSyncLabel,
+                        streamStatus = uiState.streamStatus,
+                    ),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
