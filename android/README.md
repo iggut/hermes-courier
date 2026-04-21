@@ -19,13 +19,14 @@ Use **JDK 17** or **JDK 21** for Gradle (Android Gradle Plugin aligns with LTS r
 ## Real-device (ADB) runbook
 
 1. Verify device connection: `adb devices`
-2. If using a local Hermes WebUI adapter on port 8787, forward it to device: `adb reverse tcp:8787 tcp:8787`
-3. Install debug build:
+2. **Tailscale / production-style HTTPS** — the WebUI pairing QR should use the gateway’s reachable HTTPS base URL (for example a MagicDNS host ending in `.ts.net`). The phone and the WebUI host must be on the same tailnet. Do not rely on `adb reverse` to validate that path; it is only for local `127.0.0.1` or LAN HTTP dev.
+3. If using a local Hermes WebUI adapter on port 8787 only, forward it to the device: `adb reverse tcp:8787 tcp:8787`
+4. Install debug build:
    - `./gradlew app:assembleDebug --no-daemon`
    - `adb install -r app/build/outputs/apk/debug/app-debug.apk`
-4. Reset app state for first-run checks: `adb shell pm clear com.hermescourier.android.debug`
-5. Launch app: `adb shell am start -n com.hermescourier.android.debug/com.hermescourier.android.MainActivity`
-6. Capture diagnostics:
+5. Reset app state for first-run checks: `adb shell pm clear com.hermescourier.android.debug`
+6. Launch app: `adb shell am start -n com.hermescourier.android.debug/com.hermescourier.android.MainActivity`
+7. Capture diagnostics:
    - Logs: `adb logcat -d | rg "Hermes|AndroidRuntime|FATAL EXCEPTION"`
    - Screenshot: `adb exec-out screencap -p > /tmp/hermes-courier.png`
    - UI tree: `adb shell uiautomator dump /sdcard/hermes-courier-ui.xml && adb pull /sdcard/hermes-courier-ui.xml`

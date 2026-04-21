@@ -32,6 +32,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.withContext
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.WebSocket
@@ -76,11 +77,11 @@ class NetworkHermesGatewayClient(
 ) : HermesGatewayClient {
     override suspend fun bootstrap(device: HermesDeviceIdentity): HermesAuthSession = withContext(Dispatchers.IO) {
         tokenStore.load()?.let { paired ->
-            if (
-                paired.accessToken.isNotBlank() &&
-                paired.gatewayUrl.trimEnd('/') == configuration.baseUrl.toString().trimEnd('/')
-            ) {
-                return@withContext paired
+            if (paired.accessToken.isNotBlank()) {
+                val storedBase = paired.gatewayUrl.trim().toHttpUrlOrNull()
+                if (storedBase != null && storedBase == configuration.baseUrl) {
+                    return@withContext paired
+                }
             }
         }
         val challenge = requestChallenge(device)

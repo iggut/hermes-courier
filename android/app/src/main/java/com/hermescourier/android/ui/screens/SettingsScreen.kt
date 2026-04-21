@@ -105,6 +105,12 @@ fun SettingsScreen(
                     onValueChange = onGatewayUrlChange,
                     modifier = Modifier.fillMaxWidth(),
                     label = { Text(text = "Gateway URL") },
+                    supportingText = {
+                        Text(
+                            text = liveGatewayConnectionSummary(uiState),
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    },
                 )
                 OutlinedTextField(
                     value = uiState.gatewaySettings.certificatePassword,
@@ -250,14 +256,14 @@ private fun SetupReadinessCard(
 ) {
     val hasGatewayUrl = uiState.gatewaySettings.baseUrl.isNotBlank()
     val hasPairingToken = uiState.courierPairingStatus.contains("configured", ignoreCase = true)
-    val backendReady = uiState.pairingBackendStatus.contains("ready", ignoreCase = true)
-    val isLiveConnected = uiState.gatewayConnectionMode.contains("live", ignoreCase = true)
+    val isLiveConnected = uiState.gatewayConnectionMode.contains("live", ignoreCase = true) &&
+        !uiState.gatewayConnectionMode.contains("demo", ignoreCase = true) &&
+        !uiState.bootstrapState.contains("Demo fallback", ignoreCase = true)
 
     val readiness = listOf(
         "Gateway URL" to hasGatewayUrl,
-        "Pairing backend ready" to backendReady,
-        "Token-only pairing token" to hasPairingToken,
-        "Live connection test" to isLiveConnected,
+        "Paired bearer token" to hasPairingToken,
+        "Live gateway" to isLiveConnected,
     )
     val completed = readiness.count { it.second }
 
@@ -265,12 +271,26 @@ private fun SetupReadinessCard(
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text(text = "Setup readiness", style = MaterialTheme.typography.titleMedium)
             Text(
+                text = liveGatewayConnectionSummary(uiState),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
                 text = "$completed/${readiness.size} checks complete",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             readiness.forEach { (label, done) ->
                 Text(text = "${if (done) "OK" else "TODO"}  $label", style = MaterialTheme.typography.bodySmall)
+            }
+            if (!uiState.pairingBackendStatus.contains("ready", ignoreCase = true) &&
+                uiState.pairingBackendStatus != "Pairing backend status not checked yet"
+            ) {
+                Text(
+                    text = "WebUI pairing service: ${uiState.pairingBackendStatus} — scan QR still works if your gateway is up.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
             Text(
                 text = "Status: ${uiState.gatewayConnectionMode} · ${uiState.streamStatus}",
@@ -284,6 +304,46 @@ private fun SetupReadinessCard(
             }
         }
     }
+}
+
+/**
+ * One-line, production-oriented summary: demo vs live, paired-but-down, auth vs network vs success.
+ */
+internal fun liveGatewayConnectionSummary(ui: HermesCourierUiState): String {
+    val mode = ui.gatewayConnectionMode
+    val detail = ui.gatewayConnectionDetail
+    val auth = ui.authStatus
+    val hasToken = ui.courierPairingStatus.contains("configured", ignoreCase = true)
+    val demo = mode.contains("Demo fallback", ignoreCase = true) ||
+        ui.bootstrapState.contains("Demo fallback", ignoreCase = true) ||
+        auth.contains("offline-safe sample", ignoreCase = true)
+    if (demo) {
+        return "Mode: sample data (not your live gateway)."
+    }
+    if (mode.contains("Live gateway", ignoreCase = true) && ui.streamStatus.contains("connected", ignoreCase = true)) {
+        return "Mode: live — connected over ${ui.gatewaySettings.baseUrl}."
+    }
+    if (detail.contains(" 401", ignoreCase = false) || detail.contains("401:", ignoreCase = true) || auth.contains("401", ignoreCase = true)) {
+        return "Live: bearer auth failed (token rejected, expired, or blocked)."
+    }
+    if (hasToken && (detail.contains("Unable to resolve host", ignoreCase = true) ||
+            detail.contains("Failed to connect", ignoreCase = true) ||
+            detail.contains("Connection refused", ignoreCase = true) ||
+            detail.contains("ETIMEDOUT", ignoreCase = true) ||
+            detail.contains("timeout", ignoreCase = true) ||
+            detail.contains("Network is unreachable", ignoreCase = true) ||
+            detail.contains("ENETUNREACH", ignoreCase = true) ||
+            detail.contains("ECONNREFUSED", ignoreCase = true))
+    ) {
+        return "Paired, but the gateway is unreachable (DNS, network, or Tailscale path)."
+    }
+    if (hasToken && mode.contains("unavailable", ignoreCase = true)) {
+        return "Paired, but the gateway is not responding — see messages below."
+    }
+    if (hasToken) {
+        return "Paired; use “Test live gateway” to confirm HTTPS reachability."
+    }
+    return "Not paired: scan the WebUI pairing QR."
 }
 
 private data class VerificationSummary(

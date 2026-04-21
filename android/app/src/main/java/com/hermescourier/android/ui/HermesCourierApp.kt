@@ -82,11 +82,10 @@ fun HermesCourierApp(
     val isDetailRoute = currentRoute.startsWith("session/") || currentRoute.startsWith("approval/")
 
     LaunchedEffect(initialEnrollmentPayload) {
-        val payload = initialEnrollmentPayload?.trim().orEmpty()
-        if (payload.startsWith("hermes-courier-enroll://")) {
-            viewModel.applyEnrollmentQr(payload)
-            onInitialEnrollmentPayloadConsumed()
-        }
+        viewModel.runInitialAppBootstrap(
+            deepLinkPayload = initialEnrollmentPayload,
+            onDeepLinkConsumed = onInitialEnrollmentPayloadConsumed,
+        )
     }
 
     Scaffold(

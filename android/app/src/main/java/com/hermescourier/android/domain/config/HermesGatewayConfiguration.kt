@@ -67,5 +67,16 @@ data class HermesGatewayConfiguration(
                     .apply()
             }
         }
+
+        /**
+         * Parses a user- or WebUI-provided base URL (including Tailscale MagicDNS / `*.ts.net` HTTPS) into
+         * OkHttp's canonical [HttpUrl] for storage and bearer-token session matching.
+         * Returns null when the value is not a valid http(s) base URL.
+         */
+        fun parseBaseUrlForPairingOrNull(input: String): HttpUrl? {
+            val url = input.trim().toHttpUrlOrNull() ?: return null
+            if (url.scheme != "https" && url.scheme != "http") return null
+            return url.newBuilder().build()
+        }
     }
 }

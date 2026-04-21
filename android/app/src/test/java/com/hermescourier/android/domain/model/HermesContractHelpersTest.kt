@@ -1,5 +1,6 @@
 package com.hermescourier.android.domain.model
 
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -83,6 +84,23 @@ class HermesContractHelpersTest {
         )
 
         assertNull(parsed)
+    }
+
+    @Test
+    fun parseHermesEnrollmentPayload_acceptsTailscaleHttpsInQuery() {
+        val parsed = parseHermesEnrollmentPayload(
+            "hermes-courier-enroll://gateway?gatewayUrl=https%3A%2F%2Fmyhost.ts.net&deviceId=d1&publicKeyFingerprint=fp&appVersion=1&issuedAt=now&courierMode=bearer-token&pairingMode=token-only&bearerToken=secret",
+        )
+
+        requireNotNull(parsed)
+        assertEquals("https://myhost.ts.net", parsed.gatewayUrl)
+    }
+
+    @Test
+    fun httpUrl_canonicalBase_matchesAcrossOptionalSlashForPairing() {
+        val plain = "https://gateway.example.ts.net:8443".toHttpUrlOrNull()!!
+        val withSlash = "https://gateway.example.ts.net:8443/".toHttpUrlOrNull()!!
+        assertEquals(plain, withSlash)
     }
 
     @Test

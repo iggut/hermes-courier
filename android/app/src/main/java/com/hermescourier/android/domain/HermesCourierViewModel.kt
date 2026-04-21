@@ -76,7 +76,6 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
 
     init {
         loadQueuedApprovalActions()
-        refresh()
     }
 
     fun loadSessionDetailIfMissing(sessionId: String) {
@@ -390,38 +389,74 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
         }
     }
 
+    /**
+     * One-shot startup: if the activity was opened with a `hermes-courier-enroll://` deep link, apply
+     * that pairing **before** the first [refresh] so a default localhost placeholder cannot race the
+     * imported Tailscale or HTTPS gateway URL.
+     */
+    fun runInitialAppBootstrap(
+        deepLinkPayload: String?,
+        onDeepLinkConsumed: () -> Unit = {},
+    ) {
+        viewModelScope.launch {
+            val trimmed = deepLinkPayload?.trim().orEmpty()
+            if (trimmed.startsWith("hermes-courier-enroll://")) {
+                applyTokenOnlyEnrollmentFromPayload(trimmed)
+                onDeepLinkConsumed()
+                testLiveGateway()
+            } else {
+                refresh()
+            }
+        }
+    }
+
     fun applyEnrollmentQr(payload: String) {
         viewModelScope.launch {
-            val parsed = parseEnrollmentPayload(payload)
-            if (parsed == null) {
-                _uiState.update { it.copy(enrollmentStatus = "Pairing import failed: payload could not be parsed") }
-                return@launch
-            }
-            val validationError = validateTokenOnlyPairingContract(parsed)
-            if (validationError != null) {
-                _uiState.update {
-                    it.copy(
-                        enrollmentStatus = validationError,
-                        courierPairingStatus = "Pairing invalid: token-only contract requirements were not met",
-                    )
-                }
-                return@launch
-            }
-            val updatedSettings = _uiState.value.gatewaySettings.copy(baseUrl = parsed.gatewayUrl)
-            HermesGatewayConfiguration.save(applicationContext, updatedSettings)
-            persistPairedBearerToken(parsed.gatewayUrl, parsed.bearerToken)
-            val statusMessage = "Pairing import succeeded: token-only bearer pairing configured for ${parsed.gatewayUrl}"
-            _uiState.update {
-                it.copy(
-                    gatewaySettings = updatedSettings,
-                    enrollmentStatus = statusMessage,
-                    courierPairingStatus = "Bearer pairing configured (scan-and-done ready)",
-                    enrollmentQrPayload = enrollmentPayload(updatedSettings),
-                )
-            }
-            refreshPairingBackendStatus()
+            applyTokenOnlyEnrollmentFromPayload(payload)
             testLiveGateway()
         }
+    }
+
+    private suspend fun applyTokenOnlyEnrollmentFromPayload(payload: String) {
+        val parsed = parseEnrollmentPayload(payload)
+        if (parsed == null) {
+            _uiState.update { it.copy(enrollmentStatus = "Pairing import failed: payload could not be parsed") }
+            return
+        }
+        val validationError = validateTokenOnlyPairingContract(parsed)
+        if (validationError != null) {
+            _uiState.update {
+                it.copy(
+                    enrollmentStatus = validationError,
+                    courierPairingStatus = "Pairing invalid: token-only contract requirements were not met",
+                )
+            }
+            return
+        }
+        val baseForStorage = HermesGatewayConfiguration.parseBaseUrlForPairingOrNull(parsed.gatewayUrl)
+        if (baseForStorage == null) {
+            _uiState.update {
+                it.copy(
+                    enrollmentStatus = "Pairing import failed: gatewayUrl must be a valid http(s) URL (use HTTPS for Tailscale)",
+                    courierPairingStatus = "Invalid gateway URL",
+                )
+            }
+            return
+        }
+        val updatedSettings = _uiState.value.gatewaySettings.copy(baseUrl = baseForStorage.toString())
+        HermesGatewayConfiguration.save(applicationContext, updatedSettings)
+        val canonical = HermesGatewayConfiguration.from(applicationContext).baseUrl
+        persistPairedBearerToken(canonical.toString(), parsed.bearerToken)
+        val statusMessage = "Pairing import succeeded: token-only bearer pairing configured for $canonical"
+        _uiState.update {
+            it.copy(
+                gatewaySettings = updatedSettings,
+                enrollmentStatus = statusMessage,
+                courierPairingStatus = "Bearer pairing configured (scan-and-done ready)",
+                enrollmentQrPayload = enrollmentPayload(updatedSettings),
+            )
+        }
+        refreshPairingBackendStatus()
     }
 
     fun saveSettings() {
