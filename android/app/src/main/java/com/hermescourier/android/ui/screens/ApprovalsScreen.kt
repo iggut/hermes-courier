@@ -67,6 +67,9 @@ private val ApprovalFilters = listOf("All", "Biometrics required", "Standard rev
 fun ApprovalsScreen(
     contentPadding: PaddingValues,
     approvals: List<HermesApprovalSummary>,
+    bootstrapState: String,
+    streamStatus: String,
+    queuedApprovalActions: Int,
     onApproveApproval: (String, String?) -> Unit,
     onRejectApproval: (String, String?) -> Unit,
     onOpenApprovalDetail: (String) -> Unit,
@@ -104,6 +107,21 @@ fun ApprovalsScreen(
                 Text(
                     text = "Filter, search, and swipe cards to approve or reject quickly. Long-press for notes, copy, and detail actions.",
                     style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    text = "Gateway state: $bootstrapState",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    text = "Realtime status: $streamStatus",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    text = "Queued approvals: $queuedApprovalActions",
+                    style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

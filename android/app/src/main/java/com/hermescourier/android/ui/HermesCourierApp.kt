@@ -1,7 +1,10 @@
 package com.hermescourier.android.ui
 
 import android.net.Uri
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.ui.Modifier
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.List
@@ -24,6 +27,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.hermescourier.android.ui.components.GatewayStatusBanner
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -146,7 +150,15 @@ fun HermesCourierApp(viewModel: HermesCourierViewModel = viewModel()) {
             }
         },
     ) { contentPadding ->
-        NavHost(navController = navController, startDestination = HermesCourierRoute.Dashboard.route) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            GatewayStatusBanner(
+                uiState = uiState,
+                onRefresh = viewModel::refresh,
+                onTestLiveGateway = viewModel::testLiveGateway,
+                onRetryQueuedApprovalActions = viewModel::retryQueuedApprovalActions,
+            )
+            Box(modifier = Modifier.weight(1f)) {
+                NavHost(navController = navController, startDestination = HermesCourierRoute.Dashboard.route) {
             composable(HermesCourierRoute.Dashboard.route) {
                 DashboardScreen(
                     contentPadding = contentPadding,
@@ -172,6 +184,7 @@ fun HermesCourierApp(viewModel: HermesCourierViewModel = viewModel()) {
                     contentPadding = contentPadding,
                     sessions = uiState.sessions,
                     bootstrapState = uiState.bootstrapState,
+                    streamStatus = uiState.streamStatus,
                     onOpenSessionDetail = { sessionId -> navController.navigate(sessionDetailRoute(sessionId)) },
                     onRefresh = viewModel::refresh,
                 )
@@ -187,6 +200,7 @@ fun HermesCourierApp(viewModel: HermesCourierViewModel = viewModel()) {
                         contentPadding = contentPadding,
                         sessions = uiState.sessions,
                         bootstrapState = uiState.bootstrapState,
+                        streamStatus = uiState.streamStatus,
                         onOpenSessionDetail = { id -> navController.navigate(sessionDetailRoute(id)) },
                         onRefresh = viewModel::refresh,
                     )
@@ -202,6 +216,9 @@ fun HermesCourierApp(viewModel: HermesCourierViewModel = viewModel()) {
                 ApprovalsScreen(
                     contentPadding = contentPadding,
                     approvals = uiState.approvals,
+                    bootstrapState = uiState.bootstrapState,
+                    streamStatus = uiState.streamStatus,
+                    queuedApprovalActions = uiState.queuedApprovalActions,
                     onApproveApproval = viewModel::approveApproval,
                     onRejectApproval = viewModel::rejectApproval,
                     onOpenApprovalDetail = { approvalId -> navController.navigate(approvalDetailRoute(approvalId)) },
@@ -218,6 +235,9 @@ fun HermesCourierApp(viewModel: HermesCourierViewModel = viewModel()) {
                     ApprovalsScreen(
                         contentPadding = contentPadding,
                         approvals = uiState.approvals,
+                        bootstrapState = uiState.bootstrapState,
+                        streamStatus = uiState.streamStatus,
+                        queuedApprovalActions = uiState.queuedApprovalActions,
                         onApproveApproval = viewModel::approveApproval,
                         onRejectApproval = viewModel::rejectApproval,
                         onOpenApprovalDetail = { id -> navController.navigate(approvalDetailRoute(id)) },
@@ -255,6 +275,8 @@ fun HermesCourierApp(viewModel: HermesCourierViewModel = viewModel()) {
             }
         }
     }
+}
+}
 }
 
 private fun routeTitle(route: String): String = when {

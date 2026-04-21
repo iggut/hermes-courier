@@ -68,6 +68,7 @@ fun SessionsScreen(
     contentPadding: PaddingValues,
     sessions: List<HermesSessionSummary>,
     bootstrapState: String,
+    streamStatus: String,
     onOpenSessionDetail: (String) -> Unit,
     onRefresh: () -> Unit,
 ) {
@@ -107,12 +108,22 @@ fun SessionsScreen(
             ) {
                 Text(text = "Sessions", style = MaterialTheme.typography.headlineMedium)
                 Text(
+                    text = "Gateway state: $bootstrapState",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
                     text = "Search, filter, archive locally, and long-press a session to copy its ID or jump into detail faster.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Text(
                     text = archiveHint(archivedCount),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    text = "Realtime status: $streamStatus",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
