@@ -234,6 +234,30 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/ConversationEvent'
+    post:
+      tags: [dashboard]
+      summary: Submit an instruction into the live conversation stream.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                body:
+                  type: string
+                  description: Instruction or chat message to send.
+              required: [body]
+      responses:
+        '200':
+          description: Conversation event accepted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConversationEvent'
+        '204':
+          description: Instruction accepted without a response body.
   /v1/approvals/{approvalId}/decision:
     post:
       tags: [approvals]

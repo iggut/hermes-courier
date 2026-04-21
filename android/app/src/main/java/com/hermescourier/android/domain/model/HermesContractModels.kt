@@ -63,6 +63,10 @@ data class HermesConversationEvent(
     val timestamp: String,
 )
 
+data class HermesConversationSendRequest(
+    val body: String,
+)
+
 
 data class HermesApprovalActionResult(
     val approvalId: String,
@@ -144,6 +148,7 @@ data class HermesCourierUiState(
             timestamp = "now",
         )
     ),
+    val conversationActionStatus: String = "No instruction sent yet",
     val approvalActionStatus: String = "No approval action submitted",
     val streamStatus: String = "Realtime stream disconnected",
     val realtimeReconnectCountdown: String = "Reconnect now",

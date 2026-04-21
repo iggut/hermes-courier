@@ -16,6 +16,7 @@ import com.hermescourier.android.domain.gateway.DemoHermesGatewayClient
 import com.hermescourier.android.domain.gateway.HermesGatewayClient
 import com.hermescourier.android.domain.gateway.HermesGatewayClientFactory
 import com.hermescourier.android.domain.model.HermesApprovalActionResult
+import com.hermescourier.android.domain.model.HermesConversationEvent
 import com.hermescourier.android.domain.model.HermesCourierUiState
 import com.hermescourier.android.domain.model.HermesDeviceIdentity
 import com.hermescourier.android.domain.model.HermesEnrollmentPayload
@@ -446,6 +447,51 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
         submitApprovalAction(approvalId = approvalId, action = "deny", note = note)
     }
 
+    fun sendConversationMessage(message: String) {
+        val trimmed = message.trim()
+        if (trimmed.isBlank()) {
+            _uiState.update { it.copy(conversationActionStatus = "Type a message before sending") }
+            return
+        }
+        viewModelScope.launch {
+            val optimisticEvent = HermesConversationEvent(
+                eventId = "local-${System.currentTimeMillis()}",
+                author = "You",
+                body = trimmed,
+                timestamp = "now",
+            )
+            _uiState.update { state ->
+                state.copy(
+                    conversationEvents = state.conversationEvents.upsertConversationEvent(optimisticEvent),
+                    conversationActionStatus = "Sending instruction to Hermes…",
+                )
+            }
+            val session = currentSession ?: run {
+                _uiState.update { state -> state.copy(conversationActionStatus = "Saved locally; connect to send to the live gateway") }
+                return@launch
+            }
+            val liveClient = runCatching { HermesGatewayClientFactory.create(applicationContext) }.getOrElse { fallbackGatewayClient }
+            runCatching {
+                liveClient.submitConversationMessage(session, trimmed)
+            }.onSuccess { echoedEvent ->
+                _uiState.update { state ->
+                    state.copy(
+                        conversationEvents = echoedEvent?.let { state.conversationEvents.upsertConversationEvent(it) } ?: state.conversationEvents,
+                        conversationActionStatus = when {
+                            liveClient is DemoHermesGatewayClient -> "Instruction recorded in demo mode"
+                            echoedEvent != null -> "Instruction sent to Hermes"
+                            else -> "Instruction accepted by the gateway"
+                        },
+                    )
+                }
+            }.onFailure { error ->
+                _uiState.update { state ->
+                    state.copy(conversationActionStatus = "Saved locally; live send failed: ${error.localizedMessage ?: error}")
+                }
+            }
+        }
+    }
+
     private fun submitApprovalAction(approvalId: String, action: String, note: String?) {
         viewModelScope.launch {
             val session = currentSession ?: run {
@@ -521,7 +567,7 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
             },
             onEnvelope = { envelope ->
                 _uiState.update { state ->
-                    val updatedConversation = envelope.conversation?.let { state.conversationEvents + it } ?: state.conversationEvents
+                    val updatedConversation = envelope.conversation?.let { state.conversationEvents.upsertConversationEvent(it) } ?: state.conversationEvents
                     state.copy(
                         dashboard = envelope.dashboard ?: state.dashboard,
                         sessions = envelope.sessions ?: state.sessions,
@@ -533,6 +579,18 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
                 }
             },
         )
+    }
+
+    private fun List<HermesConversationEvent>.upsertConversationEvent(event: HermesConversationEvent): List<HermesConversationEvent> {
+        val normalizedAuthor = event.author.trim().lowercase()
+        val normalizedBody = event.body.trim().lowercase()
+        val existingIndex = indexOfFirst {
+            it.author.trim().lowercase() == normalizedAuthor && it.body.trim().lowercase() == normalizedBody
+        }
+        if (existingIndex < 0) {
+            return this + event
+        }
+        return toMutableList().apply { this[existingIndex] = event }
     }
 
     private suspend fun flushQueuedApprovalActions(client: HermesGatewayClient, session: com.hermescourier.android.domain.model.HermesAuthSession?) {

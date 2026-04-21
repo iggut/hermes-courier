@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Refresh
@@ -33,12 +34,14 @@ import com.hermescourier.android.domain.HermesCourierViewModel
 import com.hermescourier.android.ui.screens.ApprovalDetailScreen
 import com.hermescourier.android.ui.screens.ApprovalsScreen
 import com.hermescourier.android.ui.screens.DashboardScreen
+import com.hermescourier.android.ui.screens.ChatScreen
 import com.hermescourier.android.ui.screens.SessionDetailScreen
 import com.hermescourier.android.ui.screens.SessionsScreen
 import com.hermescourier.android.ui.screens.SettingsScreen
 
 enum class HermesCourierRoute(val route: String, val label: String) {
     Dashboard("dashboard", "Dashboard"),
+    Chat("chat", "Chat"),
     Sessions("sessions", "Sessions"),
     Approvals("approvals", "Approvals"),
     Settings("settings", "Settings"),
@@ -107,6 +110,7 @@ fun HermesCourierApp(viewModel: HermesCourierViewModel = viewModel()) {
                 NavigationBar {
                     HermesCourierRoute.values().forEach { destination ->
                         val label = when (destination) {
+                            HermesCourierRoute.Chat -> navigationLabel(destination.label, uiState.conversationEvents.size)
                             HermesCourierRoute.Sessions -> navigationLabel(destination.label, uiState.sessions.size)
                             HermesCourierRoute.Approvals -> navigationLabel(destination.label, uiState.approvals.size)
                             else -> destination.label
@@ -126,6 +130,7 @@ fun HermesCourierApp(viewModel: HermesCourierViewModel = viewModel()) {
                                 Icon(
                                     imageVector = when (destination) {
                                         HermesCourierRoute.Dashboard -> Icons.Filled.Home
+                                        HermesCourierRoute.Chat -> Icons.Filled.Edit
                                         HermesCourierRoute.Sessions -> Icons.Filled.List
                                         HermesCourierRoute.Approvals -> Icons.Filled.CheckCircle
                                         HermesCourierRoute.Settings -> Icons.Filled.Settings
@@ -149,6 +154,14 @@ fun HermesCourierApp(viewModel: HermesCourierViewModel = viewModel()) {
                     onOpenSessions = { navController.navigate(HermesCourierRoute.Sessions.route) },
                     onOpenApprovals = { navController.navigate(HermesCourierRoute.Approvals.route) },
                     onOpenSettings = { navController.navigate(HermesCourierRoute.Settings.route) },
+                )
+            }
+            composable(HermesCourierRoute.Chat.route) {
+                ChatScreen(
+                    contentPadding = contentPadding,
+                    conversationEvents = uiState.conversationEvents,
+                    conversationActionStatus = uiState.conversationActionStatus,
+                    onSendConversationMessage = viewModel::sendConversationMessage,
                 )
             }
             composable(HermesCourierRoute.Sessions.route) {

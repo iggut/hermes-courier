@@ -10,6 +10,7 @@ import com.hermescourier.android.domain.model.HermesAuthChallengeResponse
 import com.hermescourier.android.domain.model.HermesAuthResponseRequest
 import com.hermescourier.android.domain.model.HermesAuthSession
 import com.hermescourier.android.domain.model.HermesConversationEvent
+import com.hermescourier.android.domain.model.HermesConversationSendRequest
 import com.hermescourier.android.domain.model.HermesDashboardSnapshot
 import com.hermescourier.android.domain.model.HermesDeviceIdentity
 import com.hermescourier.android.domain.model.HermesRealtimeEnvelope
@@ -43,6 +44,7 @@ interface HermesGatewayClient {
     suspend fun fetchSessions(session: HermesAuthSession): List<HermesSessionSummary>
     suspend fun fetchApprovals(session: HermesAuthSession): List<HermesApprovalSummary>
     suspend fun fetchConversation(session: HermesAuthSession): List<HermesConversationEvent>
+    suspend fun submitConversationMessage(session: HermesAuthSession, message: String): HermesConversationEvent?
     suspend fun submitApprovalAction(
         session: HermesAuthSession,
         approvalId: String,
@@ -94,6 +96,12 @@ class NetworkHermesGatewayClient(
 
     override suspend fun fetchConversation(session: HermesAuthSession): List<HermesConversationEvent> = withContext(Dispatchers.IO) {
         transport.get("/${HermesApiPaths.CONVERSATION}", session.accessToken).toJsonArrayOrObject().toConversationList()
+    }
+
+    override suspend fun submitConversationMessage(session: HermesAuthSession, message: String): HermesConversationEvent? = withContext(Dispatchers.IO) {
+        val payload = JSONObject().put("body", message.trim())
+        val response = transport.post("/${HermesApiPaths.CONVERSATION}", payload, session.accessToken)
+        response.toConversationEventOrNull(message.trim())
     }
 
     override suspend fun submitApprovalAction(
@@ -257,6 +265,13 @@ class DemoHermesGatewayClient : HermesGatewayClient {
         HermesConversationEvent("event-03", "Hermes", "I found 2 pending approval requests.", "just now"),
     )
 
+    override suspend fun submitConversationMessage(session: HermesAuthSession, message: String): HermesConversationEvent? = HermesConversationEvent(
+        eventId = "demo-${System.currentTimeMillis()}",
+        author = "You",
+        body = message.trim(),
+        timestamp = "now",
+    )
+
     override suspend fun submitApprovalAction(
         session: HermesAuthSession,
         approvalId: String,
@@ -366,6 +381,25 @@ private fun JSONObject.toConversationEvent(): HermesConversationEvent = HermesCo
     body = optString("body", optString("message", "")),
     timestamp = optString("timestamp", "now"),
 )
+
+private fun String.toConversationEventOrNull(fallbackMessage: String): HermesConversationEvent? {
+    if (isBlank()) {
+        return HermesConversationEvent(
+            eventId = "local-${System.currentTimeMillis()}",
+            author = "You",
+            body = fallbackMessage,
+            timestamp = "now",
+        )
+    }
+    return runCatching {
+        val parsed = JSONTokener(this).nextValue()
+        when (parsed) {
+            is JSONObject -> parsed.toConversationEvent()
+            is JSONArray -> parsed.optJSONObject(parsed.length() - 1)?.toConversationEvent()
+            else -> null
+        }
+    }.getOrNull()
+}
 
 private fun JSONObject.toApprovalActionResult(
     fallbackApprovalId: String,
