@@ -131,16 +131,26 @@ fun parseHermesEnrollmentPayload(
     val query = parseQueryParameters(uri.rawQuery)
     val gatewayUrl = query["gatewayUrl"]?.trim().orEmpty()
     if (gatewayUrl.isBlank()) return null
-    val deviceId = query["deviceId"]?.trim().orEmpty()
-    val publicKeyFingerprint = query["publicKeyFingerprint"]?.trim().orEmpty()
-    val appVersion = query["appVersion"]?.trim().orEmpty()
-    val issuedAt = query["issuedAt"]?.trim().orEmpty()
-    if (deviceId.isBlank() || publicKeyFingerprint.isBlank() || appVersion.isBlank() || issuedAt.isBlank()) {
+    val courierMode = query["courierMode"]?.trim()?.takeIf { it.isNotBlank() }
+    val pairingMode = query["pairingMode"]?.trim()?.takeIf { it.isNotBlank() }
+    val bearerFromQuery = query["bearerToken"]?.trim()?.takeIf { it.isNotBlank() }
+        ?: query["token"]?.trim()?.takeIf { it.isNotBlank() }
+    val isWebUiTokenOnly = courierMode?.equals("bearer-token", ignoreCase = true) == true &&
+        pairingMode?.equals("token-only", ignoreCase = true) == true &&
+        !bearerFromQuery.isNullOrBlank()
+
+    var deviceId = query["deviceId"]?.trim().orEmpty()
+    var publicKeyFingerprint = query["publicKeyFingerprint"]?.trim().orEmpty()
+    var appVersion = query["appVersion"]?.trim().orEmpty()
+    var issuedAt = query["issuedAt"]?.trim().orEmpty()
+    if (isWebUiTokenOnly) {
+        if (deviceId.isBlank()) deviceId = "webui-token-only"
+        if (publicKeyFingerprint.isBlank()) publicKeyFingerprint = "not-applicable"
+        if (appVersion.isBlank()) appVersion = "0.0.0"
+        if (issuedAt.isBlank()) issuedAt = java.time.Instant.now().toString()
+    } else if (deviceId.isBlank() || publicKeyFingerprint.isBlank() || appVersion.isBlank() || issuedAt.isBlank()) {
         return null
     }
-    val courierMode = query["courierMode"]?.trim()?.takeIf { it.isNotBlank() }
-    val bearerToken = query["bearerToken"]?.trim()?.takeIf { it.isNotBlank() }
-    val pairingMode = query["pairingMode"]?.trim()?.takeIf { it.isNotBlank() }
     val pairingContractVersion = query["pairingContractVersion"]?.trim()?.takeIf { it.isNotBlank() }
     val apiBasePath = query["apiBasePath"]?.trim()?.takeIf { it.isNotBlank() }
     return HermesEnrollmentPayload(
@@ -150,7 +160,7 @@ fun parseHermesEnrollmentPayload(
         appVersion = appVersion,
         issuedAt = issuedAt,
         courierMode = courierMode,
-        bearerToken = bearerToken,
+        bearerToken = bearerFromQuery,
         pairingMode = pairingMode,
         pairingContractVersion = pairingContractVersion,
         apiBasePath = apiBasePath,

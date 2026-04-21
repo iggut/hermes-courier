@@ -87,6 +87,26 @@ class HermesContractHelpersTest {
     }
 
     @Test
+    fun parseHermesEnrollmentPayload_tokenOnlyWebUiUriWithoutDeviceFields() {
+        val parsed = parseHermesEnrollmentPayload(
+            "hermes-courier-enroll://gateway?gatewayUrl=https%3A%2F%2Fjupiter.example.ts.net&courierMode=bearer-token&pairingMode=token-only&pairingContractVersion=2026-04-21&apiBasePath=%2Fv1&bearerToken=secret123",
+        )
+        requireNotNull(parsed)
+        assertEquals("https://jupiter.example.ts.net", parsed.gatewayUrl)
+        assertEquals("secret123", parsed.bearerToken)
+        assertEquals("webui-token-only", parsed.deviceId)
+    }
+
+    @Test
+    fun parseHermesEnrollmentPayload_acceptsTokenQueryAsBearerAlias() {
+        val parsed = parseHermesEnrollmentPayload(
+            "hermes-courier-enroll://gateway?gatewayUrl=https%3A%2F%2Fgw.test&courierMode=bearer-token&pairingMode=token-only&token=from-token-param",
+        )
+        requireNotNull(parsed)
+        assertEquals("from-token-param", parsed.bearerToken)
+    }
+
+    @Test
     fun parseHermesEnrollmentPayload_acceptsTailscaleHttpsInQuery() {
         val parsed = parseHermesEnrollmentPayload(
             "hermes-courier-enroll://gateway?gatewayUrl=https%3A%2F%2Fmyhost.ts.net&deviceId=d1&publicKeyFingerprint=fp&appVersion=1&issuedAt=now&courierMode=bearer-token&pairingMode=token-only&bearerToken=secret",
