@@ -13,6 +13,7 @@ private const val PREFS_NAME = "hermes_courier_gateway"
 private const val KEY_BASE_URL = "gateway_base_url"
 private const val KEY_CERT_PATH = "gateway_certificate_path"
 private const val KEY_CERT_PASSWORD = "gateway_certificate_password"
+private const val DEFAULT_GATEWAY_BASE_URL = "http://127.0.0.1:8787"
 
 private fun gatewayPrefs(context: Context) = EncryptedSharedPreferences.create(
     context,
@@ -32,8 +33,8 @@ data class HermesGatewayConfiguration(
     companion object {
         fun from(context: Context): HermesGatewayConfiguration = runCatching {
             val prefs = gatewayPrefs(context)
-            val baseUrl = prefs.getString(KEY_BASE_URL, "https://gateway.hermes.local")!!.toHttpUrlOrNull()
-                ?: "https://gateway.hermes.local".toHttpUrl()
+            val baseUrl = prefs.getString(KEY_BASE_URL, DEFAULT_GATEWAY_BASE_URL)!!.toHttpUrlOrNull()
+                ?: DEFAULT_GATEWAY_BASE_URL.toHttpUrl()
             val certificatePath = prefs.getString(KEY_CERT_PATH, null)
             val certificatePassword = prefs.getString(KEY_CERT_PASSWORD, null)?.toCharArray()
             HermesGatewayConfiguration(
@@ -42,7 +43,7 @@ data class HermesGatewayConfiguration(
                 mtlsPkcs12Password = certificatePassword?.takeIf { it.isNotEmpty() },
             )
         }.getOrElse {
-            HermesGatewayConfiguration(baseUrl = "https://gateway.hermes.local".toHttpUrl())
+            HermesGatewayConfiguration(baseUrl = DEFAULT_GATEWAY_BASE_URL.toHttpUrl())
         }
 
         fun save(context: Context, settings: HermesGatewaySettings) {
