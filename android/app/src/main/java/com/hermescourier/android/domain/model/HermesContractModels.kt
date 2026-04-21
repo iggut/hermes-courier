@@ -127,6 +127,13 @@ fun normalizeApprovalDecisionWire(raw: String): String = when (raw.lowercase()) 
 fun migrateQueuedApprovalAction(raw: String): String =
     if (raw.equals("reject", ignoreCase = true)) "deny" else raw
 
+enum class HermesConversationActionState {
+    Idle,
+    Sending,
+    Sent,
+    Failed,
+}
+
 data class HermesCourierUiState(
     val bootstrapState: String = "Bootstrapping secure gateway",
     val authStatus: String = "Waiting for device-bound challenge",
@@ -149,6 +156,8 @@ data class HermesCourierUiState(
         )
     ),
     val conversationActionStatus: String = "No instruction sent yet",
+    val conversationActionError: String? = null,
+    val conversationActionState: HermesConversationActionState = HermesConversationActionState.Idle,
     val approvalActionStatus: String = "No approval action submitted",
     val streamStatus: String = "Realtime stream disconnected",
     val realtimeReconnectCountdown: String = "Reconnect now",

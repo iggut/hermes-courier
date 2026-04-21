@@ -4,6 +4,7 @@ import android.net.Uri
 import androidx.compose.foundation.layout.Column
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Home
@@ -131,7 +132,7 @@ fun HermesCourierApp(viewModel: HermesCourierViewModel = viewModel()) {
                                     imageVector = when (destination) {
                                         HermesCourierRoute.Dashboard -> Icons.Filled.Home
                                         HermesCourierRoute.Chat -> Icons.Filled.Edit
-                                        HermesCourierRoute.Sessions -> Icons.Filled.List
+                                        HermesCourierRoute.Sessions -> Icons.AutoMirrored.Filled.List
                                         HermesCourierRoute.Approvals -> Icons.Filled.CheckCircle
                                         HermesCourierRoute.Settings -> Icons.Filled.Settings
                                     },
@@ -161,6 +162,8 @@ fun HermesCourierApp(viewModel: HermesCourierViewModel = viewModel()) {
                     contentPadding = contentPadding,
                     conversationEvents = uiState.conversationEvents,
                     conversationActionStatus = uiState.conversationActionStatus,
+                    conversationActionError = uiState.conversationActionError,
+                    conversationActionState = uiState.conversationActionState,
                     onSendConversationMessage = viewModel::sendConversationMessage,
                 )
             }

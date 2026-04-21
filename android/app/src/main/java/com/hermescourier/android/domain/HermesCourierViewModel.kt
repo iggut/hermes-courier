@@ -16,6 +16,7 @@ import com.hermescourier.android.domain.gateway.DemoHermesGatewayClient
 import com.hermescourier.android.domain.gateway.HermesGatewayClient
 import com.hermescourier.android.domain.gateway.HermesGatewayClientFactory
 import com.hermescourier.android.domain.model.HermesApprovalActionResult
+import com.hermescourier.android.domain.model.HermesConversationActionState
 import com.hermescourier.android.domain.model.HermesConversationEvent
 import com.hermescourier.android.domain.model.HermesCourierUiState
 import com.hermescourier.android.domain.model.HermesDeviceIdentity
@@ -450,7 +451,13 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
     fun sendConversationMessage(message: String) {
         val trimmed = message.trim()
         if (trimmed.isBlank()) {
-            _uiState.update { it.copy(conversationActionStatus = "Type a message before sending") }
+            _uiState.update {
+                it.copy(
+                    conversationActionStatus = "Type a message before sending",
+                    conversationActionError = "Type a message before sending",
+                    conversationActionState = HermesConversationActionState.Failed,
+                )
+            }
             return
         }
         viewModelScope.launch {
@@ -464,10 +471,18 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
                 state.copy(
                     conversationEvents = state.conversationEvents.upsertConversationEvent(optimisticEvent),
                     conversationActionStatus = "Sending instruction to Hermes…",
+                    conversationActionError = null,
+                    conversationActionState = HermesConversationActionState.Sending,
                 )
             }
             val session = currentSession ?: run {
-                _uiState.update { state -> state.copy(conversationActionStatus = "Saved locally; connect to send to the live gateway") }
+                _uiState.update { state ->
+                    state.copy(
+                        conversationActionStatus = "Connect to a live gateway before sending",
+                        conversationActionError = "No authenticated session is available yet.",
+                        conversationActionState = HermesConversationActionState.Failed,
+                    )
+                }
                 return@launch
             }
             val liveClient = runCatching { HermesGatewayClientFactory.create(applicationContext) }.getOrElse { fallbackGatewayClient }
@@ -482,11 +497,18 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
                             echoedEvent != null -> "Instruction sent to Hermes"
                             else -> "Instruction accepted by the gateway"
                         },
+                        conversationActionError = null,
+                        conversationActionState = HermesConversationActionState.Sent,
                     )
                 }
             }.onFailure { error ->
+                val detail = error.localizedMessage ?: error.toString()
                 _uiState.update { state ->
-                    state.copy(conversationActionStatus = "Saved locally; live send failed: ${error.localizedMessage ?: error}")
+                    state.copy(
+                        conversationActionStatus = "Saved locally; live send failed: $detail",
+                        conversationActionError = detail,
+                        conversationActionState = HermesConversationActionState.Failed,
+                    )
                 }
             }
         }
