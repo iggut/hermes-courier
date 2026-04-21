@@ -13,7 +13,8 @@ private const val PREFS_NAME = "hermes_courier_gateway"
 private const val KEY_BASE_URL = "gateway_base_url"
 private const val KEY_CERT_PATH = "gateway_certificate_path"
 private const val KEY_CERT_PASSWORD = "gateway_certificate_password"
-private const val DEFAULT_GATEWAY_BASE_URL = "http://127.0.0.1:8787"
+// First-run default: Tailscale HTTPS (physical devices cannot reach dev-machine localhost).
+private const val DEFAULT_GATEWAY_BASE_URL = "https://jupiter.tailecd7e7.ts.net"
 
 private fun gatewayPrefs(context: Context) = EncryptedSharedPreferences.create(
     context,
