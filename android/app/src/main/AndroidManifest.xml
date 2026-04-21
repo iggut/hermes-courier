@@ -8,7 +8,7 @@
         android:allowBackup="false"
         android:label="Hermes Courier"
         android:supportsRtl="true"
-        android:usesCleartextTraffic="true"
+        android:usesCleartextTraffic="${usesCleartextTraffic}"
         android:theme="@style/Theme.HermesCourier">
 
         <activity

@@ -10,10 +10,30 @@ Use **JDK 17** or **JDK 21** for Gradle (Android Gradle Plugin aligns with LTS r
 ## Validation
 
 - JVM unit tests (pure helpers): `./gradlew :app:testDebugUnitTest`
+- Debug APK build: `./gradlew app:assembleDebug --no-daemon`
 - Repo script (Android + optional iOS project regen on macOS): `../scripts/platform-validation.sh`
 - CI runs the same unit tests on **JDK 17 and 21** (see `.github/workflows/ci.yml`).
 - On-demand Android builds are available via `.github/workflows/android-on-demand-build.yml`; run it manually from GitHub Actions to produce a debug APK or debug bundle artifact.
 - Use a supported JDK as above; if `java -version` reports JDK 25+, install JDK 17 or 21 and point `JAVA_HOME` at it before running Gradle.
+
+## Real-device (ADB) runbook
+
+1. Verify device connection: `adb devices`
+2. If using a local Hermes WebUI adapter on port 8787, forward it to device: `adb reverse tcp:8787 tcp:8787`
+3. Install debug build:
+   - `./gradlew app:assembleDebug --no-daemon`
+   - `adb install -r app/build/outputs/apk/debug/app-debug.apk`
+4. Reset app state for first-run checks: `adb shell pm clear com.hermescourier.android.debug`
+5. Launch app: `adb shell am start -n com.hermescourier.android.debug/com.hermescourier.android.MainActivity`
+6. Capture diagnostics:
+   - Logs: `adb logcat -d | rg "Hermes|AndroidRuntime|FATAL EXCEPTION"`
+   - Screenshot: `adb exec-out screencap -p > /tmp/hermes-courier.png`
+   - UI tree: `adb shell uiautomator dump /sdcard/hermes-courier-ui.xml && adb pull /sdcard/hermes-courier-ui.xml`
+
+## Release-readiness notes
+
+- Debug builds allow cleartext traffic to support local development environments.
+- Release builds disable cleartext traffic via manifest placeholders; use HTTPS for production/internal release deployment.
 
 ## Stack
 

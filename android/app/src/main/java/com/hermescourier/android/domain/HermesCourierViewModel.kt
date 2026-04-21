@@ -63,7 +63,7 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
     private val deviceIdentity = HermesDeviceIdentity(
         deviceId = "android-courier-${android.os.Build.MODEL.lowercase().replace(' ', '-')}",
         platform = "android",
-        appVersion = "0.1.0",
+        appVersion = appVersionName(),
         publicKeyFingerprint = deviceFingerprint,
     )
 
@@ -1071,6 +1071,11 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
         HermesEndpointVerificationResult("conversation send", status, reason),
         HermesEndpointVerificationResult("realtime/events", status, reason),
     )
+
+    private fun appVersionName(): String = runCatching {
+        val packageInfo = applicationContext.packageManager.getPackageInfo(applicationContext.packageName, 0)
+        packageInfo.versionName ?: "unknown"
+    }.getOrDefault("unknown")
 
     override fun onCleared() {
         realtimeHandle?.close()

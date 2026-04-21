@@ -164,7 +164,7 @@ fun ChatScreen(
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(min = 240.dp, max = 420.dp),
+                .weight(1f),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         ) {

@@ -90,6 +90,13 @@ fun SettingsScreen(
         Text(text = "Settings", style = MaterialTheme.typography.headlineMedium)
         Text(text = "Configure the secure gateway endpoint, enroll the device, and manage queued approvals from the companion app.")
 
+        SetupReadinessCard(
+            uiState = uiState,
+            onScanEnrollmentQr = { qrScanner.launch(com.journeyapps.barcodescanner.ScanOptions()) },
+            onTestLiveGateway = onTestLiveGateway,
+            onReconnectRealtime = onReconnectRealtime,
+        )
+
         Card(colors = CardDefaults.cardColors()) {
             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(text = "Connection", style = MaterialTheme.typography.titleMedium)
@@ -108,16 +115,11 @@ fun SettingsScreen(
                 Text(text = "Certificate path: ${uiState.gatewaySettings.certificatePath.ifBlank { "Not imported" }}")
                 Text(text = "Enrollment status: ${uiState.enrollmentStatus}")
                 Text(text = "Courier pairing: ${uiState.courierPairingStatus}")
-                Text(text = "Queued approvals: ${uiState.queuedApprovalActions}")
-                Text(text = "Realtime status: ${uiState.streamStatus}")
-                Text(text = "Gateway mode: ${uiState.gatewayConnectionMode}")
-                Text(text = uiState.gatewayConnectionDetail)
-                Text(text = "Reconnect backoff: ${uiState.realtimeReconnectCountdown}")
+                Text(text = "Gateway mode: ${uiState.gatewayConnectionMode} (${uiState.realtimeReconnectCountdown})")
                 LinearProgressIndicator(
                     progress = uiState.realtimeReconnectProgress,
                     modifier = Modifier.fillMaxWidth(),
                 )
-                Text(text = "Connection state: ${uiState.dashboard.connectionState}")
                 Text(text = "Verification mode: ${uiState.verificationMode}")
                 Button(onClick = onSaveSettings) { Text(text = "Save settings") }
                 Button(onClick = onTestLiveGateway) { Text(text = "Test live gateway") }
@@ -228,6 +230,53 @@ fun SettingsScreen(
             hostState = snackbarHostState,
             modifier = Modifier.align(Alignment.BottomCenter),
         )
+    }
+}
+
+@Composable
+private fun SetupReadinessCard(
+    uiState: HermesCourierUiState,
+    onScanEnrollmentQr: () -> Unit,
+    onTestLiveGateway: () -> Unit,
+    onReconnectRealtime: () -> Unit,
+) {
+    val hasGatewayUrl = uiState.gatewaySettings.baseUrl.isNotBlank()
+    val hasCertificate = uiState.gatewaySettings.certificatePath.isNotBlank()
+    val hasCertificatePassword = uiState.gatewaySettings.certificatePassword.isNotBlank()
+    val hasPairingToken = uiState.courierPairingStatus.contains("configured", ignoreCase = true)
+    val isLiveConnected = uiState.gatewayConnectionMode.contains("live", ignoreCase = true)
+
+    val readiness = listOf(
+        "Gateway URL" to hasGatewayUrl,
+        "Certificate" to hasCertificate,
+        "Certificate password" to hasCertificatePassword,
+        "Pairing token" to hasPairingToken,
+        "Live connection test" to isLiveConnected,
+    )
+    val completed = readiness.count { it.second }
+
+    Card(colors = CardDefaults.cardColors()) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text(text = "Setup readiness", style = MaterialTheme.typography.titleMedium)
+            Text(
+                text = "$completed/${readiness.size} checks complete",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            readiness.forEach { (label, done) ->
+                Text(text = "${if (done) "OK" else "TODO"}  $label", style = MaterialTheme.typography.bodySmall)
+            }
+            Text(
+                text = "Status: ${uiState.gatewayConnectionMode} · ${uiState.streamStatus}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            androidx.compose.foundation.layout.Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(onClick = onScanEnrollmentQr) { Text("Scan pairing QR") }
+                Button(onClick = onTestLiveGateway) { Text("Run live test") }
+                Button(onClick = onReconnectRealtime) { Text("Reconnect") }
+            }
+        }
     }
 }
 
