@@ -227,7 +227,11 @@ class NetworkHermesGatewayClient(
 
     override suspend fun verifyLiveEndpoints(device: HermesDeviceIdentity): List<HermesEndpointVerificationResult> = withContext(Dispatchers.IO) {
         val checks = mutableListOf<HermesEndpointVerificationResult>()
-        val boot = runCatching { bootstrap(device) }
+        val boot = try {
+            Result.success(bootstrap(device))
+        } catch (e: Throwable) {
+            Result.failure(e)
+        }
         if (boot.isFailure) {
             val reason = boot.exceptionOrNull()?.message ?: boot.exceptionOrNull().toString()
             checks += HermesEndpointVerificationResult("auth/bootstrap", "failed", reason)
@@ -247,7 +251,11 @@ class NetworkHermesGatewayClient(
         val session = boot.getOrThrow()
 
         checks += runCheck("dashboard") { fetchDashboard(session) }
-        val sessionsOutcome = runCatching { fetchSessions(session) }
+        val sessionsOutcome = try {
+            Result.success(fetchSessions(session))
+        } catch (e: Throwable) {
+            Result.failure(e)
+        }
         if (sessionsOutcome.isSuccess) {
             checks += HermesEndpointVerificationResult("sessions list", "ok", "Request succeeded.")
             val sessions = sessionsOutcome.getOrThrow()
@@ -637,14 +645,15 @@ private fun HermesApiPaths.sessionControlCandidates(sessionId: String, action: S
     ),
 )
 
-private fun <T> runCheck(
+private suspend fun <T> runCheck(
     endpoint: String,
-    call: () -> T,
-): HermesEndpointVerificationResult = runCatching { call() }
-    .fold(
-        onSuccess = { HermesEndpointVerificationResult(endpoint, "ok", "Request succeeded.") },
-        onFailure = { HermesEndpointVerificationResult(endpoint, "failed", it.message ?: it.toString()) },
-    )
+    call: suspend () -> T,
+): HermesEndpointVerificationResult = try {
+    call()
+    HermesEndpointVerificationResult(endpoint, "ok", "Request succeeded.")
+} catch (e: Throwable) {
+    HermesEndpointVerificationResult(endpoint, "failed", e.message ?: e.toString())
+}
 
 private fun toSessionControlVerificationResult(
     endpoint: String,
