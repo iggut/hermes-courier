@@ -20,9 +20,11 @@ import com.hermescourier.android.domain.model.HermesConversationActionState
 import com.hermescourier.android.domain.model.HermesConversationEvent
 import com.hermescourier.android.domain.model.HermesCourierUiState
 import com.hermescourier.android.domain.model.HermesDeviceIdentity
+import com.hermescourier.android.domain.model.HermesEndpointVerificationResult
 import com.hermescourier.android.domain.model.HermesEnrollmentPayload
 import com.hermescourier.android.domain.model.HermesGatewaySettings
 import com.hermescourier.android.domain.model.HermesQueuedApprovalAction
+import com.hermescourier.android.domain.model.HermesSessionControlActionResult
 import com.hermescourier.android.domain.model.migrateQueuedApprovalAction
 import com.hermescourier.android.domain.model.queuedApprovalActionMatchesResult
 import com.hermescourier.android.domain.model.userFacingApprovalVerb
@@ -49,6 +51,7 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
     private val fallbackGatewayClient: HermesGatewayClient = DemoHermesGatewayClient()
     private var realtimeHandle: Closeable? = null
     private var currentSession: com.hermescourier.android.domain.model.HermesAuthSession? = null
+    private val seenRealtimeEventIds = linkedSetOf<String>()
     private var reconnectCountdownJob: Job? = null
     private val queuedApprovalActions = ArrayDeque<HermesQueuedApprovalAction>()
     private val queuedActionsFile = File(applicationContext.filesDir, "hermes-queued-approval-actions.json")
@@ -93,6 +96,11 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
                         gatewayConnectionMode = "Unavailable",
                         gatewayConnectionDetail = detail,
                         streamStatus = "Realtime stream unavailable",
+                    verificationMode = "Skipped (live gateway unavailable)",
+                    endpointVerificationResults = defaultVerificationResults(
+                        reason = "Live gateway client could not be created from current settings.",
+                        status = "failed",
+                    ),
                     )
                 }
                 runCatching {
@@ -108,6 +116,7 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
                         gatewayConnectionMode = "Demo fallback",
                         gatewayConnectionDetail = detail,
                         streamStatus = "Demo realtime stream active",
+                        verificationMode = "Demo fallback (explicit)",
                     )
                 }.onFailure { fallbackError ->
                     val fallbackDetail = fallbackError.localizedMessage ?: fallbackError.toString()
@@ -118,6 +127,7 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
                             gatewayConnectionMode = "Unavailable",
                             gatewayConnectionDetail = fallbackDetail,
                             streamStatus = "Realtime stream unavailable",
+                            verificationMode = "Failed",
                         )
                     }
                 }
@@ -134,6 +144,7 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
                     bootstrapState = "Live gateway connected",
                     gatewayConnectionMode = "Live gateway",
                     gatewayConnectionDetail = "Live gateway handshake completed",
+                    verificationMode = "Live data load completed",
                 )
                 flushQueuedApprovalActions(liveClient, currentSession)
             }.onFailure { error ->
@@ -151,6 +162,7 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
                         gatewayConnectionMode = "Demo fallback",
                         gatewayConnectionDetail = detail,
                         streamStatus = "Demo realtime stream active",
+                        verificationMode = "Demo fallback (explicit)",
                     )
                 }.onFailure { fallbackError ->
                     val fallbackDetail = fallbackError.localizedMessage ?: fallbackError.toString()
@@ -161,6 +173,7 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
                             gatewayConnectionMode = "Unavailable",
                             gatewayConnectionDetail = fallbackDetail,
                             streamStatus = "Realtime stream unavailable",
+                            verificationMode = "Failed",
                         )
                     }
                 }
@@ -181,6 +194,7 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
                     gatewayConnectionDetail = "Running live connection test",
                     realtimeReconnectProgress = 0f,
                     realtimeReconnectCountdown = "Reconnect now",
+                    verificationMode = "Running live endpoint verification",
                 )
             }
             val liveClient = HermesGatewayClientFactory.createOrNull(applicationContext)
@@ -193,9 +207,33 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
                         gatewayConnectionMode = "Unavailable",
                         gatewayConnectionDetail = detail,
                         streamStatus = "Realtime stream unavailable",
+                        verificationMode = "Failed (live gateway unavailable)",
+                        endpointVerificationResults = defaultVerificationResults(
+                            reason = detail,
+                            status = "failed",
+                        ),
                     )
                 }
                 return@launch
+            }
+            val verification = runCatching { liveClient.verifyLiveEndpoints(deviceIdentity) }
+            verification.onSuccess { checks ->
+                _uiState.update { state ->
+                    state.copy(
+                        endpointVerificationResults = checks,
+                        verificationMode = "Live verification completed",
+                    )
+                }
+            }.onFailure { error ->
+                _uiState.update { state ->
+                    state.copy(
+                        endpointVerificationResults = defaultVerificationResults(
+                            reason = error.localizedMessage ?: error.toString(),
+                            status = "failed",
+                        ),
+                        verificationMode = "Live verification failed",
+                    )
+                }
             }
             runCatching {
                 loadFromGateway(
@@ -209,6 +247,8 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
                     authStatus = "Authenticated against ${state.dashboard.connectionState}",
                     gatewayConnectionMode = "Live gateway",
                     gatewayConnectionDetail = "Live gateway handshake completed",
+                    verificationMode = "Live verification completed",
+                    endpointVerificationResults = verification.getOrNull() ?: state.endpointVerificationResults,
                 )
                 flushQueuedApprovalActions(liveClient, currentSession)
             }.onFailure { error ->
@@ -220,8 +260,45 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
                         gatewayConnectionMode = "Unavailable",
                         gatewayConnectionDetail = detail,
                         streamStatus = "Realtime stream unavailable",
+                        verificationMode = "Live load failed",
                     )
                 }
+            }
+        }
+    }
+
+    fun submitSessionControlAction(sessionId: String, action: String) {
+        viewModelScope.launch {
+            val session = currentSession ?: run {
+                _uiState.update { it.copy(sessionControlStatus = "Session-control skipped: no authenticated session") }
+                return@launch
+            }
+            val liveClient = runCatching { HermesGatewayClientFactory.create(applicationContext) }.getOrNull()
+            if (liveClient == null || liveClient is DemoHermesGatewayClient) {
+                _uiState.update {
+                    it.copy(
+                        sessionControlStatus = "Session-control unavailable: live gateway required (demo fallback is explicit).",
+                    )
+                }
+                return@launch
+            }
+            val result = runCatching { liveClient.submitSessionControlAction(session, sessionId, action) }
+                .getOrElse { error ->
+                    HermesSessionControlActionResult(
+                        sessionId = sessionId,
+                        action = action,
+                        status = "failed",
+                        detail = error.localizedMessage ?: error.toString(),
+                        updatedAt = "now",
+                    )
+                }
+            _uiState.update {
+                it.copy(
+                    sessionControlStatus = "${result.action} ${result.sessionId}: ${result.status} (${result.detail})",
+                )
+            }
+            if (result.supported && result.status != "failed") {
+                refresh()
             }
         }
     }
@@ -557,6 +634,14 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
         startRealtime(client, session)
         val settings = HermesGatewayConfiguration.from(applicationContext).toSettings()
         val queuedCount = queuedApprovalActions.size
+        val verificationResults = if (client is DemoHermesGatewayClient) {
+            defaultVerificationResults(
+                reason = "Demo fallback data source in use. Live endpoint verification not executed in refresh().",
+                status = "demo",
+            )
+        } else {
+            _uiState.value.endpointVerificationResults
+        }
         return _uiState.value.copy(
             bootstrapState = "Secure gateway ready",
             authStatus = "Session ${session.sessionId} authenticated through ${session.gatewayUrl}",
@@ -574,6 +659,8 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
             queuedApprovalActionQueue = queuedApprovalActions.toList(),
             streamStatus = "Realtime stream connected",
             realtimeReconnectCountdown = "Connected",
+            endpointVerificationResults = verificationResults,
+            verificationMode = if (client is DemoHermesGatewayClient) "Demo fallback (explicit)" else _uiState.value.verificationMode,
         )
     }
 
@@ -588,7 +675,16 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
                     viewModelScope.launch { flushQueuedApprovalActions(client, session) }
                 }
             },
-            onEnvelope = { envelope ->
+            onEnvelope = onEnvelope@{ envelope ->
+                val envelopeId = envelope.eventId ?: "${envelope.type}:${envelope.eventTimestamp}:${envelope.conversation?.eventId ?: ""}:${envelope.approvalResult?.approvalId ?: ""}:${envelope.sessionControlResult?.sessionId ?: ""}"
+                if (seenRealtimeEventIds.contains(envelopeId)) {
+                    _uiState.update { it.copy(streamStatus = "Realtime duplicate ignored: ${envelope.type}") }
+                    return@onEnvelope
+                }
+                seenRealtimeEventIds.add(envelopeId)
+                if (seenRealtimeEventIds.size > 200) {
+                    seenRealtimeEventIds.remove(seenRealtimeEventIds.first())
+                }
                 val reconciledQueuedAction = envelope.approvalResult?.let { result ->
                     removeQueuedApprovalActionForResult(result)
                 }
@@ -609,6 +705,9 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
                             envelope.approvalResult != null -> approvalActionMessage(envelope.approvalResult)
                             else -> state.approvalActionStatus
                         },
+                        sessionControlStatus = envelope.sessionControlResult?.let { result ->
+                            "Server confirmed ${result.action} for ${result.sessionId}: ${result.status}"
+                        } ?: state.sessionControlStatus,
                     )
                 }
             },
@@ -858,6 +957,16 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
 
     private fun approvalActionMessage(result: HermesApprovalActionResult): String =
         "${userFacingApprovalVerb(result.action)} approval ${result.approvalId}: ${result.status}"
+
+    private fun defaultVerificationResults(reason: String, status: String): List<HermesEndpointVerificationResult> = listOf(
+        HermesEndpointVerificationResult("auth/bootstrap", status, reason),
+        HermesEndpointVerificationResult("dashboard", status, reason),
+        HermesEndpointVerificationResult("sessions list/detail", status, reason),
+        HermesEndpointVerificationResult("session-control actions", status, reason),
+        HermesEndpointVerificationResult("approvals", status, reason),
+        HermesEndpointVerificationResult("conversation", status, reason),
+        HermesEndpointVerificationResult("realtime/events", status, reason),
+    )
 
     override fun onCleared() {
         realtimeHandle?.close()

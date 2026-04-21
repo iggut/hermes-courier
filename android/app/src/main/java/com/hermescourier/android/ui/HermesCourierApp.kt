@@ -209,6 +209,8 @@ fun HermesCourierApp(viewModel: HermesCourierViewModel = viewModel()) {
                         contentPadding = contentPadding,
                         session = session,
                         onRefresh = viewModel::refresh,
+                        onSessionControlAction = viewModel::submitSessionControlAction,
+                        sessionControlStatus = uiState.sessionControlStatus,
                     )
                 }
             }

@@ -13,7 +13,9 @@ import com.hermescourier.android.domain.model.HermesConversationEvent
 import com.hermescourier.android.domain.model.HermesConversationSendRequest
 import com.hermescourier.android.domain.model.HermesDashboardSnapshot
 import com.hermescourier.android.domain.model.HermesDeviceIdentity
+import com.hermescourier.android.domain.model.HermesEndpointVerificationResult
 import com.hermescourier.android.domain.model.HermesRealtimeEnvelope
+import com.hermescourier.android.domain.model.HermesSessionControlActionResult
 import com.hermescourier.android.domain.model.HermesSessionSummary
 import com.hermescourier.android.domain.storage.HermesTokenStore
 import com.hermescourier.android.domain.transport.HermesGatewayTransport
@@ -42,6 +44,12 @@ interface HermesGatewayClient {
     suspend fun bootstrap(device: HermesDeviceIdentity): HermesAuthSession
     suspend fun fetchDashboard(session: HermesAuthSession): HermesDashboardSnapshot
     suspend fun fetchSessions(session: HermesAuthSession): List<HermesSessionSummary>
+    suspend fun fetchSessionDetail(session: HermesAuthSession, sessionId: String): HermesSessionSummary
+    suspend fun submitSessionControlAction(
+        session: HermesAuthSession,
+        sessionId: String,
+        action: String,
+    ): HermesSessionControlActionResult
     suspend fun fetchApprovals(session: HermesAuthSession): List<HermesApprovalSummary>
     suspend fun fetchConversation(session: HermesAuthSession): List<HermesConversationEvent>
     suspend fun submitConversationMessage(session: HermesAuthSession, message: String): HermesConversationEvent?
@@ -57,6 +65,8 @@ interface HermesGatewayClient {
         onStatus: (String) -> Unit,
         onEnvelope: (HermesRealtimeEnvelope) -> Unit,
     ): Closeable
+
+    suspend fun verifyLiveEndpoints(device: HermesDeviceIdentity): List<HermesEndpointVerificationResult>
 }
 
 class NetworkHermesGatewayClient(
@@ -88,6 +98,73 @@ class NetworkHermesGatewayClient(
 
     override suspend fun fetchSessions(session: HermesAuthSession): List<HermesSessionSummary> = withContext(Dispatchers.IO) {
         transport.get("/${HermesApiPaths.SESSIONS}", session.accessToken).toJsonArrayOrObject().toSessionList()
+    }
+
+    override suspend fun fetchSessionDetail(session: HermesAuthSession, sessionId: String): HermesSessionSummary = withContext(Dispatchers.IO) {
+        transport.get("/${HermesApiPaths.sessionDetail(sessionId)}", session.accessToken).toJsonObject().toSessionSummary()
+    }
+
+    override suspend fun submitSessionControlAction(
+        session: HermesAuthSession,
+        sessionId: String,
+        action: String,
+    ): HermesSessionControlActionResult = withContext(Dispatchers.IO) {
+        val normalizedAction = normalizeSessionControlActionWire(action)
+        val candidates = HermesApiPaths.sessionControlCandidates(sessionId, normalizedAction)
+        var unsupportedCount = 0
+        var lastFailure = "No session-control endpoint candidates were configured."
+        for (candidate in candidates) {
+            val payload = candidate.bodyFactory(normalizedAction)
+            runCatching {
+                transport.post(candidate.path, payload, session.accessToken)
+            }.onSuccess { raw ->
+                val fallback = HermesSessionControlActionResult(
+                    sessionId = sessionId,
+                    action = normalizedAction,
+                    status = "submitted",
+                    detail = "Session-control action accepted.",
+                    updatedAt = "now",
+                    endpoint = candidate.path,
+                )
+                return@withContext if (raw.isBlank()) {
+                    fallback
+                } else {
+                    raw.toJsonObject().toSessionControlActionResult(fallback)
+                }
+            }.onFailure { error ->
+                val message = error.message ?: error.toString()
+                lastFailure = "POST ${candidate.path} failed: $message"
+                if (message.contains(" 404:") || message.contains(" 405:")) {
+                    unsupportedCount += 1
+                } else {
+                    return@withContext HermesSessionControlActionResult(
+                        sessionId = sessionId,
+                        action = normalizedAction,
+                        status = "failed",
+                        detail = lastFailure,
+                        updatedAt = "now",
+                        endpoint = candidate.path,
+                    )
+                }
+            }
+        }
+        if (unsupportedCount == candidates.size) {
+            return@withContext HermesSessionControlActionResult(
+                sessionId = sessionId,
+                action = normalizedAction,
+                status = "unsupported",
+                detail = "Gateway does not expose a supported session-control endpoint for action '$normalizedAction'.",
+                updatedAt = "now",
+                supported = false,
+            )
+        }
+        HermesSessionControlActionResult(
+            sessionId = sessionId,
+            action = normalizedAction,
+            status = "failed",
+            detail = lastFailure,
+            updatedAt = "now",
+        )
     }
 
     override suspend fun fetchApprovals(session: HermesAuthSession): List<HermesApprovalSummary> = withContext(Dispatchers.IO) {
@@ -146,6 +223,57 @@ class NetworkHermesGatewayClient(
         )
         manager.start()
         return manager
+    }
+
+    override suspend fun verifyLiveEndpoints(device: HermesDeviceIdentity): List<HermesEndpointVerificationResult> = withContext(Dispatchers.IO) {
+        val checks = mutableListOf<HermesEndpointVerificationResult>()
+        val boot = runCatching { bootstrap(device) }
+        if (boot.isFailure) {
+            val reason = boot.exceptionOrNull()?.message ?: boot.exceptionOrNull().toString()
+            checks += HermesEndpointVerificationResult("auth/bootstrap", "failed", reason)
+            checks += HermesEndpointVerificationResult("dashboard", "skipped", "Skipped because auth/bootstrap failed.")
+            checks += HermesEndpointVerificationResult("sessions list/detail", "skipped", "Skipped because auth/bootstrap failed.")
+            checks += HermesEndpointVerificationResult("session-control actions", "skipped", "Skipped because auth/bootstrap failed.")
+            checks += HermesEndpointVerificationResult("approvals", "skipped", "Skipped because auth/bootstrap failed.")
+            checks += HermesEndpointVerificationResult("conversation", "skipped", "Skipped because auth/bootstrap failed.")
+            checks += HermesEndpointVerificationResult("realtime/events", "skipped", "Skipped because auth/bootstrap failed.")
+            return@withContext checks
+        }
+        checks += HermesEndpointVerificationResult("auth/bootstrap", "ok", "Challenge-response bootstrap succeeded.")
+        val session = boot.getOrThrow()
+
+        checks += runCheck("dashboard") { fetchDashboard(session) }
+        val sessionsOutcome = runCatching { fetchSessions(session) }
+        if (sessionsOutcome.isSuccess) {
+            val sessions = sessionsOutcome.getOrThrow()
+            if (sessions.isEmpty()) {
+                checks += HermesEndpointVerificationResult("sessions list/detail", "partial", "Sessions list succeeded but no session exists to verify detail/action endpoints.")
+                checks += HermesEndpointVerificationResult("session-control actions", "partial", "No session available to verify control endpoints.")
+            } else {
+                val firstSession = sessions.first()
+                checks += runCheck("sessions list/detail") { fetchSessionDetail(session, firstSession.sessionId) }
+                val controlResult = submitSessionControlAction(session, firstSession.sessionId, "pause")
+                checks += HermesEndpointVerificationResult(
+                    endpoint = "session-control actions",
+                    status = if (controlResult.supported && controlResult.status != "failed") "ok" else if (!controlResult.supported) "unsupported" else "failed",
+                    reason = controlResult.detail + (controlResult.endpoint?.let { " (endpoint: $it)" } ?: ""),
+                )
+            }
+        } else {
+            checks += HermesEndpointVerificationResult(
+                "sessions list/detail",
+                "failed",
+                sessionsOutcome.exceptionOrNull()?.message ?: sessionsOutcome.exceptionOrNull().toString(),
+            )
+            checks += HermesEndpointVerificationResult("session-control actions", "skipped", "Skipped because sessions list failed.")
+        }
+        checks += runCheck("approvals") { fetchApprovals(session) }
+        checks += runCheck("conversation") { fetchConversation(session) }
+        checks += runCheck("realtime/events") {
+            val handle = connectRealtime(session, onStatus = {}, onEnvelope = {})
+            handle.close()
+        }
+        checks
     }
 
     private suspend fun requestChallenge(device: HermesDeviceIdentity): HermesAuthChallengeResponse = withContext(Dispatchers.IO) {
@@ -254,6 +382,23 @@ class DemoHermesGatewayClient : HermesGatewayClient {
         HermesSessionSummary("demo-2", "Tooling review", "Paused", "15m ago"),
     )
 
+    override suspend fun fetchSessionDetail(session: HermesAuthSession, sessionId: String): HermesSessionSummary =
+        fetchSessions(session).firstOrNull { it.sessionId == sessionId }
+            ?: HermesSessionSummary(sessionId, "Demo session", "Unknown", "now")
+
+    override suspend fun submitSessionControlAction(
+        session: HermesAuthSession,
+        sessionId: String,
+        action: String,
+    ): HermesSessionControlActionResult = HermesSessionControlActionResult(
+        sessionId = sessionId,
+        action = normalizeSessionControlActionWire(action),
+        status = "demo-complete",
+        detail = "Demo fallback accepted the session-control action.",
+        updatedAt = "just now",
+        endpoint = "demo",
+    )
+
     override suspend fun fetchApprovals(session: HermesAuthSession): List<HermesApprovalSummary> = listOf(
         HermesApprovalSummary("approval-1", "Deploy branch", "Approve production deployment for feature work.", true),
         HermesApprovalSummary("approval-2", "Share transcript", "Allow sharing the latest conversation transcript.", false),
@@ -304,6 +449,16 @@ class DemoHermesGatewayClient : HermesGatewayClient {
         )
         return Closeable { onStatus("Realtime stream closed (demo)") }
     }
+
+    override suspend fun verifyLiveEndpoints(device: HermesDeviceIdentity): List<HermesEndpointVerificationResult> = listOf(
+        HermesEndpointVerificationResult("auth/bootstrap", "demo", "Demo fallback"),
+        HermesEndpointVerificationResult("dashboard", "demo", "Demo fallback"),
+        HermesEndpointVerificationResult("sessions list/detail", "demo", "Demo fallback"),
+        HermesEndpointVerificationResult("session-control actions", "demo", "Demo fallback"),
+        HermesEndpointVerificationResult("approvals", "demo", "Demo fallback"),
+        HermesEndpointVerificationResult("conversation", "demo", "Demo fallback"),
+        HermesEndpointVerificationResult("realtime/events", "demo", "Demo fallback"),
+    )
 }
 
 private fun HermesAuthChallengeResponse.toJson(): JSONObject = JSONObject()
@@ -432,8 +587,54 @@ private fun JSONObject.toRealtimeEnvelope(): HermesRealtimeEnvelope {
             ?: if (has("body") || has("message")) toConversationEvent() else null,
         approvalResult = optJSONObject("approvalResult")?.toApprovalActionResult()
             ?: optJSONObject("approval_action")?.toApprovalActionResult(),
+        sessionControlResult = optJSONObject("sessionControlResult")?.toSessionControlActionResult()
+            ?: optJSONObject("session_control_action")?.toSessionControlActionResult(),
+        eventId = optString("eventId", optString("id", "")).takeIf { it.isNotBlank() },
+        eventTimestamp = optString("timestamp", "").takeIf { it.isNotBlank() },
     )
 }
+
+private fun JSONObject.toSessionControlActionResult(
+    fallback: HermesSessionControlActionResult? = null,
+): HermesSessionControlActionResult = HermesSessionControlActionResult(
+    sessionId = optString("sessionId", fallback?.sessionId ?: "unknown"),
+    action = optString("action", fallback?.action ?: "unknown"),
+    status = optString("status", fallback?.status ?: "submitted"),
+    detail = optString("detail", optString("message", fallback?.detail ?: "Session-control action submitted.")),
+    updatedAt = optString("updatedAt", fallback?.updatedAt ?: "now"),
+    endpoint = fallback?.endpoint,
+    supported = fallback?.supported ?: true,
+)
+
+private fun normalizeSessionControlActionWire(raw: String): String = when (raw.trim().lowercase()) {
+    "stop" -> "terminate"
+    else -> raw.trim().lowercase()
+}
+
+private data class SessionControlCandidate(
+    val path: String,
+    val bodyFactory: (String) -> JSONObject,
+)
+
+private fun HermesApiPaths.sessionControlCandidates(sessionId: String, action: String): List<SessionControlCandidate> = listOf(
+    SessionControlCandidate(
+        path = "/${HermesApiPaths.sessionControlAction(sessionId)}",
+        bodyFactory = { normalized -> JSONObject().put("action", normalized) },
+    ),
+    SessionControlCandidate(
+        path = "/${HermesApiPaths.sessionActionEndpoint(sessionId, action)}",
+        bodyFactory = { _ -> JSONObject() },
+    ),
+)
+
+private fun <T> runCheck(
+    endpoint: String,
+    call: () -> T,
+): HermesEndpointVerificationResult = runCatching { call() }
+    .fold(
+        onSuccess = { HermesEndpointVerificationResult(endpoint, "ok", "Request succeeded.") },
+        onFailure = { HermesEndpointVerificationResult(endpoint, "failed", it.message ?: it.toString()) },
+    )
 
 private fun JSONArray.toSessionList(): List<HermesSessionSummary> = mutableListOf<HermesSessionSummary>().apply {
     for (index in 0 until length()) add(getJSONObject(index).toSessionSummary())

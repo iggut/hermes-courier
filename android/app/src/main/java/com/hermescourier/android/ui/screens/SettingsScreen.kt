@@ -116,10 +116,31 @@ fun SettingsScreen(
                     modifier = Modifier.fillMaxWidth(),
                 )
                 Text(text = "Connection state: ${uiState.dashboard.connectionState}")
+                Text(text = "Verification mode: ${uiState.verificationMode}")
                 Button(onClick = onSaveSettings) { Text(text = "Save settings") }
                 Button(onClick = onTestLiveGateway) { Text(text = "Test live gateway") }
                 Button(onClick = onRefresh) { Text(text = "Refresh connection") }
                 Button(onClick = onReconnectRealtime) { Text(text = "Reconnect realtime now") }
+            }
+        }
+
+        Card(colors = CardDefaults.cardColors()) {
+            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(text = "Live verification report", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    text = "Each endpoint/action is reported independently. Demo fallback is always explicit here.",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+                if (uiState.endpointVerificationResults.isEmpty()) {
+                    Text(text = "No verification report yet.")
+                } else {
+                    uiState.endpointVerificationResults.forEach { result ->
+                        Text(
+                            text = "${result.endpoint}: ${result.status} — ${result.reason}",
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
+                }
             }
         }
 

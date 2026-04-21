@@ -27,6 +27,8 @@ fun SessionDetailScreen(
     contentPadding: PaddingValues,
     session: HermesSessionSummary,
     onRefresh: () -> Unit,
+    onSessionControlAction: (sessionId: String, action: String) -> Unit,
+    sessionControlStatus: String,
 ) {
     Column(
         modifier = Modifier
@@ -61,6 +63,33 @@ fun SessionDetailScreen(
                     text = "Refresh the list from the top app bar to pull the latest gateway state. Active sessions usually mean the agent is working on live tasks.",
                 )
                 Button(onClick = onRefresh, modifier = Modifier.fillMaxWidth()) { Text(text = "Refresh now") }
+            }
+        }
+
+        Card {
+            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(text = "Session control", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    text = "These actions hit live gateway session-control endpoints only; unsupported endpoints are reported explicitly.",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+                Button(
+                    onClick = { onSessionControlAction(session.sessionId, "pause") },
+                    modifier = Modifier.fillMaxWidth(),
+                ) { Text(text = "Pause session") }
+                Button(
+                    onClick = { onSessionControlAction(session.sessionId, "resume") },
+                    modifier = Modifier.fillMaxWidth(),
+                ) { Text(text = "Resume session") }
+                OutlinedButton(
+                    onClick = { onSessionControlAction(session.sessionId, "terminate") },
+                    modifier = Modifier.fillMaxWidth(),
+                ) { Text(text = "Terminate session") }
+                Text(
+                    text = "Status: $sessionControlStatus",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
 

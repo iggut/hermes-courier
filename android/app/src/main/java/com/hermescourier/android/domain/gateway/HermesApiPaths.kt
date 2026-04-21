@@ -12,4 +12,7 @@ object HermesApiPaths {
     const val EVENTS_STREAM = "v1/events"
 
     fun approvalDecision(approvalId: String): String = "v1/approvals/$approvalId/decision"
+    fun sessionDetail(sessionId: String): String = "v1/sessions/$sessionId"
+    fun sessionControlAction(sessionId: String): String = "v1/sessions/$sessionId/actions"
+    fun sessionActionEndpoint(sessionId: String, action: String): String = "v1/sessions/$sessionId/$action"
 }

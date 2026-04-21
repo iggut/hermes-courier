@@ -76,6 +76,22 @@ data class HermesApprovalActionResult(
     val updatedAt: String,
 )
 
+data class HermesSessionControlActionResult(
+    val sessionId: String,
+    val action: String,
+    val status: String,
+    val detail: String,
+    val updatedAt: String,
+    val endpoint: String? = null,
+    val supported: Boolean = true,
+)
+
+data class HermesEndpointVerificationResult(
+    val endpoint: String,
+    val status: String,
+    val reason: String,
+)
+
 data class HermesRealtimeEnvelope(
     val type: String,
     val dashboard: HermesDashboardSnapshot? = null,
@@ -83,6 +99,9 @@ data class HermesRealtimeEnvelope(
     val approvals: List<HermesApprovalSummary>? = null,
     val conversation: HermesConversationEvent? = null,
     val approvalResult: HermesApprovalActionResult? = null,
+    val sessionControlResult: HermesSessionControlActionResult? = null,
+    val eventId: String? = null,
+    val eventTimestamp: String? = null,
 )
 
 data class HermesGatewaySettings(
@@ -179,4 +198,7 @@ data class HermesCourierUiState(
     val enrollmentQrPayload: String = "",
     val queuedApprovalActions: Int = 0,
     val queuedApprovalActionQueue: List<HermesQueuedApprovalAction> = emptyList(),
+    val endpointVerificationResults: List<HermesEndpointVerificationResult> = emptyList(),
+    val verificationMode: String = "Not run",
+    val sessionControlStatus: String = "No session-control action submitted",
 )
