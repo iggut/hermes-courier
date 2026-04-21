@@ -70,12 +70,24 @@ internal fun approvalDetailRoute(approvalId: String): String = "approval/${Uri.e
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HermesCourierApp(viewModel: HermesCourierViewModel = viewModel()) {
+fun HermesCourierApp(
+    initialEnrollmentPayload: String? = null,
+    onInitialEnrollmentPayloadConsumed: () -> Unit = {},
+    viewModel: HermesCourierViewModel = viewModel(),
+) {
     val navController = rememberNavController()
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route ?: HermesCourierRoute.Dashboard.route
     val isDetailRoute = currentRoute.startsWith("session/") || currentRoute.startsWith("approval/")
+
+    LaunchedEffect(initialEnrollmentPayload) {
+        val payload = initialEnrollmentPayload?.trim().orEmpty()
+        if (payload.startsWith("hermes-courier-enroll://")) {
+            viewModel.applyEnrollmentQr(payload)
+            onInitialEnrollmentPayloadConsumed()
+        }
+    }
 
     Scaffold(
         topBar = {
