@@ -30,7 +30,7 @@ final class HermesAuthManager: HermesAuthManaging {
         try await gatewayClient.bootstrap(device: deviceProvider)
     }
 
-    private static func makeDeviceID() -> String {
+    static func makeDeviceID() -> String {
         #if canImport(UIKit)
         let vendor = UIDevice.current.identifierForVendor?.uuidString ?? UUID().uuidString
         return "ios-\(vendor)"

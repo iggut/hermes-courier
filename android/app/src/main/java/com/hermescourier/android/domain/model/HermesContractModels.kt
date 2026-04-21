@@ -201,4 +201,6 @@ data class HermesCourierUiState(
     val endpointVerificationResults: List<HermesEndpointVerificationResult> = emptyList(),
     val verificationMode: String = "Not run",
     val sessionControlStatus: String = "No session-control action submitted",
+    val sessionDetailLoading: Boolean = false,
+    val sessionDetailLoadError: String? = null,
 )

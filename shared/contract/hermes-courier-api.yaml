@@ -146,6 +146,86 @@ components:
         timestamp:
           type: string
           format: date-time
+    SessionControlRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        action:
+          type: string
+          description: Normalized control verb (e.g. pause, resume, terminate).
+    SessionControlActionResult:
+      type: object
+      additionalProperties: false
+      required: [sessionId, action, status, detail, updatedAt]
+      properties:
+        sessionId:
+          type: string
+        action:
+          type: string
+        status:
+          type: string
+        detail:
+          type: string
+        updatedAt:
+          type: string
+        endpoint:
+          type: string
+          description: Which gateway path handled the action, when known.
+        supported:
+          type: boolean
+          description: False when no compatible gateway route exists for this action.
+    ApprovalActionResult:
+      type: object
+      additionalProperties: false
+      required: [approvalId, action, status, detail, updatedAt]
+      properties:
+        approvalId:
+          type: string
+        action:
+          type: string
+        status:
+          type: string
+        detail:
+          type: string
+        updatedAt:
+          type: string
+    RealtimeEventEnvelope:
+      type: object
+      description: >
+        WebSocket (or SSE) JSON frames. Clients tolerate optional fields; gateway may send
+        partial snapshots on each frame.
+      additionalProperties: true
+      properties:
+        type:
+          type: string
+        kind:
+          type: string
+        eventId:
+          type: string
+        timestamp:
+          type: string
+        dashboard:
+          $ref: '#/components/schemas/DashboardSnapshot'
+        sessions:
+          type: array
+          items:
+            $ref: '#/components/schemas/SessionSummary'
+        approvals:
+          type: array
+          items:
+            $ref: '#/components/schemas/ApprovalSummary'
+        conversation:
+          $ref: '#/components/schemas/ConversationEvent'
+        event:
+          $ref: '#/components/schemas/ConversationEvent'
+        approvalResult:
+          $ref: '#/components/schemas/ApprovalActionResult'
+        approval_action:
+          $ref: '#/components/schemas/ApprovalActionResult'
+        sessionControlResult:
+          $ref: '#/components/schemas/SessionControlActionResult'
+        session_control_action:
+          $ref: '#/components/schemas/SessionControlActionResult'
 security:
   - mutualTLS: []
   - bearerAuth: []
@@ -208,6 +288,71 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/SessionSummary'
+  /v1/sessions/{sessionId}:
+    parameters:
+      - name: sessionId
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      tags: [sessions]
+      summary: Fetch a single session summary (same shape as list entries).
+      responses:
+        '200':
+          description: Session summary.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionSummary'
+  /v1/sessions/{sessionId}/actions:
+    parameters:
+      - name: sessionId
+        in: path
+        required: true
+        schema:
+          type: string
+    post:
+      tags: [sessions]
+      summary: >
+        Preferred session-control endpoint. Body uses SessionControlRequest.action
+        (pause, resume, terminate). Gateways may also accept POST /v1/sessions/{sessionId}/{action} with an empty body.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SessionControlRequest'
+      responses:
+        '200':
+          description: Result of the control action.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionControlActionResult'
+        '204':
+          description: Action accepted without a parsed body.
+  /v1/sessions/{sessionId}/{action}:
+    parameters:
+      - name: sessionId
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: action
+        in: path
+        required: true
+        schema:
+          type: string
+          description: Same verbs as SessionControlRequest.action (pause, resume, terminate).
+    post:
+      tags: [sessions]
+      summary: Alternate session-control style (empty JSON body). Clients try this if /actions returns 404/405.
+      responses:
+        '200':
+          description: Result or empty body when accepted.
+        '204':
+          description: Action accepted.
   /v1/approvals:
     get:
       tags: [approvals]

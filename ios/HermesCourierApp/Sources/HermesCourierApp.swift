@@ -6,7 +6,7 @@ struct HermesCourierApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            RootView()
                 .environmentObject(viewModel)
         }
     }

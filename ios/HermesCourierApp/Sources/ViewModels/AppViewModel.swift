@@ -26,6 +26,12 @@ final class AppViewModel: ObservableObject {
     @Published var queuedApprovalActionQueue: [HermesQueuedApprovalAction] = []
     @Published var realtimeReconnectCountdown: String = "Reconnect now"
     @Published var realtimeReconnectProgress: Double = 0
+    @Published var conversationActionStatus: String = "No instruction sent yet"
+    @Published var conversationActionError: String?
+    @Published var conversationActionState: HermesConversationActionState = .idle
+    @Published var sessionControlStatus: String = "No session-control action submitted"
+    @Published var sessionDetailLoading: Bool = false
+    @Published var sessionDetailLoadError: String?
 
     private let fallbackClient: HermesGatewayClientProtocol = HermesDemoGatewayClient()
     private var currentSession: HermesAuthSession?
@@ -57,6 +63,8 @@ final class AppViewModel: ObservableObject {
         reconnectCountdownTask = nil
         realtimeReconnectCountdown = "Reconnect now"
         realtimeReconnectProgress = 0
+        sessionDetailLoading = false
+        sessionDetailLoadError = nil
 
         do {
             let authManager = HermesAuthManager()
@@ -277,14 +285,130 @@ final class AppViewModel: ObservableObject {
                     self.approvals = approvals
                 }
                 if let conversation = envelope.conversation {
-                    self.messages.append(conversation)
+                    self.messages = self.messages.upsertConversationEvent(conversation)
                 }
                 if let result = envelope.approvalResult {
                     self.approvalActionStatus = "\(HermesApprovalDisplay.userFacingVerb(for: result.action)) approval \(result.approvalId): \(result.status)"
                 }
+                if let sc = envelope.sessionControlResult {
+                    self.sessionControlStatus = "Server confirmed \(sc.action) for \(sc.sessionId): \(sc.status)"
+                }
                 self.streamStatus = "Realtime event: \(envelope.type)"
             }
         })
+    }
+
+    func sendConversationMessage(_ raw: String) {
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty {
+            conversationActionStatus = "Type a message before sending"
+            conversationActionError = "Type a message before sending"
+            conversationActionState = .failed
+            return
+        }
+        let optimistic = HermesConversationEvent(
+            eventId: "local-\(Int(Date().timeIntervalSince1970 * 1000))",
+            author: "You",
+            body: trimmed,
+            timestamp: "now"
+        )
+        messages = messages.upsertConversationEvent(optimistic)
+        conversationActionStatus = "Sending instruction to Hermes…"
+        conversationActionError = nil
+        conversationActionState = .sending
+        Task {
+            guard let session = currentSession else {
+                await MainActor.run {
+                    conversationActionStatus = "Connect to a live gateway before sending"
+                    conversationActionError = "No authenticated session is available yet."
+                    conversationActionState = .failed
+                }
+                return
+            }
+            let client = HermesGatewayClient()
+            do {
+                let echoed = try await client.submitConversationMessage(session: session, message: trimmed)
+                await MainActor.run {
+                    if let echoed {
+                        messages = messages.upsertConversationEvent(echoed)
+                    }
+                    conversationActionStatus = isDemoGateway ? "Instruction recorded in demo mode" : (echoed != nil ? "Instruction sent to Hermes" : "Instruction accepted by the gateway")
+                    conversationActionError = nil
+                    conversationActionState = .sent
+                }
+            } catch {
+                let detail = error.localizedDescription
+                await MainActor.run {
+                    conversationActionStatus = "Saved locally; live send failed: \(detail)"
+                    conversationActionError = detail
+                    conversationActionState = .failed
+                }
+            }
+        }
+    }
+
+    func submitSessionControlAction(sessionId: String, action: String) {
+        Task {
+            guard let session = currentSession else {
+                sessionControlStatus = "Session-control skipped: no authenticated session"
+                return
+            }
+            guard !isDemoGateway else {
+                sessionControlStatus = "Session-control unavailable on demo fallback (use a live gateway)"
+                return
+            }
+            let client = HermesGatewayClient()
+            do {
+                let result = try await client.submitSessionControlAction(session: session, sessionId: sessionId, action: action)
+                await MainActor.run {
+                    sessionControlStatus = "\(result.action) \(result.sessionId): \(result.status) (\(result.detail))"
+                }
+            } catch {
+                await MainActor.run {
+                    sessionControlStatus = "Session-control failed: \(error.localizedDescription)"
+                }
+            }
+        }
+    }
+
+    func loadSessionDetailIfMissing(sessionId: String) {
+        Task {
+            if sessions.contains(where: { $0.sessionId == sessionId }) {
+                await MainActor.run { sessionDetailLoadError = nil }
+                return
+            }
+            guard let session = currentSession else {
+                await MainActor.run {
+                    sessionDetailLoading = false
+                    sessionDetailLoadError = "Not authenticated; open Settings and connect to the gateway."
+                }
+                return
+            }
+            await MainActor.run {
+                sessionDetailLoading = true
+                sessionDetailLoadError = nil
+            }
+            let client = HermesGatewayClient()
+            do {
+                let detail = try await client.fetchSessionDetail(session: session, sessionId: sessionId)
+                await MainActor.run {
+                    var merged = sessions
+                    if let idx = merged.firstIndex(where: { $0.sessionId == detail.sessionId }) {
+                        merged[idx] = detail
+                    } else {
+                        merged.append(detail)
+                    }
+                    sessions = merged
+                    sessionDetailLoading = false
+                    sessionDetailLoadError = nil
+                }
+            } catch {
+                await MainActor.run {
+                    sessionDetailLoading = false
+                    sessionDetailLoadError = error.localizedDescription
+                }
+            }
+        }
     }
 
     private func queueApprovalAction(_ approvalId: String, _ action: String, _ note: String?, reason: String) {
@@ -478,6 +602,17 @@ final class AppViewModel: ObservableObject {
     private func createApplicationSupportDirectoryIfNeeded() {
         let directory = queuedActionsURL.deletingLastPathComponent()
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    }
+}
+
+private extension Array where Element == HermesConversationEvent {
+    func upsertConversationEvent(_ event: HermesConversationEvent) -> [HermesConversationEvent] {
+        if let index = firstIndex(where: { $0.eventId == event.eventId }) {
+            var copy = self
+            copy[index] = event
+            return copy
+        }
+        return self + [event]
     }
 }
 

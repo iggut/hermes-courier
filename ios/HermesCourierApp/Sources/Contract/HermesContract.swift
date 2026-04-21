@@ -14,6 +14,18 @@ enum HermesAPIPaths {
     static func approvalDecision(approvalId: String) -> String {
         "/v1/approvals/\(approvalId)/decision"
     }
+
+    static func sessionDetail(sessionId: String) -> String {
+        "/v1/sessions/\(sessionId)"
+    }
+
+    static func sessionControlAction(sessionId: String) -> String {
+        "/v1/sessions/\(sessionId)/actions"
+    }
+
+    static func sessionActionEndpoint(sessionId: String, action: String) -> String {
+        "/v1/sessions/\(sessionId)/\(action)"
+    }
 }
 
 struct HermesDeviceIdentity: Codable, Hashable {
@@ -95,6 +107,34 @@ struct HermesApprovalActionResult: Codable, Hashable {
     let updatedAt: String
 }
 
+struct HermesSessionControlActionResult: Codable, Hashable {
+    let sessionId: String
+    let action: String
+    let status: String
+    let detail: String
+    let updatedAt: String
+    let endpoint: String?
+    let supported: Bool?
+
+    init(
+        sessionId: String,
+        action: String,
+        status: String,
+        detail: String,
+        updatedAt: String,
+        endpoint: String? = nil,
+        supported: Bool? = nil
+    ) {
+        self.sessionId = sessionId
+        self.action = action
+        self.status = status
+        self.detail = detail
+        self.updatedAt = updatedAt
+        self.endpoint = endpoint
+        self.supported = supported
+    }
+}
+
 struct HermesRealtimeEnvelope: Codable, Hashable {
     let type: String
     let dashboard: HermesDashboardSnapshot?
@@ -102,6 +142,81 @@ struct HermesRealtimeEnvelope: Codable, Hashable {
     let approvals: [HermesApprovalSummary]?
     let conversation: HermesConversationEvent?
     let approvalResult: HermesApprovalActionResult?
+    let sessionControlResult: HermesSessionControlActionResult?
+    let eventId: String?
+    let eventTimestamp: String?
+
+    enum CodingKeys: String, CodingKey {
+        case type
+        case kind
+        case dashboard
+        case sessions
+        case approvals
+        case conversation
+        case event
+        case approvalResult
+        case approval_action
+        case sessionControlResult
+        case session_control_action
+        case eventId
+        case id
+        case timestamp
+    }
+
+    init(
+        type: String,
+        dashboard: HermesDashboardSnapshot? = nil,
+        sessions: [HermesSessionSummary]? = nil,
+        approvals: [HermesApprovalSummary]? = nil,
+        conversation: HermesConversationEvent? = nil,
+        approvalResult: HermesApprovalActionResult? = nil,
+        sessionControlResult: HermesSessionControlActionResult? = nil,
+        eventId: String? = nil,
+        eventTimestamp: String? = nil
+    ) {
+        self.type = type
+        self.dashboard = dashboard
+        self.sessions = sessions
+        self.approvals = approvals
+        self.conversation = conversation
+        self.approvalResult = approvalResult
+        self.sessionControlResult = sessionControlResult
+        self.eventId = eventId
+        self.eventTimestamp = eventTimestamp
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        let kind = try c.decodeIfPresent(String.self, forKey: .kind)
+        self.type = try c.decodeIfPresent(String.self, forKey: .type) ?? kind ?? "event"
+        self.dashboard = try c.decodeIfPresent(HermesDashboardSnapshot.self, forKey: .dashboard)
+        self.sessions = try c.decodeIfPresent([HermesSessionSummary].self, forKey: .sessions)
+        self.approvals = try c.decodeIfPresent([HermesApprovalSummary].self, forKey: .approvals)
+        let conv = try c.decodeIfPresent(HermesConversationEvent.self, forKey: .conversation)
+        let evt = try c.decodeIfPresent(HermesConversationEvent.self, forKey: .event)
+        self.conversation = conv ?? evt
+        let ar = try c.decodeIfPresent(HermesApprovalActionResult.self, forKey: .approvalResult)
+        let ar2 = try c.decodeIfPresent(HermesApprovalActionResult.self, forKey: .approval_action)
+        self.approvalResult = ar ?? ar2
+        let scr = try c.decodeIfPresent(HermesSessionControlActionResult.self, forKey: .sessionControlResult)
+        let scr2 = try c.decodeIfPresent(HermesSessionControlActionResult.self, forKey: .session_control_action)
+        self.sessionControlResult = scr ?? scr2
+        self.eventId = try c.decodeIfPresent(String.self, forKey: .eventId) ?? c.decodeIfPresent(String.self, forKey: .id)
+        self.eventTimestamp = try c.decodeIfPresent(String.self, forKey: .timestamp)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(type, forKey: .type)
+        try c.encodeIfPresent(dashboard, forKey: .dashboard)
+        try c.encodeIfPresent(sessions, forKey: .sessions)
+        try c.encodeIfPresent(approvals, forKey: .approvals)
+        try c.encodeIfPresent(conversation, forKey: .conversation)
+        try c.encodeIfPresent(approvalResult, forKey: .approvalResult)
+        try c.encodeIfPresent(sessionControlResult, forKey: .sessionControlResult)
+        try c.encodeIfPresent(eventId, forKey: .eventId)
+        try c.encodeIfPresent(eventTimestamp, forKey: .timestamp)
+    }
 }
 
 struct HermesGatewaySettings: Hashable {

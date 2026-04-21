@@ -24,13 +24,32 @@ struct ChatView: View {
                 .padding()
             }
             .safeAreaInset(edge: .bottom) {
-                HStack(spacing: 12) {
-                    TextField("Message Hermes", text: $draft)
-                        .textFieldStyle(.roundedBorder)
-                    Button("Send") {
-                        draft = ""
+                VStack(alignment: .leading, spacing: 8) {
+                    if let err = viewModel.conversationActionError, !err.isEmpty {
+                        Text(err)
+                            .font(.caption)
+                            .foregroundStyle(.red)
                     }
-                    .buttonStyle(.borderedProminent)
+                    HStack(spacing: 12) {
+                        TextField("Message Hermes", text: $draft)
+                            .textFieldStyle(.roundedBorder)
+                        Button("Send") {
+                            viewModel.sendConversationMessage(draft)
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(viewModel.conversationActionState == .sending)
+                    }
+                    .onChange(of: viewModel.conversationActionState) { _, newState in
+                        if newState == .sent {
+                            draft = ""
+                        }
+                    }
+                    if viewModel.conversationActionState == .sending {
+                        ProgressView()
+                    }
+                    Text(viewModel.conversationActionStatus)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
                 }
                 .padding()
                 .background(.ultraThinMaterial)

@@ -71,6 +71,53 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
         refresh()
     }
 
+    fun loadSessionDetailIfMissing(sessionId: String) {
+        viewModelScope.launch {
+            if (_uiState.value.sessions.any { it.sessionId == sessionId }) {
+                _uiState.update { it.copy(sessionDetailLoadError = null) }
+                return@launch
+            }
+            val auth = currentSession
+            if (auth == null) {
+                _uiState.update {
+                    it.copy(
+                        sessionDetailLoading = false,
+                        sessionDetailLoadError = "Not authenticated; open Settings and connect to the gateway.",
+                    )
+                }
+                return@launch
+            }
+            val liveClient = HermesGatewayClientFactory.createOrNull(applicationContext)
+            if (liveClient == null) {
+                _uiState.update {
+                    it.copy(
+                        sessionDetailLoading = false,
+                        sessionDetailLoadError = "Live gateway unavailable; cannot load session detail.",
+                    )
+                }
+                return@launch
+            }
+            _uiState.update { it.copy(sessionDetailLoading = true, sessionDetailLoadError = null) }
+            runCatching {
+                liveClient.fetchSessionDetail(auth, sessionId)
+            }.onSuccess { detail ->
+                _uiState.update { state ->
+                    val merged = (state.sessions + detail).distinctBy { it.sessionId }
+                    state.copy(
+                        sessions = merged,
+                        sessionDetailLoading = false,
+                        sessionDetailLoadError = null,
+                    )
+                }
+            }.onFailure { error ->
+                val msg = error.message ?: error.toString()
+                _uiState.update {
+                    it.copy(sessionDetailLoading = false, sessionDetailLoadError = msg)
+                }
+            }
+        }
+    }
+
     fun refresh() {
         viewModelScope.launch {
             reconnectCountdownJob?.cancel()
@@ -84,6 +131,8 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
                     gatewayConnectionDetail = "Starting connection bootstrap",
                     realtimeReconnectProgress = 0f,
                     realtimeReconnectCountdown = "Reconnect now",
+                    sessionDetailLoading = false,
+                    sessionDetailLoadError = null,
                 )
             }
             val liveClient = HermesGatewayClientFactory.createOrNull(applicationContext)

@@ -4,8 +4,11 @@ protocol HermesGatewayClientProtocol {
     func bootstrap(device: HermesDeviceIdentity) async throws -> HermesAuthSession
     func fetchDashboard(session: HermesAuthSession) async throws -> HermesDashboardSnapshot
     func fetchSessions(session: HermesAuthSession) async throws -> [HermesSessionSummary]
+    func fetchSessionDetail(session: HermesAuthSession, sessionId: String) async throws -> HermesSessionSummary
+    func submitSessionControlAction(session: HermesAuthSession, sessionId: String, action: String) async throws -> HermesSessionControlActionResult
     func fetchApprovals(session: HermesAuthSession) async throws -> [HermesApprovalSummary]
     func fetchConversation(session: HermesAuthSession) async throws -> [HermesConversationEvent]
+    func submitConversationMessage(session: HermesAuthSession, message: String) async throws -> HermesConversationEvent?
     func submitApprovalAction(session: HermesAuthSession, approvalId: String, action: String, note: String?) async throws -> HermesApprovalActionResult
     func connectRealtime(session: HermesAuthSession, onStatus: @escaping (String) -> Void, onEnvelope: @escaping (HermesRealtimeEnvelope) -> Void) -> HermesRealtimeStreamHandle
 }
@@ -53,6 +56,73 @@ final class HermesGatewayClient: HermesGatewayClientProtocol {
         return try decodeCollection(HermesSessionSummary.self, from: data)
     }
 
+    func fetchSessionDetail(session: HermesAuthSession, sessionId: String) async throws -> HermesSessionSummary {
+        let data = try await transport.get(path: HermesAPIPaths.sessionDetail(sessionId: sessionId), bearerToken: session.accessToken)
+        return try JSONDecoder().decode(HermesSessionSummary.self, from: data)
+    }
+
+    func submitSessionControlAction(session: HermesAuthSession, sessionId: String, action: String) async throws -> HermesSessionControlActionResult {
+        let normalized = Self.normalizeSessionControlActionWire(action)
+        let candidates: [(path: String, body: Data)] = [
+            (HermesAPIPaths.sessionControlAction(sessionId: sessionId), try JSONSerialization.data(withJSONObject: ["action": normalized])),
+            (HermesAPIPaths.sessionActionEndpoint(sessionId: sessionId, action: normalized), Data("{}".utf8)),
+        ]
+        var unsupported = 0
+        var lastFailure = "No session-control endpoint candidates were configured."
+        for candidate in candidates {
+            do {
+                let data = try await transport.post(path: candidate.path, body: candidate.body, bearerToken: session.accessToken)
+                let fallback = HermesSessionControlActionResult(
+                    sessionId: sessionId,
+                    action: normalized,
+                    status: "submitted",
+                    detail: "Session-control action accepted.",
+                    updatedAt: "now",
+                    endpoint: candidate.path,
+                    supported: true
+                )
+                if data.isEmpty {
+                    return fallback
+                }
+                return Self.decodeSessionControlResult(data: data, fallback: fallback)
+            } catch {
+                let ns = error as NSError
+                if ns.domain == "HermesURLSessionTransport", ns.code == 404 || ns.code == 405 {
+                    unsupported += 1
+                    lastFailure = "POST \(candidate.path) failed: \(error.localizedDescription)"
+                } else {
+                    return HermesSessionControlActionResult(
+                        sessionId: sessionId,
+                        action: normalized,
+                        status: "failed",
+                        detail: error.localizedDescription,
+                        updatedAt: "now",
+                        endpoint: candidate.path,
+                        supported: true
+                    )
+                }
+            }
+        }
+        if unsupported == candidates.count {
+            return HermesSessionControlActionResult(
+                sessionId: sessionId,
+                action: normalized,
+                status: "unsupported",
+                detail: "Gateway does not expose a supported session-control endpoint for action '\(normalized)'.",
+                updatedAt: "now",
+                supported: false
+            )
+        }
+        return HermesSessionControlActionResult(
+            sessionId: sessionId,
+            action: normalized,
+            status: "failed",
+            detail: lastFailure,
+            updatedAt: "now",
+            supported: true
+        )
+    }
+
     func fetchApprovals(session: HermesAuthSession) async throws -> [HermesApprovalSummary] {
         let data = try await transport.get(path: HermesAPIPaths.approvals, bearerToken: session.accessToken)
         return try decodeCollection(HermesApprovalSummary.self, from: data)
@@ -61,6 +131,13 @@ final class HermesGatewayClient: HermesGatewayClientProtocol {
     func fetchConversation(session: HermesAuthSession) async throws -> [HermesConversationEvent] {
         let data = try await transport.get(path: HermesAPIPaths.conversation, bearerToken: session.accessToken)
         return try decodeCollection(HermesConversationEvent.self, from: data)
+    }
+
+    func submitConversationMessage(session: HermesAuthSession, message: String) async throws -> HermesConversationEvent? {
+        let trimmed = message.trimmingCharacters(in: .whitespacesAndNewlines)
+        let payload = try JSONSerialization.data(withJSONObject: ["body": trimmed])
+        let data = try await transport.post(path: HermesAPIPaths.conversation, body: payload, bearerToken: session.accessToken)
+        return Self.parseConversationSendResponse(data: data, fallbackMessage: trimmed)
     }
 
     func submitApprovalAction(session: HermesAuthSession, approvalId: String, action: String, note: String?) async throws -> HermesApprovalActionResult {
@@ -182,6 +259,45 @@ final class HermesGatewayClient: HermesGatewayClientProtocol {
         }
         return []
     }
+
+    private static func normalizeSessionControlActionWire(_ raw: String) -> String {
+        let t = raw.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if t == "stop" { return "terminate" }
+        return t
+    }
+
+    private static func decodeSessionControlResult(data: Data, fallback: HermesSessionControlActionResult) -> HermesSessionControlActionResult {
+        guard let decoded = try? JSONDecoder().decode(HermesSessionControlActionResult.self, from: data) else {
+            return fallback
+        }
+        return HermesSessionControlActionResult(
+            sessionId: decoded.sessionId,
+            action: decoded.action,
+            status: decoded.status,
+            detail: decoded.detail,
+            updatedAt: decoded.updatedAt,
+            endpoint: decoded.endpoint ?? fallback.endpoint,
+            supported: decoded.supported ?? fallback.supported
+        )
+    }
+
+    private static func parseConversationSendResponse(data: Data, fallbackMessage: String) -> HermesConversationEvent? {
+        if data.isEmpty {
+            return HermesConversationEvent(
+                eventId: "local-\(UUID().uuidString)",
+                author: "You",
+                body: fallbackMessage,
+                timestamp: "now"
+            )
+        }
+        if let ev = try? JSONDecoder().decode(HermesConversationEvent.self, from: data) {
+            return ev
+        }
+        if let arr = try? JSONDecoder().decode([HermesConversationEvent].self, from: data), let last = arr.last {
+            return last
+        }
+        return nil
+    }
 }
 
 final class HermesDemoGatewayClient: HermesGatewayClientProtocol {
@@ -213,6 +329,25 @@ final class HermesDemoGatewayClient: HermesGatewayClientProtocol {
         ]
     }
 
+    func fetchSessionDetail(session: HermesAuthSession, sessionId: String) async throws -> HermesSessionSummary {
+        try await fetchSessions(session: session).first { $0.sessionId == sessionId }
+            ?? HermesSessionSummary(sessionId: sessionId, title: "Demo session", status: "Unknown", updatedAt: "now")
+    }
+
+    func submitSessionControlAction(session: HermesAuthSession, sessionId: String, action: String) async throws -> HermesSessionControlActionResult {
+        let t = action.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let normalized = t == "stop" ? "terminate" : t
+        return HermesSessionControlActionResult(
+            sessionId: sessionId,
+            action: normalized,
+            status: "demo-complete",
+            detail: "Demo fallback accepted the session-control action.",
+            updatedAt: "just now",
+            endpoint: "demo",
+            supported: true
+        )
+    }
+
     func fetchApprovals(session: HermesAuthSession) async throws -> [HermesApprovalSummary] {
         [
             HermesApprovalSummary(approvalId: "approval-1", title: "Deploy branch", detail: "Approve production deployment for feature work.", requiresBiometrics: true),
@@ -225,6 +360,15 @@ final class HermesDemoGatewayClient: HermesGatewayClientProtocol {
             HermesConversationEvent(eventId: "demo-event-1", author: "Hermes", body: "Demo realtime stream active.", timestamp: "now"),
             HermesConversationEvent(eventId: "demo-event-2", author: "You", body: "Review the latest approvals.", timestamp: "just now"),
         ]
+    }
+
+    func submitConversationMessage(session: HermesAuthSession, message: String) async throws -> HermesConversationEvent? {
+        HermesConversationEvent(
+            eventId: "demo-\(Int(Date().timeIntervalSince1970 * 1000))",
+            author: "You",
+            body: message.trimmingCharacters(in: .whitespacesAndNewlines),
+            timestamp: "now"
+        )
     }
 
     func submitApprovalAction(session: HermesAuthSession, approvalId: String, action: String, note: String?) async throws -> HermesApprovalActionResult {
@@ -248,7 +392,10 @@ final class HermesDemoGatewayClient: HermesGatewayClientProtocol {
                     sessions: nil,
                     approvals: nil,
                     conversation: HermesConversationEvent(eventId: "demo-stream-1", author: "Hermes", body: "Demo realtime stream active.", timestamp: "now"),
-                    approvalResult: nil
+                    approvalResult: nil,
+                    sessionControlResult: nil,
+                    eventId: nil,
+                    eventTimestamp: nil
                 )
             )
         }

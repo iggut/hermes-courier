@@ -3,8 +3,13 @@ package com.hermescourier.android.ui
 import android.net.Uri
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.List
@@ -14,6 +19,8 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -24,6 +31,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -194,24 +202,57 @@ fun HermesCourierApp(viewModel: HermesCourierViewModel = viewModel()) {
                 arguments = listOf(navArgument(SESSION_DETAIL_ARG) { type = NavType.StringType }),
             ) { entry ->
                 val sessionId = entry.arguments?.getString(SESSION_DETAIL_ARG).orEmpty()
+                LaunchedEffect(sessionId) {
+                    if (sessionId.isNotBlank()) {
+                        viewModel.loadSessionDetailIfMissing(sessionId)
+                    }
+                }
                 val session = uiState.sessions.firstOrNull { it.sessionId == sessionId }
-                if (session == null) {
-                    SessionsScreen(
-                        contentPadding = contentPadding,
-                        sessions = uiState.sessions,
-                        bootstrapState = uiState.bootstrapState,
-                        streamStatus = uiState.streamStatus,
-                        onOpenSessionDetail = { id -> navController.navigate(sessionDetailRoute(id)) },
-                        onRefresh = viewModel::refresh,
-                    )
-                } else {
-                    SessionDetailScreen(
-                        contentPadding = contentPadding,
-                        session = session,
-                        onRefresh = viewModel::refresh,
-                        onSessionControlAction = viewModel::submitSessionControlAction,
-                        sessionControlStatus = uiState.sessionControlStatus,
-                    )
+                when {
+                    sessionId.isBlank() -> {
+                        Text(
+                            modifier = Modifier.padding(contentPadding).padding(24.dp),
+                            text = "Missing session id",
+                        )
+                    }
+                    session != null -> {
+                        SessionDetailScreen(
+                            contentPadding = contentPadding,
+                            session = session,
+                            onRefresh = viewModel::refresh,
+                            onSessionControlAction = viewModel::submitSessionControlAction,
+                            sessionControlStatus = uiState.sessionControlStatus,
+                        )
+                    }
+                    uiState.sessionDetailLoadError != null -> {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(contentPadding)
+                                .padding(24.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                        ) {
+                            Text(text = uiState.sessionDetailLoadError ?: "Unable to load session")
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Button(onClick = { viewModel.loadSessionDetailIfMissing(sessionId) }) {
+                                Text("Retry")
+                            }
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Button(onClick = viewModel::refresh) {
+                                Text("Refresh gateway")
+                            }
+                        }
+                    }
+                    else -> {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(contentPadding),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            CircularProgressIndicator()
+                        }
+                    }
                 }
             }
             composable(HermesCourierRoute.Approvals.route) {

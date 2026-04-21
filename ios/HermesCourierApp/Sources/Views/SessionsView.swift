@@ -27,15 +27,20 @@ struct SessionsView: View {
                 }
 
                 ForEach(viewModel.sessions) { session in
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text(session.title).font(.headline)
-                        Text(session.status)
-                        Text(session.updatedAt).font(.caption).foregroundStyle(.secondary)
+                    NavigationLink(value: session.sessionId) {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text(session.title).font(.headline)
+                            Text(session.status)
+                            Text(session.updatedAt).font(.caption).foregroundStyle(.secondary)
+                        }
+                        .padding(.vertical, 4)
                     }
-                    .padding(.vertical, 4)
                 }
             }
             .navigationTitle("Sessions")
+            .navigationDestination(for: String.self) { sessionId in
+                SessionDetailContainerView(sessionId: sessionId)
+            }
         }
     }
 }
