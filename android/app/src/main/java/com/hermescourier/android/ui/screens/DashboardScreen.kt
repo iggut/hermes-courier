@@ -77,6 +77,12 @@ fun DashboardScreen(
                 )
                 Text(text = uiState.bootstrapState, style = MaterialTheme.typography.bodyLarge)
                 Text(text = uiState.authStatus, style = MaterialTheme.typography.bodyMedium)
+                Text(text = "Gateway mode: ${uiState.gatewayConnectionMode}", style = MaterialTheme.typography.bodyMedium)
+                Text(
+                    text = uiState.gatewayConnectionDetail,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
                 Text(
                     text = dashboardNextStep(
                         bootstrapState = uiState.bootstrapState,

@@ -27,7 +27,7 @@ Use **JDK 17** or **JDK 21** for Gradle (Android Gradle Plugin aligns with LTS r
 
 - bottom navigation: **Dashboard** (includes the live conversation feed), **Sessions**, **Approvals**, and **Settings**
 - reusable cards and shell chrome
-- secure gateway bootstrap, demo/local gateway client, and EncryptedSharedPreferences-backed settings
+- secure gateway bootstrap, demo/local gateway client, explicit live gateway test flow, and EncryptedSharedPreferences-backed settings
 - Android Keystore-backed challenge signing and encrypted token storage scaffolding
 - shared secure API contract (`shared/contract/`) aligned with the gateway paths
 

@@ -74,32 +74,46 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
                 it.copy(
                     bootstrapState = "Negotiating secure gateway",
                     authStatus = "Requesting device challenge",
+                    gatewayConnectionMode = "Checking live gateway",
+                    gatewayConnectionDetail = "Starting connection bootstrap",
                     realtimeReconnectProgress = 0f,
                     realtimeReconnectCountdown = "Reconnect now",
                 )
             }
             val liveClient = HermesGatewayClientFactory.createOrNull(applicationContext)
             if (liveClient == null) {
+                val detail = "Secure gateway client could not be created from the current settings"
                 _uiState.update {
                     it.copy(
                         bootstrapState = "Gateway unavailable",
-                        authStatus = "Using offline-safe sample data because secure gateway initialization failed",
-                        streamStatus = "Demo realtime stream active",
+                        authStatus = detail,
+                        gatewayConnectionMode = "Unavailable",
+                        gatewayConnectionDetail = detail,
+                        streamStatus = "Realtime stream unavailable",
                     )
                 }
                 runCatching {
-                    loadFromGateway(fallbackGatewayClient)
+                    loadFromGateway(
+                        fallbackGatewayClient,
+                        connectionMode = "Demo fallback",
+                        connectionDetail = detail,
+                    )
                 }.onSuccess { fallbackState ->
                     _uiState.value = fallbackState.copy(
                         bootstrapState = "Demo fallback active",
                         authStatus = "Using offline-safe sample data",
+                        gatewayConnectionMode = "Demo fallback",
+                        gatewayConnectionDetail = detail,
                         streamStatus = "Demo realtime stream active",
                     )
                 }.onFailure { fallbackError ->
+                    val fallbackDetail = fallbackError.localizedMessage ?: fallbackError.toString()
                     _uiState.update {
                         it.copy(
                             bootstrapState = "Gateway unavailable",
-                            authStatus = fallbackError.localizedMessage ?: fallbackError.toString(),
+                            authStatus = fallbackDetail,
+                            gatewayConnectionMode = "Unavailable",
+                            gatewayConnectionDetail = fallbackDetail,
                             streamStatus = "Realtime stream unavailable",
                         )
                     }
@@ -107,27 +121,103 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
                 return@launch
             }
             runCatching {
-                loadFromGateway(liveClient)
+                loadFromGateway(
+                    liveClient,
+                    connectionMode = "Live gateway",
+                    connectionDetail = "Live gateway handshake completed",
+                )
             }.onSuccess { state ->
-                _uiState.value = state
+                _uiState.value = state.copy(
+                    bootstrapState = "Live gateway connected",
+                    gatewayConnectionMode = "Live gateway",
+                    gatewayConnectionDetail = "Live gateway handshake completed",
+                )
                 flushQueuedApprovalActions(liveClient, currentSession)
             }.onFailure { error ->
+                val detail = error.localizedMessage ?: error.toString()
                 runCatching {
-                    loadFromGateway(fallbackGatewayClient)
+                    loadFromGateway(
+                        fallbackGatewayClient,
+                        connectionMode = "Demo fallback",
+                        connectionDetail = detail,
+                    )
                 }.onSuccess { fallbackState ->
                     _uiState.value = fallbackState.copy(
                         bootstrapState = "Demo fallback active",
-                        authStatus = "Using offline-safe sample data (${error.message ?: "unknown error"})",
+                        authStatus = "Using offline-safe sample data ($detail)",
+                        gatewayConnectionMode = "Demo fallback",
+                        gatewayConnectionDetail = detail,
                         streamStatus = "Demo realtime stream active",
                     )
                 }.onFailure { fallbackError ->
+                    val fallbackDetail = fallbackError.localizedMessage ?: fallbackError.toString()
                     _uiState.update {
                         it.copy(
                             bootstrapState = "Gateway unavailable",
-                            authStatus = fallbackError.localizedMessage ?: fallbackError.toString(),
+                            authStatus = fallbackDetail,
+                            gatewayConnectionMode = "Unavailable",
+                            gatewayConnectionDetail = fallbackDetail,
                             streamStatus = "Realtime stream unavailable",
                         )
                     }
+                }
+            }
+        }
+    }
+
+    fun testLiveGateway() {
+        viewModelScope.launch {
+            reconnectCountdownJob?.cancel()
+            reconnectCountdownJob = null
+            syncSettingsFromDisk()
+            _uiState.update {
+                it.copy(
+                    bootstrapState = "Testing live gateway",
+                    authStatus = "Attempting live secure bootstrap",
+                    gatewayConnectionMode = "Testing live gateway",
+                    gatewayConnectionDetail = "Running live connection test",
+                    realtimeReconnectProgress = 0f,
+                    realtimeReconnectCountdown = "Reconnect now",
+                )
+            }
+            val liveClient = HermesGatewayClientFactory.createOrNull(applicationContext)
+            if (liveClient == null) {
+                val detail = "Secure gateway client could not be created from the current settings"
+                _uiState.update {
+                    it.copy(
+                        bootstrapState = "Live gateway unavailable",
+                        authStatus = detail,
+                        gatewayConnectionMode = "Unavailable",
+                        gatewayConnectionDetail = detail,
+                        streamStatus = "Realtime stream unavailable",
+                    )
+                }
+                return@launch
+            }
+            runCatching {
+                loadFromGateway(
+                    liveClient,
+                    connectionMode = "Live gateway",
+                    connectionDetail = "Live gateway handshake completed",
+                )
+            }.onSuccess { state ->
+                _uiState.value = state.copy(
+                    bootstrapState = "Live gateway connected",
+                    authStatus = "Authenticated against ${state.dashboard.connectionState}",
+                    gatewayConnectionMode = "Live gateway",
+                    gatewayConnectionDetail = "Live gateway handshake completed",
+                )
+                flushQueuedApprovalActions(liveClient, currentSession)
+            }.onFailure { error ->
+                val detail = error.localizedMessage ?: error.toString()
+                _uiState.update {
+                    it.copy(
+                        bootstrapState = "Live gateway test failed",
+                        authStatus = detail,
+                        gatewayConnectionMode = "Unavailable",
+                        gatewayConnectionDetail = detail,
+                        streamStatus = "Realtime stream unavailable",
+                    )
                 }
             }
         }
@@ -384,7 +474,11 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
         }
     }
 
-    private suspend fun loadFromGateway(client: HermesGatewayClient): HermesCourierUiState {
+    private suspend fun loadFromGateway(
+        client: HermesGatewayClient,
+        connectionMode: String,
+        connectionDetail: String,
+    ): HermesCourierUiState {
         val session = client.bootstrap(deviceIdentity)
         currentSession = session
         val dashboard = client.fetchDashboard(session)
@@ -397,6 +491,8 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
         return _uiState.value.copy(
             bootstrapState = "Secure gateway ready",
             authStatus = "Session ${session.sessionId} authenticated through ${session.gatewayUrl}",
+            gatewayConnectionMode = connectionMode,
+            gatewayConnectionDetail = connectionDetail,
             dashboard = dashboard,
             sessions = sessions,
             approvals = approvals,
@@ -571,6 +667,8 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
             deviceFingerprint = deviceFingerprint,
             enrollmentStatus = enrollmentStatus(settings),
             enrollmentQrPayload = enrollmentPayload(settings),
+            gatewayConnectionMode = "Unknown",
+            gatewayConnectionDetail = "No gateway check has run yet",
             queuedApprovalActions = queuedApprovalActions.size,
             queuedApprovalActionQueue = queuedApprovalActions.toList(),
         )

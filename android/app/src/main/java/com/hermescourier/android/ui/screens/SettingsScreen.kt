@@ -49,6 +49,7 @@ fun SettingsScreen(
     onEnrollmentQrScanned: (String) -> Unit,
     onSaveSettings: () -> Unit,
     onRefresh: () -> Unit,
+    onTestLiveGateway: () -> Unit,
     onFlushQueuedActions: () -> Unit,
     onReconnectRealtime: () -> Unit,
     onShareEnrollmentQr: () -> Unit,
@@ -107,6 +108,8 @@ fun SettingsScreen(
                 Text(text = "Enrollment status: ${uiState.enrollmentStatus}")
                 Text(text = "Queued approvals: ${uiState.queuedApprovalActions}")
                 Text(text = "Realtime status: ${uiState.streamStatus}")
+                Text(text = "Gateway mode: ${uiState.gatewayConnectionMode}")
+                Text(text = uiState.gatewayConnectionDetail)
                 Text(text = "Reconnect backoff: ${uiState.realtimeReconnectCountdown}")
                 LinearProgressIndicator(
                     progress = uiState.realtimeReconnectProgress,
@@ -114,6 +117,7 @@ fun SettingsScreen(
                 )
                 Text(text = "Connection state: ${uiState.dashboard.connectionState}")
                 Button(onClick = onSaveSettings) { Text(text = "Save settings") }
+                Button(onClick = onTestLiveGateway) { Text(text = "Test live gateway") }
                 Button(onClick = onRefresh) { Text(text = "Refresh connection") }
                 Button(onClick = onReconnectRealtime) { Text(text = "Reconnect realtime now") }
             }

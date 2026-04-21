@@ -126,6 +126,8 @@ fun migrateQueuedApprovalAction(raw: String): String =
 data class HermesCourierUiState(
     val bootstrapState: String = "Bootstrapping secure gateway",
     val authStatus: String = "Waiting for device-bound challenge",
+    val gatewayConnectionMode: String = "Unknown",
+    val gatewayConnectionDetail: String = "No gateway check has run yet",
     val dashboard: HermesDashboardSnapshot = HermesDashboardSnapshot(
         activeSessionCount = 0,
         pendingApprovalCount = 0,
