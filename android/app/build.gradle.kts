@@ -49,6 +49,12 @@ android {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
     }
+
+    sourceSets {
+        getByName("test") {
+            resources.srcDir("../../shared/fixtures/protocol")
+        }
+    }
 }
 
         dependencies {
@@ -74,4 +80,6 @@ android {
             debugImplementation("androidx.compose.ui:ui-test-manifest")
 
             testImplementation("junit:junit:4.13.2")
+            // JVM unit tests use Android stubs for org.json by default; HermesGatewayJson uses real JSONObject/JSONArray.
+            testImplementation("org.json:json:20240303")
         }

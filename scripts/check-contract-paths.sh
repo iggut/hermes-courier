@@ -26,6 +26,8 @@ require_in_yaml "/v1/auth/response"
 require_in_yaml "/v1/dashboard"
 require_in_yaml "/v1/sessions"
 require_in_yaml "/v1/sessions/{sessionId}"
+require_in_yaml "/v1/sessions/{sessionId}/actions"
+require_in_yaml "/v1/sessions/{sessionId}/{action}"
 require_in_yaml "/v1/approvals"
 require_in_yaml "/v1/conversation"
 require_in_yaml "/v1/events"
@@ -47,6 +49,9 @@ require_kt_swift "v1/auth/challenge" "/v1/auth/challenge"
 require_kt_swift "v1/auth/response" "/v1/auth/response"
 require_kt_swift "v1/dashboard" "/v1/dashboard"
 require_kt_swift "v1/sessions" "/v1/sessions"
+require_kt_swift 'v1/sessions/$sessionId' '/v1/sessions/\(sessionId)'
+require_kt_swift 'v1/sessions/$sessionId/actions' '/v1/sessions/\(sessionId)/actions'
+require_kt_swift 'v1/sessions/$sessionId/$action' '/v1/sessions/\(sessionId)/\(action)'
 require_kt_swift "v1/approvals" "/v1/approvals"
 require_kt_swift "v1/conversation" "/v1/conversation"
 require_kt_swift "v1/events" "/v1/events"

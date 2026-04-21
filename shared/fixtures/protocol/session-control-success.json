@@ -1,0 +1,9 @@
+{
+  "sessionId": "sess-fixture-1",
+  "action": "pause",
+  "status": "accepted",
+  "detail": "Session paused.",
+  "updatedAt": "2026-04-21T12:02:00Z",
+  "endpoint": "/v1/sessions/sess-fixture-1/actions",
+  "supported": true
+}

@@ -36,9 +36,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
-import org.json.JSONArray
 import org.json.JSONObject
-import org.json.JSONTokener
 
 interface HermesGatewayClient {
     suspend fun bootstrap(device: HermesDeviceIdentity): HermesAuthSession
@@ -496,134 +494,6 @@ private fun HermesDeviceIdentity.toJson(): JSONObject = JSONObject()
     .put("appVersion", appVersion)
     .put("publicKeyFingerprint", publicKeyFingerprint)
 
-private fun String.toJsonObject(): JSONObject = JSONObject(this)
-
-private fun String.toJsonArrayOrObject(): JSONArray {
-    val parsed = JSONTokener(this).nextValue()
-    return when (parsed) {
-        is JSONArray -> parsed
-        is JSONObject -> parsed.optJSONArray("items")
-            ?: parsed.optJSONArray("data")
-            ?: parsed.optJSONArray("results")
-            ?: JSONArray().put(parsed)
-        else -> JSONArray()
-    }
-}
-
-private fun JSONObject.toChallenge(): HermesAuthChallengeResponse = HermesAuthChallengeResponse(
-    challengeId = getString("challengeId"),
-    nonce = getString("nonce"),
-    expiresAt = optString("expiresAt", ""),
-    trustLevel = optString("trustLevel", "unknown"),
-)
-
-private fun JSONObject.toSession(): HermesAuthSession = HermesAuthSession(
-    sessionId = getString("sessionId"),
-    accessToken = getString("accessToken"),
-    refreshToken = getString("refreshToken"),
-    expiresAt = getString("expiresAt"),
-    gatewayUrl = getString("gatewayUrl"),
-    mtlsRequired = optBoolean("mtlsRequired", true),
-    scope = optJSONArray("scope")?.toStringList() ?: emptyList(),
-)
-
-private fun JSONObject.toDashboard(): HermesDashboardSnapshot = HermesDashboardSnapshot(
-    activeSessionCount = optInt("activeSessionCount", 0),
-    pendingApprovalCount = optInt("pendingApprovalCount", 0),
-    lastSyncLabel = optString("lastSyncLabel", "Never"),
-    connectionState = optString("connectionState", "Connected"),
-)
-
-private fun JSONObject.toSessionSummary(): HermesSessionSummary = HermesSessionSummary(
-    sessionId = optString("sessionId", optString("id", "session-unknown")),
-    title = optString("title", "Untitled session"),
-    status = optString("status", "unknown"),
-    updatedAt = optString("updatedAt", "unknown"),
-)
-
-private fun JSONObject.toApprovalSummary(): HermesApprovalSummary = HermesApprovalSummary(
-    approvalId = optString("approvalId", optString("id", "approval-unknown")),
-    title = optString("title", "Approval"),
-    detail = optString("detail", ""),
-    requiresBiometrics = optBoolean("requiresBiometrics", false),
-)
-
-private fun JSONObject.toConversationEvent(): HermesConversationEvent = HermesConversationEvent(
-    eventId = optString("eventId", optString("id", "event-unknown")),
-    author = optString("author", "Hermes"),
-    body = optString("body", optString("message", "")),
-    timestamp = optString("timestamp", "now"),
-)
-
-private fun String.toConversationEventOrNull(fallbackMessage: String): HermesConversationEvent? {
-    if (isBlank()) {
-        return HermesConversationEvent(
-            eventId = "local-${System.currentTimeMillis()}",
-            author = "You",
-            body = fallbackMessage,
-            timestamp = "now",
-        )
-    }
-    return runCatching {
-        val parsed = JSONTokener(this).nextValue()
-        when (parsed) {
-            is JSONObject -> parsed.toConversationEvent()
-            is JSONArray -> parsed.optJSONObject(parsed.length() - 1)?.toConversationEvent()
-            else -> null
-        }
-    }.getOrNull()
-}
-
-private fun JSONObject.toApprovalActionResult(
-    fallbackApprovalId: String,
-    fallbackDecision: String,
-): HermesApprovalActionResult = HermesApprovalActionResult(
-    approvalId = optString("approvalId", fallbackApprovalId),
-    action = optString("action", optString("decision", fallbackDecision)),
-    status = optString("status", "submitted"),
-    detail = optString("detail", optString("message", "Approval action submitted.")),
-    updatedAt = optString("updatedAt", "now"),
-)
-
-private fun JSONObject.toApprovalActionResult(): HermesApprovalActionResult = HermesApprovalActionResult(
-    approvalId = optString("approvalId", "unknown"),
-    action = optString("action", optString("decision", "unknown")),
-    status = optString("status", "submitted"),
-    detail = optString("detail", optString("message", "Approval action submitted.")),
-    updatedAt = optString("updatedAt", "now"),
-)
-
-private fun JSONObject.toRealtimeEnvelope(): HermesRealtimeEnvelope {
-    val type = optString("type", optString("kind", "conversation"))
-    return HermesRealtimeEnvelope(
-        type = type,
-        dashboard = optJSONObject("dashboard")?.toDashboard(),
-        sessions = optJSONArray("sessions")?.toSessionList(),
-        approvals = optJSONArray("approvals")?.toApprovalList(),
-        conversation = optJSONObject("conversation")?.toConversationEvent()
-            ?: optJSONObject("event")?.toConversationEvent()
-            ?: if (has("body") || has("message")) toConversationEvent() else null,
-        approvalResult = optJSONObject("approvalResult")?.toApprovalActionResult()
-            ?: optJSONObject("approval_action")?.toApprovalActionResult(),
-        sessionControlResult = optJSONObject("sessionControlResult")?.toSessionControlActionResult()
-            ?: optJSONObject("session_control_action")?.toSessionControlActionResult(),
-        eventId = optString("eventId", optString("id", "")).takeIf { it.isNotBlank() },
-        eventTimestamp = optString("timestamp", "").takeIf { it.isNotBlank() },
-    )
-}
-
-private fun JSONObject.toSessionControlActionResult(
-    fallback: HermesSessionControlActionResult? = null,
-): HermesSessionControlActionResult = HermesSessionControlActionResult(
-    sessionId = optString("sessionId", fallback?.sessionId ?: "unknown"),
-    action = optString("action", fallback?.action ?: "unknown"),
-    status = optString("status", fallback?.status ?: "submitted"),
-    detail = optString("detail", optString("message", fallback?.detail ?: "Session-control action submitted.")),
-    updatedAt = optString("updatedAt", fallback?.updatedAt ?: "now"),
-    endpoint = fallback?.endpoint,
-    supported = fallback?.supported ?: true,
-)
-
 private fun normalizeSessionControlActionWire(raw: String): String = when (raw.trim().lowercase()) {
     "stop" -> "terminate"
     else -> raw.trim().lowercase()
@@ -663,19 +533,3 @@ private fun toSessionControlVerificationResult(
     status = if (result.supported && result.status != "failed") "ok" else if (!result.supported) "unsupported" else "failed",
     reason = result.detail + (result.endpoint?.let { " (endpoint: $it)" } ?: ""),
 )
-
-private fun JSONArray.toSessionList(): List<HermesSessionSummary> = mutableListOf<HermesSessionSummary>().apply {
-    for (index in 0 until length()) add(getJSONObject(index).toSessionSummary())
-}
-
-private fun JSONArray.toApprovalList(): List<HermesApprovalSummary> = mutableListOf<HermesApprovalSummary>().apply {
-    for (index in 0 until length()) add(getJSONObject(index).toApprovalSummary())
-}
-
-private fun JSONArray.toConversationList(): List<HermesConversationEvent> = mutableListOf<HermesConversationEvent>().apply {
-    for (index in 0 until length()) add(getJSONObject(index).toConversationEvent())
-}
-
-private fun JSONArray.toStringList(): List<String> = mutableListOf<String>().apply {
-    for (index in 0 until length()) add(getString(index))
-}

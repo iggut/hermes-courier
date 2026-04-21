@@ -1,0 +1,10 @@
+{
+  "type": "approval",
+  "approval_action": {
+    "approvalId": "appr-42",
+    "action": "approve",
+    "status": "accepted",
+    "detail": "Recorded",
+    "updatedAt": "2026-04-21T12:05:00Z"
+  }
+}
