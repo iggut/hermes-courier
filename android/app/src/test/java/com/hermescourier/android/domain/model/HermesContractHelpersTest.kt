@@ -2,6 +2,7 @@ package com.hermescourier.android.domain.model
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -57,5 +58,39 @@ class HermesContractHelpersTest {
                 result.copy(approvalId = "approval-2"),
             ),
         )
+    }
+
+    @Test
+    fun parseHermesEnrollmentPayload_readsBearerPairingFields() {
+        val parsed = parseHermesEnrollmentPayload(
+            payload = "hermes-courier-enroll://gateway?gatewayUrl=https%3A%2F%2Fexample.test&courierMode=bearer-token&bearerToken=abc123",
+            defaultDeviceId = "device-default",
+            defaultPublicKeyFingerprint = "fp-default",
+            defaultAppVersion = "1.0.0",
+            defaultIssuedAt = "now",
+        )
+
+        requireNotNull(parsed)
+        assertEquals("https://example.test", parsed.gatewayUrl)
+        assertEquals("bearer-token", parsed.courierMode)
+        assertEquals("abc123", parsed.bearerToken)
+        assertEquals("device-default", parsed.deviceId)
+    }
+
+    @Test
+    fun parseHermesEnrollmentPayload_keepsLegacyPayloadCompatible() {
+        val parsed = parseHermesEnrollmentPayload(
+            payload = "hermes-courier-enroll://gateway?gatewayUrl=http%3A%2F%2F127.0.0.1%3A8787&deviceId=android-1",
+            defaultDeviceId = "device-default",
+            defaultPublicKeyFingerprint = "fp-default",
+            defaultAppVersion = "1.0.0",
+            defaultIssuedAt = "now",
+        )
+
+        requireNotNull(parsed)
+        assertEquals("http://127.0.0.1:8787", parsed.gatewayUrl)
+        assertEquals("android-1", parsed.deviceId)
+        assertNull(parsed.courierMode)
+        assertNull(parsed.bearerToken)
     }
 }

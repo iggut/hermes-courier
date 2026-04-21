@@ -16,6 +16,7 @@ import com.hermescourier.android.domain.gateway.DemoHermesGatewayClient
 import com.hermescourier.android.domain.gateway.HermesGatewayClient
 import com.hermescourier.android.domain.gateway.HermesGatewayClientFactory
 import com.hermescourier.android.domain.model.HermesApprovalActionResult
+import com.hermescourier.android.domain.model.HermesAuthSession
 import com.hermescourier.android.domain.model.HermesConversationActionState
 import com.hermescourier.android.domain.model.HermesConversationEvent
 import com.hermescourier.android.domain.model.HermesCourierUiState
@@ -25,9 +26,11 @@ import com.hermescourier.android.domain.model.HermesEnrollmentPayload
 import com.hermescourier.android.domain.model.HermesGatewaySettings
 import com.hermescourier.android.domain.model.HermesQueuedApprovalAction
 import com.hermescourier.android.domain.model.HermesSessionControlActionResult
+import com.hermescourier.android.domain.model.parseHermesEnrollmentPayload
 import com.hermescourier.android.domain.model.migrateQueuedApprovalAction
 import com.hermescourier.android.domain.model.queuedApprovalActionMatchesResult
 import com.hermescourier.android.domain.model.userFacingApprovalVerb
+import com.hermescourier.android.domain.storage.EncryptedHermesTokenStore
 import com.google.zxing.BarcodeFormat
 import com.journeyapps.barcodescanner.BarcodeEncoder
 import kotlinx.coroutines.Job
@@ -37,6 +40,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.Closeable
@@ -382,18 +386,38 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
     }
 
     fun applyEnrollmentQr(payload: String) {
-        val parsed = parseEnrollmentPayload(payload)
-        if (parsed == null) {
-            _uiState.update { it.copy(enrollmentStatus = "Enrollment QR could not be parsed") }
-            return
-        }
-        val updatedSettings = _uiState.value.gatewaySettings.copy(baseUrl = parsed.gatewayUrl)
-        _uiState.update {
-            it.copy(
-                gatewaySettings = updatedSettings,
-                enrollmentStatus = "Enrollment QR scanned for ${parsed.gatewayUrl}",
-                enrollmentQrPayload = enrollmentPayload(updatedSettings),
-            )
+        viewModelScope.launch {
+            val parsed = parseEnrollmentPayload(payload)
+            if (parsed == null) {
+                _uiState.update { it.copy(enrollmentStatus = "Pairing import failed: payload could not be parsed") }
+                return@launch
+            }
+            val updatedSettings = _uiState.value.gatewaySettings.copy(baseUrl = parsed.gatewayUrl)
+            HermesGatewayConfiguration.save(applicationContext, updatedSettings)
+            val pairingMode = parsed.courierMode?.lowercase()
+            val hasBearerMode = pairingMode == "bearer-token"
+            val hasBearerToken = !parsed.bearerToken.isNullOrBlank()
+            val statusMessage = when {
+                hasBearerMode && hasBearerToken -> {
+                    persistPairedBearerToken(parsed.gatewayUrl, parsed.bearerToken)
+                    "Pairing import succeeded: bearer-backed live gateway configured for ${parsed.gatewayUrl}"
+                }
+                hasBearerMode && !hasBearerToken -> "Pairing import failed: courierMode=bearer-token but bearerToken was missing"
+                else -> "Enrollment QR scanned for ${parsed.gatewayUrl}"
+            }
+            _uiState.update {
+                it.copy(
+                    gatewaySettings = updatedSettings,
+                    enrollmentStatus = statusMessage,
+                    courierPairingStatus = when {
+                        hasBearerMode && hasBearerToken -> "Bearer pairing configured (manual token entry not required)"
+                        hasBearerMode && !hasBearerToken -> "Bearer pairing payload invalid (missing bearer token)"
+                        else -> "No paired bearer token configured"
+                    },
+                    enrollmentQrPayload = enrollmentPayload(updatedSettings),
+                )
+            }
+            refresh()
         }
     }
 
@@ -703,6 +727,7 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
             gatewaySettings = settings,
             deviceFingerprint = deviceIdentity.publicKeyFingerprint,
             enrollmentStatus = enrollmentStatus(settings),
+            courierPairingStatus = pairingStatusFromTokenStore(),
             enrollmentQrPayload = enrollmentPayload(settings),
             queuedApprovalActions = queuedCount,
             queuedApprovalActionQueue = queuedApprovalActions.toList(),
@@ -883,6 +908,7 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
                 gatewaySettings = loadedSettings,
                 deviceFingerprint = deviceIdentity.publicKeyFingerprint,
                 enrollmentStatus = enrollmentStatus(loadedSettings),
+                courierPairingStatus = pairingStatusFromTokenStore(),
                 enrollmentQrPayload = enrollmentPayload(loadedSettings),
                 queuedApprovalActions = queuedApprovalActions.size,
                 queuedApprovalActionQueue = queuedApprovalActions.toList(),
@@ -918,6 +944,7 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
             gatewaySettings = settings,
             deviceFingerprint = deviceFingerprint,
             enrollmentStatus = enrollmentStatus(settings),
+            courierPairingStatus = pairingStatusFromTokenStore(),
             enrollmentQrPayload = enrollmentPayload(settings),
             gatewayConnectionMode = "Unknown",
             gatewayConnectionDetail = "No gateway check has run yet",
@@ -953,16 +980,40 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
     }
 
     private fun parseEnrollmentPayload(payload: String): HermesEnrollmentPayload? {
-        val uri = runCatching { Uri.parse(payload) }.getOrNull() ?: return null
-        if (uri.scheme != "hermes-courier-enroll") return null
-        val gatewayUrl = uri.getQueryParameter("gatewayUrl") ?: return null
-        return HermesEnrollmentPayload(
-            gatewayUrl = gatewayUrl,
-            deviceId = uri.getQueryParameter("deviceId") ?: deviceIdentity.deviceId,
-            publicKeyFingerprint = uri.getQueryParameter("publicKeyFingerprint") ?: deviceIdentity.publicKeyFingerprint,
-            appVersion = uri.getQueryParameter("appVersion") ?: deviceIdentity.appVersion,
-            issuedAt = uri.getQueryParameter("issuedAt") ?: Instant.now().toString(),
+        return parseHermesEnrollmentPayload(
+            payload = payload,
+            defaultDeviceId = deviceIdentity.deviceId,
+            defaultPublicKeyFingerprint = deviceIdentity.publicKeyFingerprint,
+            defaultAppVersion = deviceIdentity.appVersion,
+            defaultIssuedAt = Instant.now().toString(),
         )
+    }
+
+    private suspend fun persistPairedBearerToken(gatewayUrl: String, bearerToken: String?) {
+        val token = bearerToken?.trim().orEmpty()
+        if (token.isBlank()) return
+        EncryptedHermesTokenStore(applicationContext).save(
+            HermesAuthSession(
+                sessionId = "paired-bearer-${System.currentTimeMillis()}",
+                accessToken = token,
+                refreshToken = "",
+                expiresAt = "paired-via-qr",
+                gatewayUrl = gatewayUrl,
+                mtlsRequired = false,
+                scope = listOf("paired-bearer"),
+            )
+        )
+    }
+
+    private fun pairingStatusFromTokenStore(): String {
+        val hasToken = runCatching {
+            runBlocking { EncryptedHermesTokenStore(applicationContext).load() }
+        }.getOrNull()?.accessToken?.isNotBlank() == true
+        return if (hasToken) {
+            "Bearer pairing configured (manual token entry not required)"
+        } else {
+            "No paired bearer token configured"
+        }
     }
 
     private fun persistQueuedApprovalActions() {

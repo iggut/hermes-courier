@@ -75,6 +75,11 @@ class NetworkHermesGatewayClient(
     private val configuration: HermesGatewayConfiguration,
 ) : HermesGatewayClient {
     override suspend fun bootstrap(device: HermesDeviceIdentity): HermesAuthSession = withContext(Dispatchers.IO) {
+        tokenStore.load()?.let { paired ->
+            if (paired.accessToken.isNotBlank() && paired.gatewayUrl == configuration.baseUrl.toString()) {
+                return@withContext paired
+            }
+        }
         val challenge = requestChallenge(device)
         val signedNonce = signer.sign(challenge.nonce, device)
         val response = transport.post(

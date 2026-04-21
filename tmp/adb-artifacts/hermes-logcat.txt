@@ -1,0 +1,502 @@
+--------- beginning of main
+04-21 11:41:27.123   928   928 I SCS@AiSearch user 0: (PackageBroadcastReceiver) onReceive android.intent.action.PACKAGE_CHANGED
+04-21 11:41:27.123   549   549 I AccountReloadObserver: [C] request reload: 3
+04-21 11:41:27.123   928   928 I SCS@AiSearch user 0: (PackageBroadcastReceiver) packageName: com.google.android.gms
+04-21 11:41:27.123   549   671 I AccountTypeModel: [C] account reload start: 3
+04-21 11:41:27.123   928   928 I SCS@AiSearch user 0: (PackageBroadcastReceiver) Packages changed: com.google.android.gms
+04-21 11:41:27.124   928   928 I SCS@AiSearch user 0: (AppsDataObserver) scheduling worker CMD_UPDATE_LIST
+04-21 11:41:27.124  2398  6929 D SecContentProvider: query(), uri = 30 selection = isLocalContactStorageAllowed
+--------- beginning of system
+04-21 11:41:27.124  2398  6929 D SecContentProvider: called from com.samsung.android.app.contacts
+04-21 11:41:27.124  2398  6929 D RestrictionPolicy: isLocalContactStorageAllowed
+04-21 11:41:27.124  2398  6929 D RestrictionPolicy: isLocalContactStorageAllowed(0) : true
+04-21 11:41:27.124   549   671 I CscFeatureUtil: [C] getOpStyleVariation mOpStyleVariation (CAN)
+04-21 11:41:27.124   549   671 I CscFeatureUtil: [C] getOpStyleVariation mOpStyleVariation (CAN)
+04-21 11:41:27.124   549   671 I AccountTypeLoader: [C] add secure accounts (Knox:false, table:false)
+04-21 11:41:27.124   549   671 I CscFeatureUtil: [C] getOpStyleVariation mOpStyleVariation (CAN)
+04-21 11:41:27.124   549   671 I CscFeatureUtil: [C] getOpStyleVariation mOpStyleVariation (CAN)
+04-21 11:41:27.124   549   671 I CscFeatureUtil: [C] getOpStyleVariation mOpStyleVariation (CAN)
+04-21 11:41:27.124   549   671 I CscFeatureUtil: [C] getOpStyleVariation mOpStyleVariation (CAN)
+04-21 11:41:27.125   549   671 I CscFeatureUtil: [C] getOpStyleVariation mOpStyleVariation (CAN)
+04-21 11:41:27.125   549   671 I CscFeatureUtil: [C] getOpStyleVariation mOpStyleVariation (CAN)
+04-21 11:41:27.125   549   671 I CscFeatureUtil: [C] getOpStyleVariation mOpStyleVariation (CAN)
+04-21 11:41:27.125   549   671 I CscFeatureUtil: [C] getOpStyleVariation mOpStyleVariation (CAN)
+04-21 11:41:27.125   549   671 I CscFeatureUtil: [C] getOpStyleVariation mOpStyleVariation (CAN)
+04-21 11:41:27.125   549   671 I AccountTypeLoader: [C] add readonly account (readonly:false, table:false, att:false)
+04-21 11:41:27.125   549   671 I TelephonyDataSource: [C] isMultiSimModel multiSimConfig : dsds
+04-21 11:41:27.125   549   671 I SimModel: [C] isMultiSimModel : true
+04-21 11:41:27.125   549   671 I AccountTypeLoader: [C] add sim1 account(support:true, multi:true)
+04-21 11:41:27.125   549   671 I EsimUtil: [C] esimState MEP : Finally not esim, slot = 0
+04-21 11:41:27.126   549   671 I CmcSettingManager: cmc activation : 0
+04-21 11:41:27.126   549   671 I TelephonyDataSource: [C] isMultiSimModel multiSimConfig : dsds
+04-21 11:41:27.126   549   671 I SimModel: [C] isMultiSimModel : true
+04-21 11:41:27.126   549   671 I SimModel: [C] CompleteActiveSubscriptionInfoList : 1
+04-21 11:41:27.126   549   671 I SimDataSource: [C] getSimIconIndex() iccTypeSlot : 2,0
+04-21 11:41:27.126   549   671 I SimDataSource: [C] getSimIconIndex() [0] nIndex : 0
+04-21 11:41:27.126   549   671 I SimDataSource: [C] getSimIcon(0) simIcon: 2131231688, iconIdx: 0
+04-21 11:41:27.126  2398  4916 D SecContentProvider2: query(), uri = 18 selection = isCopyContactToSimAllowed
+04-21 11:41:27.127  2398  4916 D SecContentProvider2: isCopyContactToSimAllowed = true
+04-21 11:41:27.127   549   671 I SimModel: [C] CompleteActiveSubscriptionInfoList : 1
+04-21 11:41:27.127   549   671 I AccountTypeLoader: [C] add sim2 account(support:true, opportunistic:false)
+04-21 11:41:27.127   549   671 I EsimUtil: [C] esimState MEP : this is esim , slot = 1
+04-21 11:41:27.127   549   671 I TelephonyDataSource: [C] isMultiSimModel multiSimConfig : dsds
+04-21 11:41:27.127   549   671 I SimModel: [C] isMultiSimModel : true
+04-21 11:41:27.128   549   671 I SimModel: [C] CompleteActiveSubscriptionInfoList : 1
+04-21 11:41:27.128   549   671 I SimDataSource: [C] getSimIconIndex() iccTypeSlot : 2,0
+04-21 11:41:27.128   549   671 I SimDataSource: [C] getSimIconIndex() [1] nIndex : 15
+04-21 11:41:27.128   549   671 I SimDataSource: [C] getSimIcon(1) : iconIdx = 56
+04-21 11:41:27.128   549   671 I SimDataSource: [C] getSimIcon(1) simIcon: 2131231664, iconIdx: 56
+04-21 11:41:27.128  2398  6929 D SecContentProvider2: query(), uri = 18 selection = isCopyContactToSimAllowed
+04-21 11:41:27.128  2398  6929 D SecContentProvider2: isCopyContactToSimAllowed = true
+04-21 11:41:27.128   549   671 I AccountTypeLoader: [C] add syncable account types
+04-21 11:41:27.129   549   671 I ExternalAccountType: [C] loadContactsXml : app.revanced.android.gms
+04-21 11:41:27.129   549   671 I ExternalAccountType: [C] Package was found, but that doesn't contain the CONTACTS_STRUCTURE metadata
+04-21 11:41:27.129   549   671 I AccountTypeLoader: [C]  > added: accountType : app.revanced, dataSet : null, resource : app.revanced.android.gms, adapter : app.revanced.android.gms, isExtension : false
+04-21 11:41:27.129   549   671 I CscFeatureUtil: [C] getOpStyleVariation mOpStyleVariation (CAN)
+04-21 11:41:27.129   549   671 I CscFeatureUtil: [C] getOpStyleVariation mOpStyleVariation (CAN)
+04-21 11:41:27.129   549   671 I CscFeatureUtil: [C] getOpStyleVariation mOpStyleVariation (CAN)
+04-21 11:41:27.129   549   671 I AccountTypeLoader: [C]  > added: accountType : com.google, dataSet : null
+04-21 11:41:27.129   549   671 I ExternalAccountType: [C] loadContactsXml : org.telegram.messenger
+04-21 11:41:27.130   549   671 I ExternalAccountType: [C] Metadata loaded from: org.telegram.messenger, org.telegram.messenger.ContactsSyncAdapterService, android.provider.CONTACTS_STRUCTURE
+04-21 11:41:27.130   549   671 I AccountTypeLoader: [C]  > added: accountType : org.telegram.messenger, dataSet : null, resource : org.telegram.messenger, adapter : org.telegram.messenger, isExtension : false
+04-21 11:41:27.130   549   671 I ExternalAccountType: [C] loadContactsXml : com.whatsapp
+04-21 11:41:27.130   549   671 I ExternalAccountType: [C] Metadata loaded from: com.whatsapp, com.whatsapp.contact.ui.sync.ContactsSyncAdapterService, android.provider.CONTACTS_STRUCTURE
+04-21 11:41:27.130   549   671 I AccountTypeLoader: [C]  > added: accountType : com.whatsapp, dataSet : null, resource : com.whatsapp, adapter : com.whatsapp, isExtension : false
+04-21 11:41:27.130   549   671 I CscFeatureUtil: [C] getOpStyleVariation mOpStyleVariation (CAN)
+04-21 11:41:27.130   549   671 I CscFeatureUtil: [C] getOpStyleVariation mOpStyleVariation (CAN)
+04-21 11:41:27.130   549   671 I AccountTypeLoader: [C]  > added: accountType : com.google.android.gm.exchange, dataSet : null
+04-21 11:41:27.130   549   671 I CscFeatureUtil: [C] getOpStyleVariation mOpStyleVariation (CAN)
+04-21 11:41:27.130   549   671 I CscFeatureUtil: [C] getOpStyleVariation mOpStyleVariation (CAN)
+04-21 11:41:27.130   549   671 I AccountTypeLoader: [C]  > added: accountType : com.osp.app.signin, dataSet : null
+04-21 11:41:27.130   549   671 I ExternalAccountType: [C] loadContactsXml : com.facebook.orca
+04-21 11:41:27.130   549   671 I ExternalAccountType: [C] Metadata loaded from: com.facebook.orca, com.facebook.messaging.phonebookintegration.account.MessengerSyncAdapterService, android.provider.CONTACTS_STRUCTURE
+04-21 11:41:27.131   549   671 I AccountTypeLoader: [C]  > added: accountType : com.facebook.messenger, dataSet : null, resource : com.facebook.orca, adapter : com.facebook.orca, isExtension : false
+04-21 11:41:27.131   549   671 I CscFeatureUtil: [C] getOpStyleVariation mOpStyleVariation (CAN)
+04-21 11:41:27.131   549   671 I CscFeatureUtil: [C] getOpStyleVariation mOpStyleVariation (CAN)
+04-21 11:41:27.131   549   671 I AccountTypeLoader: [C]  > added: accountType : com.samsung.android.coreapps, dataSet : null
+04-21 11:41:27.131   549   671 I ExternalAccountType: [C] loadContactsXml : com.google.android.apps.plus
+04-21 11:41:27.131   549   671 I ExternalAccountType: [C] Package was found, but that doesn't contain the CONTACTS_STRUCTURE metadata
+04-21 11:41:27.131   549   671 I AccountTypeLoader: [C] add syncable accounts (table:false, UIM:false, Samsung:false)
+04-21 11:41:27.131   549   671 I AccountTypeLoader: [C]  > added account: com.whatsapp
+04-21 11:41:27.131   549   671 I AccountTypeLoader: [C]  > added account: com.google
+04-21 11:41:27.131   549   671 I AccountTypeLoader: [C]  > added account: com.osp.app.signin
+04-21 11:41:27.131   549   671 I AccountTypeLoader: [C]  > added account: org.telegram.messenger
+04-21 11:41:27.134   549   671 I AccountTypeModel: [C] Accounts and types are same. loaded = true
+04-21 11:41:27.134   549   671 I AccountTypeModel: [C] account reload finish: 3
+04-21 11:41:27.178  2012  2012 D nativeloader: InitDefaultPublicLibraries for_preload=1: libandroid.so:libaaudio.so:libamidi.so:libbinder_ndk.so:libc.so:libcamera2ndk.so:libdl.so:libEGL.so:libGLESv1_CM.so:libGLESv2.so:libGLESv3.so:libicu.so:libicui18n.so:libicuuc.so:libjnigraphics.so:liblog.so:libmediandk.so:libm.so:libnativehelper.so:libnativewindow.so:libOpenMAXAL.so:libOpenSLES.so:libRS.so:libstdc++.so:libsync.so:libvulkan.so:libwebviewchromium_plat_support.so:libz.so
+04-21 11:41:27.194  2012  2012 D nativeloader: Load libicu_jni.so using APEX ns com_android_art for caller /apex/com.android.art/javalib/core-oj.jar: ok
+04-21 11:41:27.194  2012  2012 D app_process: u_setTimeZoneFilesDirectory("/apex/com.android.tzdata/etc/tz/versioned/9/icu") succeeded. 
+04-21 11:41:27.194  2012  2012 D app_process: I18n APEX ICU file found: /apex/com.android.i18n/etc/icu/icudt76l.dat
+04-21 11:41:27.196  2012  2012 D nativeloader: Load libjavacore.so using APEX ns com_android_art for caller /apex/com.android.art/javalib/core-oj.jar: ok
+04-21 11:41:27.197  2012  2012 D nativeloader: Load libopenjdk.so using APEX ns com_android_art for caller /apex/com.android.art/javalib/core-oj.jar: ok
+04-21 11:41:27.199  2012  2012 I app_process: Priority-to-niceness mapping: 19, 16, 13, 10, 0, -2, -4, -5, -6, -8
+04-21 11:41:27.206  4658  4658 I CardAdapter: setCards: SUGGESTED_APPS, SUGGESTED_TAG, SUGGESTED_DIRECTORY, HISTORY_KEYWORD, DUMMY
+04-21 11:41:27.221  2012  2012 E SemDvfsManager_JNI: SemDvfsManager: registerfunction enter
+04-21 11:41:27.221  2012  2012 E SemAffinityControl: SemAffinityControl: registerfunction enter
+04-21 11:41:27.230  2012  2012 D nativeloader: Load libframework-connectivity-tiramisu-jni.so using APEX ns com_android_tethering for caller /apex/com.android.tethering/javalib/framework-connectivity-t.jar: ok
+04-21 11:41:27.230  2012  2012 D AndroidRuntime: Calling main entry com.android.commands.uiautomator.Launcher
+04-21 11:41:27.235  2012  2012 W PlatformAconfigPackage: android.os.flagging.AconfigStorageReadException: ERROR_CANNOT_READ_STORAGE_FILE: Fail to mmap storage
+04-21 11:41:27.237  2012  2012 I AconfigPackage: android.provider.flags is mapped to com.android.configinfrastructure
+04-21 11:41:27.237  2012  2012 I AconfigPackage: com.android.server.deviceconfig is mapped to com.android.configinfrastructure
+04-21 11:41:27.237  2012  2012 I AconfigPackage: com.android.os.statsd.flags is mapped to com.android.os.statsd
+04-21 11:41:27.237  2012  2012 I AconfigPackage: com.android.bluetooth.flags is mapped to com.android.bt
+04-21 11:41:27.237  2012  2012 I AconfigPackage: com.android.icu is mapped to com.android.i18n
+04-21 11:41:27.238  2012  2012 I AconfigPackage: com.android.devicelock.flags is mapped to com.android.devicelock
+04-21 11:41:27.238  2012  2012 I AconfigPackage: com.android.system.virtualmachine.flags is mapped to com.android.virt
+04-21 11:41:27.238  2012  2012 I AconfigPackage: android.uprobestats.mainline.flags is mapped to com.android.uprobestats
+04-21 11:41:27.238  2012  2012 I AconfigPackage: com.android.art.flags is mapped to com.android.art
+04-21 11:41:27.238  2012  2012 I AconfigPackage: com.android.art.rw.flags is mapped to com.android.art
+04-21 11:41:27.238  2012  2012 I AconfigPackage: com.android.libcore is mapped to com.android.art
+04-21 11:41:27.238  2012  2012 I AconfigPackage: com.android.appsearch.flags is mapped to com.android.appsearch
+04-21 11:41:27.239  2012  2012 I AconfigPackage: com.android.permission.flags is mapped to com.android.permission
+04-21 11:41:27.239  2012  2012 I AconfigPackage: com.android.permissioncontroller.flags is mapped to com.android.permission
+04-21 11:41:27.239  2012  2012 I AconfigPackage: android.os.profiling is mapped to com.android.profiling
+04-21 11:41:27.239  2012  2012 I AconfigPackage: com.android.media.extractor.flags is mapped to com.android.media
+04-21 11:41:27.239  2012  2012 I AconfigPackage: com.android.media.mainline.flags is mapped to com.android.media
+04-21 11:41:27.239  2012  2012 I AconfigPackage: android.media.swcodec.flags is mapped to com.android.media.swcodec
+04-21 11:41:27.240  2012  2012 I AconfigPackage: android.graphics.pdf.flags is mapped to com.android.mediaprovider
+04-21 11:41:27.240  2012  2012 I AconfigPackage: com.android.providers.media.flags is mapped to com.android.mediaprovider
+04-21 11:41:27.240  2012  2012 I AconfigPackage: android.graphics.pdf.flags.readonly is mapped to com.android.mediaprovider
+04-21 11:41:27.240  2012  2012 I AconfigPackage: com.android.cellbroadcastreceiver.flags is mapped to com.android.cellbroadcast
+04-21 11:41:27.240  2012  2012 I AconfigPackage: com.android.ipsec.flags is mapped to com.android.ipsec
+04-21 11:41:27.240  2012  2012 I AconfigPackage: com.android.adservices.flags is mapped to com.android.adservices
+04-21 11:41:27.240  2012  2012 I AconfigPackage: com.android.sdksandbox.flags is mapped to com.android.adservices
+04-21 11:41:27.240  2012  2012 I AconfigPackage: com.android.adservices.ondevicepersonalization.flags is mapped to com.android.ondevicepersonalization
+04-21 11:41:27.241  2012  2012 I AconfigPackage: com.android.wifi.flags is mapped to com.android.wifi
+04-21 11:41:27.241  2012  2012 I AconfigPackage: com.android.org.conscrypt.flags is mapped to com.android.conscrypt
+04-21 11:41:27.241  2012  2012 I AconfigPackage: com.android.org.conscrypt.net.flags is mapped to com.android.conscrypt
+04-21 11:41:27.241  2012  2012 I AconfigPackage: com.android.healthfitness.flags is mapped to com.android.healthfitness
+04-21 11:41:27.241  2012  2012 I AconfigPackage: com.android.tethering.mainline.beta is mapped to com.android.tethering
+04-21 11:41:27.241  2012  2012 I AconfigPackage: android.net.http is mapped to com.android.tethering
+04-21 11:41:27.241  2012  2012 I AconfigPackage: com.android.tethering.readonly.flags is mapped to com.android.tethering
+04-21 11:41:27.241  2012  2012 I AconfigPackage: android.net.vcn is mapped to com.android.tethering
+04-21 11:41:27.241  2012  2012 I AconfigPackage: com.android.net.flags is mapped to com.android.tethering
+04-21 11:41:27.241  2012  2012 I AconfigPackage: com.android.tethering.flags is mapped to com.android.tethering
+04-21 11:41:27.241  2012  2012 I AconfigPackage: com.android.tethering.beta.test is mapped to com.android.tethering
+04-21 11:41:27.241  2012  2012 I AconfigPackage: com.android.nearby.flags is mapped to com.android.tethering
+04-21 11:41:27.241  2012  2012 I AconfigPackage: com.android.net.thread.flags is mapped to com.android.tethering
+04-21 11:41:27.241  2012  2012 I AconfigPackage: com.android.net.ct.flags is mapped to com.android.tethering
+04-21 11:41:27.241  2012  2012 I AconfigPackage: com.android.uwb.flags is mapped to com.android.uwb
+04-21 11:41:27.241  2012  2012 I AconfigPackage: com.android.ranging.flags is mapped to com.android.uwb
+04-21 11:41:27.242  2012  2012 I AconfigPackage: com.android.rkpd.flags is mapped to com.android.rkpd
+04-21 11:41:27.242  2012  2012 I AconfigPackage: com.android.adbd.flags is mapped to com.android.adbd
+04-21 11:41:27.242  2012  2012 E FeatureFlagsImplExport: android.os.flagging.AconfigStorageReadException: ERROR_PACKAGE_NOT_FOUND: package android.xr cannot be found on the device
+04-21 11:41:27.243  2012  2012 D UiAutomationConnection: Created on user UserHandle{0}
+04-21 11:41:27.243  2012  2012 I UiAutomation: Initialized for user 0 on display 0
+04-21 11:41:27.243  2012  2012 W UiAutomation: Created with deprecatead constructor, assumes DEFAULT_DISPLAY
+04-21 11:41:27.244  2398  6929 D AccessibilityManagerService: changeCurrentUserForTestAutomationIfNeededLocked(0): ignoring because device doesn't support visible background users
+04-21 11:41:27.244  2398  6929 I UiAutomationManager: Registering UiTestAutomationService (id=com.android.server.accessibility/UiAutomation, flags=0x0) when called by user 0
+04-21 11:41:27.244  2398  6929 V AccessibilityManagerService: onUserStateChangedLocked for userId: 0, forceUpdate: false
+04-21 11:41:27.245  2398  6929 I ActivityManager: Changes in 10921 3 to 3, 255 to 248
+04-21 11:41:27.247  2398  6929 I ActivityManager: Changes in 10362 4 to 4, 255 to 184
+04-21 11:41:27.247  2398  6929 I ActivityManager: Changes in 10266 3 to 3, 255 to 248
+04-21 11:41:27.248  2398  6929 I ActivityManager: Changes in 10995 5 to 10, 255 to 0
+04-21 11:41:27.248  2398  2890 D HintManagerService: Sent cleanup message for uid 10995
+04-21 11:41:27.249  2398  6929 D KNOX_MDM_SettingsProvider: isChangeAllowed() : name = accessibility_enabled
+04-21 11:41:27.249  2398  6929 D MagnificationConnectionManager: requestConnection :false mConnectionState : 3
+04-21 11:41:27.249  2398  6929 W MagnificationConnectionManager: requestConnection duplicated request: connect=false, mConnectionState=DISCONNECTED
+04-21 11:41:27.249  1793  1930 I HYPER-HAL: [RequestManager.cpp]acquire(): Acquired ID : 349918488  [1796 / 24657]    HINT :      list : [TID_LOW_LATENCY / 0] [TID / 27488] [TID / 27489] [TID / 27461] [TID / 27482] 
+04-21 11:41:27.250  1793  1930 I HYPER-HAL: [RequestManager.cpp]releaseLocked(): Released ID : 349918488
+04-21 11:41:27.250  1793  1930 I HYPER-HAL: [RequestManager.cpp]acquire(): Acquired ID : 349944943  [1796 / 24658]    HINT :      list : [UCLAMP_MIN_BOOST / 0] [TIMEOUT / 50] [TID / 27488] [TID / 27489] [TID / 27461] [TID / 27482] 
+04-21 11:41:27.250  1931  2090 I SurfaceFlinger: id=94691 createSurf, flag=84004, WindowToken{2433846 type=2032 android.os.Binder@43b1c21}#94691
+04-21 11:41:27.251  2398  6929 V AccessibilityManagerService: onUserStateChangedLocked for userId: 0, forceUpdate: false
+04-21 11:41:27.251  2398  6929 D KNOX_MDM_SettingsProvider: isChangeAllowed() : name = accessibility_enabled
+04-21 11:41:27.251  2398  6929 D MagnificationConnectionManager: requestConnection :false mConnectionState : 3
+04-21 11:41:27.251  2398  6929 W MagnificationConnectionManager: requestConnection duplicated request: connect=false, mConnectionState=DISCONNECTED
+04-21 11:41:27.252 25781 25781 I SafetyCenterAccessibilityListener: accessibility event occurred, safety center feature not enabled.
+04-21 11:41:27.252  2398  2398 V InputMethodManagerService: unbindAccessibilityFromCurrentClientLocked: client=android.os.BinderProxy@6580454
+04-21 11:41:27.253 25781 25781 I SafetyCenterAccessibilityListener: accessibility event occurred, safety center feature not enabled.
+04-21 11:41:27.253  1931  1931 I SurfaceFlinger: [LayerHierarchy{RequestedLayerState{WindowToken{fa3fa68 type=2032 android.os.Binder@42ee98b}#94591 z=2} no children}] reparent to OffscreenRoot
+04-21 11:41:27.253  1931  1931 I SurfaceFlinger: [LayerHierarchy{RequestedLayerState{WindowToken{fa3fa68 type=2032 android.os.Binder@42ee98b}#94591 z=2} no children}] RelativeParent to null
+04-21 11:41:27.253  1931  1931 I SurfaceFlinger: [WindowToken{2433846 type=2032 android.os.Binder@43b1c21}#94691] attach to parent LayerHierarchy{RequestedLayerState{Leaf:26:31#39 parentId=38} 5 children}
+04-21 11:41:27.254 25781 25781 I SafetyCenterAccessibilityListener: accessibility event occurred, safety center feature not enabled.
+04-21 11:41:27.254  1931  1931 I SurfaceFlinger: id=94591 Removed WindowToken{fa3fa68 type=2032 android.os.Binder@42ee98b}#94591 (229)
+04-21 11:41:27.255  2398  2398 I AccessibilityManagerService: semIsAccessibilityServiceEnabled()
+04-21 11:41:27.255  2398  2398 I AccessibilityManagerService: semIsAccessibilityServiceEnabled()
+04-21 11:41:27.255  2398  2398 D AS.AudioService: Accessibility volume enabled = false
+04-21 11:41:27.255  1931  2090 I VSyncReactor: Current= 120, Period= 120, Distance= 0
+04-21 11:41:27.255  1931  2440 I SurfaceFlinger: Capture layer list: 	 com.hermescourier.android/com.hermescourier.android.MainActivity$_820#94685(seamlessTransition:0)
+04-21 11:41:27.256 25781 25781 I SafetyCenterAccessibilityListener: accessibility event occurred, safety center feature not enabled.
+04-21 11:41:27.257  2398  2398 I AccessibilityManagerService: semIsAccessibilityServiceEnabled()
+04-21 11:41:27.257  2398  2398 I AccessibilityManagerService: semIsAccessibilityServiceEnabled()
+04-21 11:41:27.257  2398  2398 D AS.AudioService: Accessibility volume enabled = false
+04-21 11:41:27.257  2398  2398 I AccessibilityManagerService: semIsAccessibilityServiceEnabled()
+04-21 11:41:27.257  2398  2398 I AccessibilityManagerService: semIsAccessibilityServiceEnabled()
+04-21 11:41:27.257  2398  2398 D AS.AudioService: Accessibility volume enabled = false
+04-21 11:41:27.257  2398  2398 I AccessibilityManagerService: semIsAccessibilityServiceEnabled()
+04-21 11:41:27.257  2398  2398 I AccessibilityManagerService: semIsAccessibilityServiceEnabled()
+04-21 11:41:27.257  2398  2398 D AS.AudioService: Accessibility volume enabled = false
+04-21 11:41:27.262  1931  1931 I SurfaceFlinger: RequestedLayer [WindowToken{2433846 type=2032 android.os.Binder@43b1c21}#94691] hidden!! flag  from(1) --> to(0)
+04-21 11:41:27.262  1931  1931 I SurfaceFlinger: destroyed WindowToken{fa3fa68 type=2032 android.os.Binder@42ee98b}#94591 form LifecycleManager
+04-21 11:41:27.262  1931  1931 I SurfaceFlinger: [LayerHierarchy{RequestedLayerState{WindowToken{698ff03 type=2032 android.os.Binder@c1703b2}#94593 z=4} no children}] reparent to OffscreenRoot
+04-21 11:41:27.262  1931  1931 I SurfaceFlinger: [LayerHierarchy{RequestedLayerState{WindowToken{698ff03 type=2032 android.os.Binder@c1703b2}#94593 z=4} no children}] RelativeParent to null
+04-21 11:41:27.262  1931  1931 I SurfaceFlinger: [LayerHierarchy{RequestedLayerState{WindowToken{99281bd type=2032 android.os.Binder@7f25514}#94592 z=3} no children}] reparent to OffscreenRoot
+04-21 11:41:27.262  1931  1931 I SurfaceFlinger: [LayerHierarchy{RequestedLayerState{WindowToken{99281bd type=2032 android.os.Binder@7f25514}#94592 z=3} no children}] RelativeParent to null
+04-21 11:41:27.262  1931  1931 I SurfaceFlinger: id=94591 onLayerDestroyed from LayerHierarchyBuilder(RequestedLayerState{WindowToken{fa3fa68 type=2032 android.os.Binder@42ee98b}#94591 !handle z=2})
+04-21 11:41:27.262  1931  1931 I Layer   : id=94591 Destroyed WindowToken{fa3fa68 type=2032 android.os.Binder@42ee98b}#94591
+04-21 11:41:27.262  1931  1931 I SurfaceFlinger: id=94593 Removed WindowToken{698ff03 type=2032 android.os.Binder@c1703b2}#94593 (228)
+04-21 11:41:27.262  1931  1931 I SurfaceFlinger: id=94592 Removed WindowToken{99281bd type=2032 android.os.Binder@7f25514}#94592 (228)
+04-21 11:41:27.263  1931  2090 I VSyncReactor: Current= 120, Period= 120, Distance= 121
+04-21 11:41:27.270  1931  1931 I SurfaceFlinger: destroyed WindowToken{698ff03 type=2032 android.os.Binder@c1703b2}#94593 form LifecycleManager
+04-21 11:41:27.270  1931  1931 I SurfaceFlinger: destroyed WindowToken{99281bd type=2032 android.os.Binder@7f25514}#94592 form LifecycleManager
+04-21 11:41:27.270  1931  1931 I SurfaceFlinger: id=94593 onLayerDestroyed from LayerHierarchyBuilder(RequestedLayerState{WindowToken{698ff03 type=2032 android.os.Binder@c1703b2}#94593 !handle z=4})
+04-21 11:41:27.270  1931  1931 I SurfaceFlinger: id=94592 onLayerDestroyed from LayerHierarchyBuilder(RequestedLayerState{WindowToken{99281bd type=2032 android.os.Binder@7f25514}#94592 !handle z=3})
+04-21 11:41:27.270  1931  1931 I Layer   : id=94593 Destroyed WindowToken{698ff03 type=2032 android.os.Binder@c1703b2}#94593
+04-21 11:41:27.270  1931  1931 I Layer   : id=94592 Destroyed WindowToken{99281bd type=2032 android.os.Binder@7f25514}#94592
+04-21 11:41:27.276  1776  6495 I sensors-hal: handle_sns_client_event:379, [0][21977305] accel_sample [-0.001,  8.575,  4.603] 1593421281478107
+04-21 11:41:27.300  1793  2075 I HYPER-HAL: [RequestManager.cpp]releaseLocked(): Released ID : 349944943
+04-21 11:41:27.350  1805  2408 I SDM     : DisplayBase::CommitThread: Received idle timeout, panel: cmd, timeout: 69999 us
+04-21 11:41:27.356  1931  2440 I SurfaceFlinger: Capture layer list: 	 com.hermescourier.android/com.hermescourier.android.MainActivity$_820#94685(seamlessTransition:0)
+04-21 11:41:27.415  2398  3266 I ActivityManager: Changes in 10119 15 to 8, 0 to 128
+04-21 11:41:27.415 19058 21064 V BinderSender: Uid 10119 already starts
+04-21 11:41:27.419   928   928 I SCS@AiSearch user 0: (ObserverWorker::AOSP_MP) [main] entering in startWork triggered by [content://media/external/file/9667]():  
+04-21 11:41:27.421   928   928 I SCS@AiSearch user 0: (BaseCollector::AOSP_MP) [main] entering in onChange():  
+04-21 11:41:27.421   928 30116 I SCS@AiSearch user 0: (BaseCollector::AOSP_MP) [AOSP_MP-0] entering in collectChanges():  
+04-21 11:41:27.422  2398  6929 D PackageManager: setEnabledSetting : userId = 0 packageName = com.samsung.android.scs cmp = androidx.work.impl.background.systemalarm.RescheduleReceiver newState = 1 callingPackage = com.samsung.android.scs
+04-21 11:41:27.422  2398  6929 D ApplicationPolicy: getApplicationStateEnabled : pkg = com.samsung.android.scs userId : 0
+04-21 11:41:27.422  2398  6929 D ApplicationPolicy: getApplicationComponentState : pkg = com.samsung.android.scs userId : 0
+04-21 11:41:27.435   928   928 I SCS@AiSearch user 0: (ObserverWorker::GALLERY) [main] entering in startWork triggered by [content://secmedia/video/media, content://secmedia/images/media]():  
+04-21 11:41:27.435   928   928 I SCS@AiSearch user 0: (BaseCollector::GALLERY) [main] entering in onChange():  
+04-21 11:41:27.436   928  2078 I SCS@AiSearch user 0: (BaseCollector::GALLERY) [GALLERY-0] entering in collectChanges():  
+04-21 11:41:27.436  2398  6929 I ActivityManager: Changes in 10065 10 to 8, 0 to 128
+04-21 11:41:27.438  2398  4916 D PackageManager: setEnabledSetting : userId = 0 packageName = com.samsung.android.scs cmp = androidx.work.impl.background.systemalarm.RescheduleReceiver newState = 1 callingPackage = com.samsung.android.scs
+04-21 11:41:27.438  2398  4916 D ApplicationPolicy: getApplicationStateEnabled : pkg = com.samsung.android.scs userId : 0
+04-21 11:41:27.438  2398  4916 D ApplicationPolicy: getApplicationComponentState : pkg = com.samsung.android.scs userId : 0
+04-21 11:41:27.441   928 30116 I SCS@AiSearch user 0: (BaseCollector::AOSP_MP) fetchInternal values : maxSyncId: 9660 indexCount: 1893 sourceCount: 1893
+04-21 11:41:27.444   928  2078 I SCS@AiSearch user 0: (BaseCollector::GALLERY) fetchInternal values : maxSyncId: 2147485204 indexCount: 453 sourceCount: 453
+04-21 11:41:27.447  2398  6894 I ActivityManager: Changes in 5004 19 to 8, 0 to 128
+04-21 11:41:27.447 19058 21064 V BinderSender: Uid 5004 already starts
+04-21 11:41:27.447   928 30116 I SCS@AiSearch user 0: (IndexManager) [AOSP_MP-0] entering in addIndex():  
+04-21 11:41:27.448   928 30116 I SCS@AiSearch user 0: (BaseCollector::AOSP_MP) fetch: fetching took  14 ms
+04-21 11:41:27.448   928 30116 I SCS@AiSearch user 0: (BaseCollector::AOSP_MP) fetchChanges: applied 0 items
+04-21 11:41:27.448   928 30116 I SCS@AiSearch user 0: (BaseCollector::AOSP_MP) Collect finished. Result: true
+04-21 11:41:27.448   928  1057 I WM-WorkerWrapper: Worker result SUCCESS for Work [ id=2cf7600c-497a-4877-b3b9-55f6ed81658b, tags={ com.sec.android.app.myfiles, com.samsung.android.scs.ai.search.data.collector.base.ObserverWorker } ]
+04-21 11:41:27.448   928 30116 I SCS@AiSearch user 0: (BaseCollector::AOSP_MP) enqueue ObserverWorker name: com.sec.android.app.myfiles, policy: APPEND_OR_REPLACE
+04-21 11:41:27.450  2398  6929 D PackageManager: setEnabledSetting : userId = 0 packageName = com.samsung.android.scs cmp = androidx.work.impl.background.systemalarm.RescheduleReceiver newState = 1 callingPackage = com.samsung.android.scs
+04-21 11:41:27.450  2398  6929 D ApplicationPolicy: getApplicationStateEnabled : pkg = com.samsung.android.scs userId : 0
+04-21 11:41:27.450  2398  6929 D ApplicationPolicy: getApplicationComponentState : pkg = com.samsung.android.scs userId : 0
+04-21 11:41:27.450   928  1057 W JobInfo : Requested important-while-foreground flag for job248211 is ignored and takes no effect
+04-21 11:41:27.469  1771  5559 I vendor.qti.bluetooth@1.0-ibs_handler: ProcessIbsCmd: Received IBS_WAKE_IND: 0xFD
+04-21 11:41:27.469  1771  5559 D vendor.qti.bluetooth@1.0-ibs_handler: SerialClockVote: vote for UART CLK ON
+04-21 11:41:27.469  1771  5559 D vendor.qti.bluetooth@1.0-wake_lock: Acquire wakelock is acquired 
+04-21 11:41:27.469  1771  5559 I vendor.qti.bluetooth@1.0-ibs_handler: ProcessIbsCmd: Writing IBS_WAKE_ACK
+04-21 11:41:27.474   928  2078 E SCS@AiSearch user 0: (FsmDataManager) getAllHits: No hits
+04-21 11:41:27.474   928  2078 I SCS@AiSearch user 0: (IndexManager) [GALLERY-0] entering in addIndex():  
+04-21 11:41:27.475   928  2078 I SCS@AiSearch user 0: (IndexManager) [INSERT] index=[com.google.android.providers.media], size=1
+04-21 11:41:27.475   928  2078 I SCS@AiSearch user 0: (IndexManager) getIndexWriter(): indexName com.google.android.providers.media
+04-21 11:41:27.476  4285  5702 I ScanController: onScanResult to scannerId: 7- eventType=0x1b, addressType=0, address=XX:XX:XX:XX:9D:7B, primaryPhy=1, secondaryPhy=0, advertisingSid=0xff, txPower=127, rssi=-60, periodicAdvInt=0x0
+04-21 11:41:27.476  4285  5702 I ScanController: onScanResult to scannerId: 7- eventType=0x1b, addressType=0, address=XX:XX:XX:XX:9D:7B, primaryPhy=1, secondaryPhy=0, advertisingSid=0xff, txPower=127, rssi=-60, periodicAdvInt=0x0
+04-21 11:41:27.477 13207 13230 I BCMGR[11.2.04.4]: BeaconMainController] onReceive - [1 : ST packet!][2 : ST packet!][3 : ST packet!][4 : ST packet!][5 : ST packet!][6 : ST packet!][7 : ST packet!][8 : ST packet!][9 : ST packet!][10 : ST packet!]
+04-21 11:41:27.477 31288 31300 I [-0400]oneconnect[1.8.45.24_01][BEACON_MANAGER_CONTROL_SERVICE]: TvOcfParser.onReceive - TV Popup Onboarding is skipped - ($)
+04-21 11:41:27.478   928  2078 I SCS@AiSearch user 0: (NeuralPhoneticsPredictor) isNeuralPhonetics :false inputLanguage: english
+04-21 11:41:27.480   928  2078 I SCS@AiSearch user 0: (IndexManager) [INSERT] Done
+04-21 11:41:27.480   928  2078 I SCS@AiSearch user 0: (IndexSearcherManager) [GALLERY-0] entering in refreshSearcherManager():  refreshSearcherManager for com.google.android.providers.media
+04-21 11:41:27.489   928  2078 I SCS@AiSearch user 0: (IndexSearcherManager) [GALLERY-0] leaving from refreshSearcherManager():  
+04-21 11:41:27.489   928  2078 I SCS@AiSearch user 0: (IndexManager) [GALLERY-0] entering in waitUntilCommitTaskFinished (idx=com.google.android.providers.media)():  
+04-21 11:41:27.489   928 30120 I SCS@AiSearch user 0: (IndexManager) [pool-18-thread-1] entering in commitIndexWriter():  
+04-21 11:41:27.514   928 30120 I SCS@AiSearch user 0: (IndexManager) [pool-18-thread-1] leaving from commitIndexWriter():  
+04-21 11:41:27.514   928  2078 I SCS@AiSearch user 0: (IndexManager) [GALLERY-0] leaving from waitUntilCommitTaskFinished (idx=com.google.android.providers.media)():  
+04-21 11:41:27.514   928  2078 I SCS@AiSearch user 0: (IndexManager) addIndex(): done
+04-21 11:41:27.515   928  2078 I SCS@AiSearch user 0: (BaseCollector::GALLERY) fetch: fetching took  73 ms
+04-21 11:41:27.515   928  2078 I SCS@AiSearch user 0: (BaseCollector::GALLERY) fetchChanges: applied 1 items
+04-21 11:41:27.519  1771  5559 I vendor.qti.bluetooth@1.0-ibs_handler: ProcessIbsCmd: Received IBS_SLEEP_IND: 0xFE
+04-21 11:41:27.519  1771  5559 D vendor.qti.bluetooth@1.0-ibs_handler: SerialClockVote: vote for UART CLK OFF
+04-21 11:41:27.631  1820  2586 I thermal_core: pivot(AP) : 364, skin : 341
+04-21 11:41:27.631  1820  2586 I vendor.samsung.hardware.thermal-service: index = 22.000000
+04-21 11:41:27.631  1820  2586 I vendor.samsung.hardware.thermal-service: 2 / 10
+04-21 11:41:27.669  1771  4761 D vendor.qti.bluetooth@1.0-wake_lock: Release wakelock is released 
+04-21 11:41:27.818  2398  5163 I NSLocationMonitor: getGPSUsingApps() called
+04-21 11:41:27.819  5141  5158 I NSLocationManager_FLP: getGPSUsingApps, No change
+04-21 11:41:27.822  2398  5163 D MARs:ActiveTrafficFilter: filter : com.amazon.mShop.android.shopping(0)
+04-21 11:41:27.822  2398  5163 D FreecessHandler: freeze com.amazon.mShop.android.shopping(10357) result : 8
+04-21 11:41:27.822  2398  5163 I NSLocationMonitor: getGPSUsingApps() called
+04-21 11:41:27.822  5141  5158 I NSLocationManager_FLP: getGPSUsingApps, No change
+04-21 11:41:27.823  2398  5163 D MARs:ActiveTrafficFilter: filter : com.google.android.apps.walletnfcrel(0)
+04-21 11:41:27.823  2398  5163 D FreecessHandler: freeze com.google.android.apps.walletnfcrel(10398) result : 8
+04-21 11:41:27.823  2398  5163 I NSLocationMonitor: getGPSUsingApps() called
+04-21 11:41:27.823  5141  5158 I NSLocationManager_FLP: getGPSUsingApps, No change
+04-21 11:41:27.825  2398  5163 D MARs:ActiveTrafficFilter: filter : com.samsung.android.app.galaxyregistry(0)
+04-21 11:41:27.825  2398  5163 D FreecessHandler: freeze com.samsung.android.app.galaxyregistry(10409) result : 8
+04-21 11:41:27.828  2398  5163 I NSLocationMonitor: getGPSUsingApps() called
+04-21 11:41:27.828  5141  5158 I NSLocationManager_FLP: getGPSUsingApps, No change
+04-21 11:41:27.830  2398  5163 D MARs:ActiveTrafficFilter: filter : org.telegram.messenger(0)
+04-21 11:41:27.830  2398  5163 D FreecessHandler: freeze org.telegram.messenger(10996) result : 8
+04-21 11:41:27.893  1030  1030 D io_stats: !@   8,0 r 81479028 2707524028 w 56023385 1429972716 d 5238047 1625992224 f 795910 4431687 iot 12169504 0 th 0 0 0 pt 0 inp 0 0 999145.233
+04-21 11:41:27.893  1030  1030 D io_stats: !@ Read_top(KB): sh:normal(1987) 34740 sh:normal(2012) 15476 providers.media:low(29136) 4752
+04-21 11:41:27.893  1030  1030 D io_stats: !@ Write_top(KB): kworker/u17:3:/(7532) 14116 system_server:normal(2398) 5200 f2fs_ckpt-254:6:/(1331) 1372
+04-21 11:41:27.893  1030  1030 D io_stats: !@ fuse-log: WORST (2000 35 9 1 9) (0 18 0 4 0) (2000 1 0 1 0) TOTAL_LATENCY (2000 9 35 9 1 1 0 1 3 0 1) (0 0 18 0 4) (10065 0 3 0 1 14 0 2 25 0 2) TOTAL_CNT (2000 10 25 4 63 2 1 1) (10065 8 14 2 25 2 63 2) (0 4 18 4) 
+04-21 11:41:28.014   928  3124 I SCS@AiSearch user 0: (AppsDataWorker) [androidx.work-4] entering in doWork():  
+04-21 11:41:28.015   928  3124 I SCS@AiSearch user 0: (AppsDataObserver) [androidx.work-4] entering in execute():  
+04-21 11:41:28.015   928  3124 I SCS@AiSearch user 0: (AppsDataObserver-CMD_UPDATE_LIST) changed package count: 1
+04-21 11:41:28.017   928  3124 I SCS@AiSearch user 0: (AppsDataObserver) [androidx.work-4] leaving from execute():  result is true
+04-21 11:41:28.017   928  3124 I SCS@AiSearch user 0: (AppsDataWorker) [androidx.work-4] leaving from doWork():  
+04-21 11:41:28.017   928  1057 I WM-WorkerWrapper: Worker result SUCCESS for Work [ id=b5067800-b4b1-480c-bd9c-1994f8e60133, tags={ com.samsung.android.scs.ai.search.data.apps.AppsDataWorker, CMD_UPDATE_LIST } ]
+04-21 11:41:28.045  2398  6894 I BatteryService_BatteryPropertiesRegistrar: [getProperty]id:4
+04-21 11:41:28.045  2398  6894 I BatteryService_BatteryPropertiesRegistrar: [getProperty]prop.long:-9223372036854775808 ,prop.string:null
+04-21 11:41:28.045  2398  6894 I BatteryService_BatteryPropertiesRegistrar: [getProperty]id:4
+04-21 11:41:28.045  2398  6894 I BatteryService_BatteryPropertiesRegistrar: [getProperty]prop.long:-9223372036854775808 ,prop.string:null
+04-21 11:41:28.250  5141  5180 I RequestManager_FLP: onOpChanged, op=0 / packageName=com.hermesandroid.bridge
+04-21 11:41:28.251  2398  3545 D HintManagerService: Starts cleaning for 10995
+04-21 11:41:28.260  2012  2012 D SemCscFeature: Encoded
+04-21 11:41:28.265  6667 10939 W MediaProvider: isAppCloneUserPair for user 0: false
+04-21 11:41:28.268  2398  6894 D SyncManager: userId - 0 auto - true
+04-21 11:41:28.293  2012  2012 W AccessibilityNodeInfoDumper: Fetch time: 30ms
+04-21 11:41:28.294  2398  6929 V AccessibilityManagerService: onUserStateChangedLocked for userId: 0, forceUpdate: false
+04-21 11:41:28.295  2398  3806 D BackgroundInstallControlService: Package event received: 0
+04-21 11:41:28.295  2398  6929 I ActivityManager: Changes in 10921 4 to 4, 248 to 255
+04-21 11:41:28.295  2398  6929 I ActivityManager: Changes in 10362 4 to 4, 184 to 255
+04-21 11:41:28.295  2398  6929 I ActivityManager: Changes in 10266 4 to 4, 248 to 255
+04-21 11:41:28.296  2398  3806 D BackgroundInstallControlService: Package event received: 0
+04-21 11:41:28.297  1931  2090 I SurfaceFlinger: id=94692 createSurf, flag=84004, WindowToken{c83763 type=2032 android.os.Binder@6d86192}#94692
+04-21 11:41:28.297  2398  6929 I ActivityManager: Changes in 10995 16 to 5, 0 to 255
+04-21 11:41:28.298  2398  6929 D KNOX_MDM_SettingsProvider: isChangeAllowed() : name = accessibility_enabled
+04-21 11:41:28.298  2398  6929 D MagnificationConnectionManager: requestConnection :false mConnectionState : 3
+04-21 11:41:28.299  2398  6929 W MagnificationConnectionManager: requestConnection duplicated request: connect=false, mConnectionState=DISCONNECTED
+04-21 11:41:28.299  2398  6929 D AccessibilityManagerService: restoreCurrentUserForTestAutomationIfNeededLocked(): ignoring because device doesn't support visible background users
+04-21 11:41:28.299 19058 21064 V BinderSender: Uid 10995 already starts
+04-21 11:41:28.299  2398  3806 D BackgroundInstallControlService: Package event received: 0
+04-21 11:41:28.299  2398  3806 D BackgroundInstallControlService: Package event received: 0
+04-21 11:41:28.299  1931  1931 I SurfaceFlinger: [WindowToken{c83763 type=2032 android.os.Binder@6d86192}#94692] attach to parent LayerHierarchy{RequestedLayerState{Leaf:26:31#39 parentId=38} 4 children}
+04-21 11:41:28.299  2398  2398 V AccessibilityManagerService: onUserStateChangedLocked for userId: 0, forceUpdate: false
+04-21 11:41:28.300  1931  4515 I VSyncReactor: Current= 120, Period= 120, Distance= 1
+04-21 11:41:28.300  1793  1930 I HYPER-HAL: [RequestManager.cpp]acquire(): Acquired ID : 349918488  [1796 / 24657]    HINT :      list : [TID_LOW_LATENCY / 1] [TID / 27488] [TID / 27489] [TID / 27461] [TID / 27482] 
+04-21 11:41:28.301  2398  6929 D KNOX_MDM_SettingsProvider: isChangeAllowed() : name = accelerometer_rotation
+04-21 11:41:28.301  5141  5180 I RequestManager_FLP: onOpChanged, op=0 / packageName=com.hermesandroid.bridge
+04-21 11:41:28.301  2398  2398 D KNOX_MDM_SettingsProvider: isChangeAllowed() : name = accessibility_enabled
+04-21 11:41:28.301  2398  6929 D KNOX_MDM_SettingsProvider: isChangeAllowed() : name = user_rotation
+04-21 11:41:28.302  2398  6929 V WindowManager: Computed rotation=ROTATION_0 (0) for display id=1 based on lastOrientation=SCREEN_ORIENTATION_UNSPECIFIED (-1) and oldRotation=ROTATION_0 (0), caller=com.android.server.wm.WindowManagerService.updateRotationUnchecked:72 com.android.server.wm.WindowManagerService.thawDisplayRotation:113 com.android.server.wm.WindowManagerService.thawRotation:2 android.view.IWindowManager$Stub.onTransact:3004 com.android.server.wm.WindowManagerService.onTransact:1 android.os.Binder.execTransactInternal:1457 
+04-21 11:41:28.302  1793  1930 I HYPER-HAL: [RequestManager.cpp]acquire(): Acquired ID : 349944943  [1796 / 24658]    HINT :      list : [UCLAMP_MIN_BOOST / 0] [TIMEOUT / 32] [TID / 27488] [TID / 27489] [TID / 27461] [TID / 27482] 
+04-21 11:41:28.302  2398  6929 V WindowManager: Computed rotation=ROTATION_0 (0) for display id=0 based on lastOrientation=SCREEN_ORIENTATION_UNSPECIFIED (-1) and oldRotation=ROTATION_0 (0), caller=com.android.server.wm.WindowManagerService.updateRotationUnchecked:72 com.android.server.wm.WindowManagerService.thawDisplayRotation:113 com.android.server.wm.WindowManagerService.thawRotation:2 android.view.IWindowManager$Stub.onTransact:3004 com.android.server.wm.WindowManagerService.onTransact:1 android.os.Binder.execTransactInternal:1457 
+04-21 11:41:28.302  2398  2398 D MagnificationConnectionManager: requestConnection :false mConnectionState : 3
+04-21 11:41:28.302  2398  2398 W MagnificationConnectionManager: requestConnection duplicated request: connect=false, mConnectionState=DISCONNECTED
+04-21 11:41:28.303  1931  4515 I SurfaceFlinger: id=94693 createSurf, flag=84004, WindowToken{50a90ea type=2032 android.os.Binder@1c3a0d5}#94693
+04-21 11:41:28.303  2398  2398 V AccessibilityManagerService: onUserStateChangedLocked for userId: 0, forceUpdate: false
+04-21 11:41:28.303  2012  2012 D AndroidRuntime: Shutting down VM
+04-21 11:41:28.303  2398  2398 D KNOX_MDM_SettingsProvider: isChangeAllowed() : name = accessibility_enabled
+04-21 11:41:28.303  2398  2398 D MagnificationConnectionManager: requestConnection :false mConnectionState : 3
+04-21 11:41:28.303  2012  2069 W IPCThreadState: call to talkWithDriver in joinThreadPool returned error: -9 (Bad file descriptor), FD: -1
+04-21 11:41:28.303  2398  2398 W MagnificationConnectionManager: requestConnection duplicated request: connect=false, mConnectionState=DISCONNECTED
+04-21 11:41:28.303  2012  2068 W IPCThreadState: call to talkWithDriver in joinThreadPool returned error: -9 (Bad file descriptor), FD: -1
+04-21 11:41:28.304  2012  2076 W IPCThreadState: call to talkWithDriver in joinThreadPool returned error: -9 (Bad file descriptor), FD: -1
+04-21 11:41:28.305  1931  1931 I SurfaceFlinger: RequestedLayer [WindowToken{c83763 type=2032 android.os.Binder@6d86192}#94692] hidden!! flag  from(1) --> to(0)
+04-21 11:41:28.305  1931  1931 I SurfaceFlinger: [LayerHierarchy{RequestedLayerState{WindowToken{2433846 type=2032 android.os.Binder@43b1c21}#94691 z=2} no children}] reparent to OffscreenRoot
+04-21 11:41:28.305  1931  1931 I SurfaceFlinger: [LayerHierarchy{RequestedLayerState{WindowToken{2433846 type=2032 android.os.Binder@43b1c21}#94691 z=2} no children}] RelativeParent to null
+04-21 11:41:28.305  1931  1931 I SurfaceFlinger: [WindowToken{50a90ea type=2032 android.os.Binder@1c3a0d5}#94693] attach to parent LayerHierarchy{RequestedLayerState{Leaf:26:31#39 parentId=38} 4 children}
+04-21 11:41:28.305  1931  1931 I SurfaceFlinger: id=94691 Removed WindowToken{2433846 type=2032 android.os.Binder@43b1c21}#94691 (228)
+04-21 11:41:28.306  1931  2440 I SurfaceFlinger: Capture layer list: 	 com.hermescourier.android/com.hermescourier.android.MainActivity$_820#94685(seamlessTransition:0)
+04-21 11:41:28.308  1931  4515 I VSyncReactor: Current= 120, Period= 120, Distance= 121
+04-21 11:41:28.308 25781 25781 I SafetyCenterAccessibilityListener: accessibility event occurred, safety center feature not enabled.
+04-21 11:41:28.308  1931  2090 I SurfaceFlinger: id=94694 createSurf, flag=84004, WindowToken{8724a78 type=2032 android.os.Binder@ca32fdb}#94694
+04-21 11:41:28.308  2398  2398 V AccessibilityManagerService: onUserStateChangedLocked for userId: 0, forceUpdate: false
+04-21 11:41:28.308  2398  2398 D KNOX_MDM_SettingsProvider: isChangeAllowed() : name = accessibility_enabled
+04-21 11:41:28.308  2398  2398 D MagnificationConnectionManager: requestConnection :false mConnectionState : 3
+04-21 11:41:28.308  2398  2398 W MagnificationConnectionManager: requestConnection duplicated request: connect=false, mConnectionState=DISCONNECTED
+04-21 11:41:28.310 25781 25781 I SafetyCenterAccessibilityListener: accessibility event occurred, safety center feature not enabled.
+04-21 11:41:28.310  2398  2398 I AccessibilityManagerService: semIsAccessibilityServiceEnabled()
+04-21 11:41:28.311  2398  2398 I AccessibilityManagerService: semIsAccessibilityServiceEnabled()
+04-21 11:41:28.311  2398  4916 V AccessibilityManagerService: onUserStateChangedLocked for userId: 0, forceUpdate: false
+04-21 11:41:28.311  2398  4916 D KNOX_MDM_SettingsProvider: isChangeAllowed() : name = accessibility_enabled
+04-21 11:41:28.311  2398  4916 D MagnificationConnectionManager: requestConnection :false mConnectionState : 3
+04-21 11:41:28.311  2398  4916 W MagnificationConnectionManager: requestConnection duplicated request: connect=false, mConnectionState=DISCONNECTED
+04-21 11:41:28.311  2398  2398 D AS.AudioService: Accessibility volume enabled = false
+04-21 11:41:28.312 25781 25781 I SafetyCenterAccessibilityListener: accessibility event occurred, safety center feature not enabled.
+04-21 11:41:28.312  2398  2398 I AccessibilityManagerService: semIsAccessibilityServiceEnabled()
+04-21 11:41:28.312  2398  2398 I AccessibilityManagerService: semIsAccessibilityServiceEnabled()
+04-21 11:41:28.312  2398  2398 D AS.AudioService: Accessibility volume enabled = false
+04-21 11:41:28.313  2398  6894 V AccessibilityManagerService: onUserStateChangedLocked for userId: 0, forceUpdate: false
+04-21 11:41:28.313  1931  1931 I SurfaceFlinger: RequestedLayer [WindowToken{50a90ea type=2032 android.os.Binder@1c3a0d5}#94693] hidden!! flag  from(1) --> to(0)
+04-21 11:41:28.313  1931  1931 I SurfaceFlinger: destroyed WindowToken{2433846 type=2032 android.os.Binder@43b1c21}#94691 form LifecycleManager
+04-21 11:41:28.313  1931  1931 I SurfaceFlinger: [WindowToken{8724a78 type=2032 android.os.Binder@ca32fdb}#94694] attach to parent LayerHierarchy{RequestedLayerState{Leaf:26:31#39 parentId=38} 5 children}
+04-21 11:41:28.313  1931  1931 I SurfaceFlinger: id=94691 onLayerDestroyed from LayerHierarchyBuilder(RequestedLayerState{WindowToken{2433846 type=2032 android.os.Binder@43b1c21}#94691 !handle z=2})
+04-21 11:41:28.313  6294  6294 V A11yInputMethod: startInput(): editor=android.view.inputmethod.EditorInfo@8469d38
+04-21 11:41:28.314  6294  6294 V A11yInputMethod: CALL: onStartInput
+04-21 11:41:28.314  1931  1931 I Layer   : id=94691 Destroyed WindowToken{2433846 type=2032 android.os.Binder@43b1c21}#94691
+04-21 11:41:28.314  2398  2398 I AccessibilityManagerService: semIsAccessibilityServiceEnabled()
+04-21 11:41:28.314  2398  6894 D KNOX_MDM_SettingsProvider: isChangeAllowed() : name = accessibility_enabled
+04-21 11:41:28.314  2398  6894 D MagnificationConnectionManager: requestConnection :false mConnectionState : 3
+04-21 11:41:28.314  2398  6894 W MagnificationConnectionManager: requestConnection duplicated request: connect=false, mConnectionState=DISCONNECTED
+04-21 11:41:28.314 25781 25781 I SafetyCenterAccessibilityListener: accessibility event occurred, safety center feature not enabled.
+04-21 11:41:28.314  2398  2398 I AccessibilityManagerService: semIsAccessibilityServiceEnabled()
+04-21 11:41:28.314  2398  2398 D AS.AudioService: Accessibility volume enabled = false
+04-21 11:41:28.314  2398  2398 I AccessibilityManagerService: semIsAccessibilityServiceEnabled()
+04-21 11:41:28.315  2398  2398 I AccessibilityManagerService: semIsAccessibilityServiceEnabled()
+04-21 11:41:28.315  2398  2398 D AS.AudioService: Accessibility volume enabled = false
+04-21 11:41:28.316 25781 25781 I SafetyCenterAccessibilityListener: accessibility event occurred, safety center feature not enabled.
+04-21 11:41:28.316  2398  2398 I AccessibilityManagerService: semIsAccessibilityServiceEnabled()
+04-21 11:41:28.316  2398  2398 I AccessibilityManagerService: semIsAccessibilityServiceEnabled()
+04-21 11:41:28.316  2398  2398 D AS.AudioService: Accessibility volume enabled = false
+04-21 11:41:28.324  1931  1931 I SurfaceFlinger: RequestedLayer [WindowToken{8724a78 type=2032 android.os.Binder@ca32fdb}#94694] hidden!! flag  from(1) --> to(0)
+04-21 11:41:28.333 32723 32723 I AudioPathManager: loadAudioPath() : loaded audio path is bluetooth (2)
+04-21 11:41:28.333 32723 32723 I EffectManager: isSupportDolbyAtmosOnThisAudioPath() : path is bluetooth (2)
+04-21 11:41:28.333 32723 32723 I UHQUpscalerManager: isUHQCompatibleBluetooth() : support is 0, mode is 1
+04-21 11:41:28.333 32723 32723 I AudioPathManager: loadAudioPath() : loaded audio path is bluetooth (2)
+04-21 11:41:28.333 32723 32723 I EffectManager: isSupportVoiceBoostOnCurrentAudioPath() : path is bluetooth (2)
+04-21 11:41:28.333 32723 32723 I AudioPathManager: loadAudioPath() : loaded audio path is bluetooth (2)
+04-21 11:41:28.333 32723 32723 I EffectManager: isSupportVolumeNormalizationOnCurrentAudioPath() : path is bluetooth (2)
+04-21 11:41:28.333 32723 32723 I DVFSHelper: isNecessaryToBoostCPU() : isDolbyOn? true, isUHQUpscalerOn? false, isVoiceBoostOn? true, isVolumeNormalizationOn? false
+04-21 11:41:28.334  1793  2082 I HYPER-HAL: [RequestManager.cpp]releaseLocked(): Released ID : 349944943
+04-21 11:41:28.402  1805  2408 I SDM     : DisplayBase::CommitThread: Received idle timeout, panel: cmd, timeout: 70000 us
+04-21 11:41:28.406  1931  2440 I SurfaceFlinger: Capture layer list: 	 com.hermescourier.android/com.hermescourier.android.MainActivity$_820#94685(seamlessTransition:0)
+04-21 11:41:28.417  6667  6667 D WM-DelayedWorkTracker: Scheduling work d4ce53e4-9171-48a8-ae1b-4bf857cb40a2
+04-21 11:41:28.417  6667  6667 D WM-GreedyScheduler: Starting tracking for d4ce53e4-9171-48a8-ae1b-4bf857cb40a2
+04-21 11:41:28.419  6667  6904 D WM-ConstraintTracker: BatteryNotLowTracker: initial state = true
+04-21 11:41:28.419  6667  6904 D WM-BrdcstRcvrCnstrntTrc: BatteryNotLowTracker: registering receiver
+04-21 11:41:28.420  6667  6904 D WM-GreedyScheduler: Constraints met: Scheduling work ID WorkGenerationalId(workSpecId=d4ce53e4-9171-48a8-ae1b-4bf857cb40a2, generation=0)
+04-21 11:41:28.420  6667  6904 D WM-Processor: Processor: processing WorkGenerationalId(workSpecId=d4ce53e4-9171-48a8-ae1b-4bf857cb40a2, generation=0)
+04-21 11:41:28.422  6667  6667 D WM-WorkerWrapper: Starting work for com.android.providers.media.photopicker.sync.ProactiveSyncWorker
+04-21 11:41:28.422  6667  2084 I PSyncWorker: Starting proactive picker sync from sync source: 1
+04-21 11:41:28.422  6667  2084 I PickerSyncTracker: Created new sync future java.util.concurrent.CompletableFuture@25fa6d2[Not completed, 1 dependents]. Future map: {d4ce53e4-9171-48a8-ae1b-4bf857cb40a2=java.util.concurrent.CompletableFuture@25fa6d2[Not completed, 1 dependents]}
+04-21 11:41:28.423  6667  2084 D PickerSyncController: syncAllMediaFromProvider() LOCAL, auth=com.android.providers.media.photopicker, retry=true
+04-21 11:41:28.423  6667  2084 D PickerSyncController: getSyncRequestParams() LOCAL, auth=com.android.providers.media.photopicker
+04-21 11:41:28.426  6667  2084 D PickerSyncController:    Latest ID/Gen=01502a377b6e66e7:external_primary/95378
+04-21 11:41:28.426  6667  2084 D PickerSyncController:    Cached ID/Gen=01502a377b6e66e7:external_primary/95229
+04-21 11:41:28.426  6667  2084 D PickerSyncController:    RESULT=SyncRequestParams{type=MEDIA_INCREMENTAL, gen=95229, latest=Bundle[{last_media_sync_generation=95378, media_collection_id=01502a377b6e66e7:external_primary}], pageSize=1000}
+04-21 11:41:28.426  6667  2084 I PickerSyncController: Executing SyncAdd. isLocal: true. authority: com.android.providers.media.photopicker
+04-21 11:41:28.426  6667  2084 D PickerSyncLockManager: Trying to acquire lock com.android.providers.media.photopicker.sync.CloseableReentrantLock@b07e0df[Unlocked]. Lock Name = CLOUD_PROVIDER_LOCK. Threads that may be waiting to acquire this lock = [] with timeout.
+04-21 11:41:28.426  6667  2084 D CloseableReentrantLock: Successfully acquired lock com.android.providers.media.photopicker.sync.CloseableReentrantLock@b07e0df[Locked by thread pool-5-thread-470]. Lock Name = CLOUD_PROVIDER_LOCK. Threads that may be waiting to acquire this lock = []
+04-21 11:41:28.426  6667  2084 D CloseableReentrantLock: Successfully released lock com.android.providers.media.photopicker.sync.CloseableReentrantLock@b07e0df[Unlocked]. Lock Name = CLOUD_PROVIDER_LOCK. Threads that may be waiting to acquire this lock = []
+04-21 11:41:28.426  6667  2084 D ExternalDbFacade: Token received for queryMedia = null
+04-21 11:41:28.434  6667  2084 D PickerSyncLockManager: Trying to acquire lock com.android.providers.media.photopicker.sync.CloseableReentrantLock@b07e0df[Unlocked]. Lock Name = CLOUD_PROVIDER_LOCK. Threads that may be waiting to acquire this lock = [] with timeout.
+04-21 11:41:28.434  6667  2084 D CloseableReentrantLock: Successfully acquired lock com.android.providers.media.photopicker.sync.CloseableReentrantLock@b07e0df[Locked by thread pool-5-thread-470]. Lock Name = CLOUD_PROVIDER_LOCK. Threads that may be waiting to acquire this lock = []
+04-21 11:41:28.434  6667  2084 D PickerSyncController: Saving next page token: 1776786086000|9667 for key: local_provider:media_add:resume
+04-21 11:41:28.434  6667  2084 D CloseableReentrantLock: Successfully released lock com.android.providers.media.photopicker.sync.CloseableReentrantLock@b07e0df[Unlocked]. Lock Name = CLOUD_PROVIDER_LOCK. Threads that may be waiting to acquire this lock = []
+04-21 11:41:28.435  2398  2492 D SyncManager: userId - 0 auto - true
+04-21 11:41:28.435  6667  2084 D PickerNotificationSender: Sending a notification for media update
+04-21 11:41:28.435  2398  4916 D SyncManager: userId - 0 auto - true
+04-21 11:41:28.435  6667  2084 D PickerNotificationSender: Sending a notification for merged album media update Favorites
+04-21 11:41:28.435  6667  2084 D PickerNotificationSender: Sending a notification for album media update Favorites
+04-21 11:41:28.436  2398  4916 D SyncManager: userId - 0 auto - true
+04-21 11:41:28.436  6667  2084 D PickerNotificationSender: Sending a notification for merged album media update Videos
+04-21 11:41:28.436  6667  2084 D PickerNotificationSender: Sending a notification for album media update Videos
+04-21 11:41:28.436  2398  2492 D SyncManager: userId - 0 auto - true
+04-21 11:41:28.436  6667  2084 D ExternalDbFacade: Token received for queryMedia = 1776786086000|9667
+04-21 11:41:28.438  6667  2084 D PickerSyncLockManager: Trying to acquire lock com.android.providers.media.photopicker.sync.CloseableReentrantLock@b07e0df[Unlocked]. Lock Name = CLOUD_PROVIDER_LOCK. Threads that may be waiting to acquire this lock = [] with timeout.
+04-21 11:41:28.438  6667  2084 D CloseableReentrantLock: Successfully acquired lock com.android.providers.media.photopicker.sync.CloseableReentrantLock@b07e0df[Locked by thread pool-5-thread-470]. Lock Name = CLOUD_PROVIDER_LOCK. Threads that may be waiting to acquire this lock = []
+04-21 11:41:28.438  6667  2084 D PickerSyncController: Clearing next page token for key: local_provider:media_add:resume
+04-21 11:41:28.438  6667  2084 D CloseableReentrantLock: Successfully released lock com.android.providers.media.photopicker.sync.CloseableReentrantLock@b07e0df[Unlocked]. Lock Name = CLOUD_PROVIDER_LOCK. Threads that may be waiting to acquire this lock = []
+04-21 11:41:28.438  6667  2084 D PickerNotificationSender: Sending a notification for media update
+04-21 11:41:28.438  2398  2492 D SyncManager: userId - 0 auto - true
+04-21 11:41:28.439  6667  2084 D PickerNotificationSender: Sending a notification for merged album media update Favorites
+04-21 11:41:28.439  6667  2084 D PickerNotificationSender: Sending a notification for album media update Favorites
+04-21 11:41:28.439  2398  2492 D SyncManager: userId - 0 auto - true
+04-21 11:41:28.439  6667  2084 D PickerNotificationSender: Sending a notification for merged album media update Videos
+04-21 11:41:28.439  6667  2084 D PickerNotificationSender: Sending a notification for album media update Videos
+04-21 11:41:28.439  2398  2492 D SyncManager: userId - 0 auto - true
+04-21 11:41:28.439  6667  2084 I PickerSyncController: Paged sync successful. QueryArgs: Bundle[{android.provider.extra.PAGE_TOKEN=1776786086000|9667, android.provider.extra.SYNC_GENERATION=95229, android.provider.extra.PAGE_SIZE=1000}] Total Rows: 1
+04-21 11:41:28.439  6667  2084 I PickerSyncController: Executing SyncRemove. isLocal: true. authority: com.android.providers.media.photopicker
+04-21 11:41:28.439  6667  2084 D PickerSyncLockManager: Trying to acquire lock com.android.providers.media.photopicker.sync.CloseableReentrantLock@b07e0df[Unlocked]. Lock Name = CLOUD_PROVIDER_LOCK. Threads that may be waiting to acquire this lock = [] with timeout.
+04-21 11:41:28.439  6667  2084 D CloseableReentrantLock: Successfully acquired lock com.android.providers.media.photopicker.sync.CloseableReentrantLock@b07e0df[Locked by thread pool-5-thread-470]. Lock Name = CLOUD_PROVIDER_LOCK. Threads that may be waiting to acquire this lock = []
+04-21 11:41:28.439  6667  2084 D CloseableReentrantLock: Successfully released lock com.android.providers.media.photopicker.sync.CloseableReentrantLock@b07e0df[Unlocked]. Lock Name = CLOUD_PROVIDER_LOCK. Threads that may be waiting to acquire this lock = []
+04-21 11:41:28.440  6667  2084 D PickerSyncLockManager: Trying to acquire lock com.android.providers.media.photopicker.sync.CloseableReentrantLock@b07e0df[Unlocked]. Lock Name = CLOUD_PROVIDER_LOCK. Threads that may be waiting to acquire this lock = [] with timeout.
+04-21 11:41:28.440  6667  2084 D CloseableReentrantLock: Successfully acquired lock com.android.providers.media.photopicker.sync.CloseableReentrantLock@b07e0df[Locked by thread pool-5-thread-470]. Lock Name = CLOUD_PROVIDER_LOCK. Threads that may be waiting to acquire this lock = []
+04-21 11:41:28.440  6667  2084 D PickerSyncController: Clearing next page token for key: local_provider:media_remove:resume
+04-21 11:41:28.440  6667  2084 D CloseableReentrantLock: Successfully released lock com.android.providers.media.photopicker.sync.CloseableReentrantLock@b07e0df[Unlocked]. Lock Name = CLOUD_PROVIDER_LOCK. Threads that may be waiting to acquire this lock = []
+04-21 11:41:28.440  6667  2084 D PickerNotificationSender: Sending a notification for media update
+04-21 11:41:28.440  2398  2492 D SyncManager: userId - 0 auto - true
+04-21 11:41:28.440  6667  2084 D PickerNotificationSender: Sending a notification for merged album media update Favorites
+04-21 11:41:28.440  6667  2084 D PickerNotificationSender: Sending a notification for album media update Favorites
+04-21 11:41:28.440  2398  2492 D SyncManager: userId - 0 auto - true
+04-21 11:41:28.440  6667  2084 D PickerNotificationSender: Sending a notification for merged album media update Videos
+04-21 11:41:28.440  6667  2084 D PickerNotificationSender: Sending a notification for album media update Videos
+04-21 11:41:28.441  2398  2492 D SyncManager: userId - 0 auto - true
+04-21 11:41:28.441  6667  2084 I PickerSyncController: Paged sync successful. QueryArgs: Bundle[{android.provider.extra.PAGE_TOKEN=1776786086000|9667, android.provider.extra.SYNC_GENERATION=95229, android.provider.extra.PAGE_SIZE=1000}] Total Rows: 0
+04-21 11:41:28.441  6667  2084 I PickerSyncTracker: Marked sync future complete for work id: d4ce53e4-9171-48a8-ae1b-4bf857cb40a2. Future map: {}
+04-21 11:41:28.441  6667  2084 I PSyncWorker: Completed picker proactive sync complete from local provider.
+04-21 11:41:28.441  6667  6911 I WM-WorkerWrapper: Worker result SUCCESS for Work [ id=d4ce53e4-9171-48a8-ae1b-4bf857cb40a2, tags={ com.android.providers.media.photopicker.sync.ProactiveSyncWorker } ]
+04-21 11:41:28.442  6667  6667 D WM-Processor: Processor d4ce53e4-9171-48a8-ae1b-4bf857cb40a2 executed; reschedule = false
+04-21 11:41:28.442  6667  6667 D WM-GreedyScheduler: Stopping tracking for WorkGenerationalId(workSpecId=d4ce53e4-9171-48a8-ae1b-4bf857cb40a2, generation=0)
+04-21 11:41:28.443  6667  6909 D WM-GreedyScheduler: Cancelling work ID d4ce53e4-9171-48a8-ae1b-4bf857cb40a2
+04-21 11:41:28.444  6667  6909 D WM-GreedyScheduler: Ignoring {WorkSpec: 4b44c763-4294-4788-badf-8da13aede74d}. Requires device idle.
+04-21 11:41:28.444  6667  6909 D WM-GreedyScheduler: Ignoring {WorkSpec: 64e4b887-6a53-49ae-8f9f-76360f5932fa}. Requires device idle.
+04-21 11:41:28.444  6667  6909 D WM-GreedyScheduler: Ignoring {WorkSpec: 8abd4fd4-85b8-4cdc-b1bd-bc36883a0426}. Requires device idle.
+04-21 11:41:28.444  6667  6909 D WM-BrdcstRcvrCnstrntTrc: BatteryNotLowTracker: unregistering receiver
+04-21 11:41:28.563  2398  5163 I NSLocationMonitor: getGPSUsingApps() called
+04-21 11:41:28.563  5141  5158 I NSLocationManager_FLP: getGPSUsingApps, No change
+04-21 11:41:28.565  2398  5163 D MARs:ActiveTrafficFilter: filter : com.google.android.apps.photos(0)
+04-21 11:41:28.565  2398  5163 D FreecessHandler: freeze com.google.android.apps.photos(10274) result : 8
+04-21 11:41:28.633  1820  2586 I thermal_core: pivot(AP) : 359, skin : 341
+04-21 11:41:28.633  1820  2586 I vendor.samsung.hardware.thermal-service: index = 20.800000
+04-21 11:41:28.633  1820  2586 I vendor.samsung.hardware.thermal-service: 3 / 10
+04-21 11:41:28.775   928   928 I SCS@AiSearch user 0: (ObserverWorker::AOSP_MP) [main] entering in startWork triggered by [content://media/external/file/9668]():  
+04-21 11:41:28.775   928   928 I SCS@AiSearch user 0: (BaseCollector::AOSP_MP) [main] entering in onChange():  
+04-21 11:41:28.776   928 30116 I SCS@AiSearch user 0: (BaseCollector::AOSP_MP) [AOSP_MP-0] entering in collectChanges():  
+04-21 11:41:28.777  2398  4916 D PackageManager: setEnabledSetting : userId = 0 packageName = com.samsung.android.scs cmp = androidx.work.impl.background.systemalarm.RescheduleReceiver newState = 1 callingPackage = com.samsung.android.scs
+04-21 11:41:28.777  2398  4916 D ApplicationPolicy: getApplicationStateEnabled : pkg = com.samsung.android.scs userId : 0
+04-21 11:41:28.777  2398  4916 D ApplicationPolicy: getApplicationComponentState : pkg = com.samsung.android.scs userId : 0
+04-21 11:41:28.789   928 30116 I SCS@AiSearch user 0: (BaseCollector::AOSP_MP) fetchInternal values : maxSyncId: 9660 indexCount: 1893 sourceCount: 1893
+04-21 11:41:28.795   928 30116 I SCS@AiSearch user 0: (IndexManager) [AOSP_MP-0] entering in addIndex():  
+04-21 11:41:28.795   928 30116 I SCS@AiSearch user 0: (BaseCollector::AOSP_MP) fetch: fetching took  13 ms
+04-21 11:41:28.795   928 30116 I SCS@AiSearch user 0: (BaseCollector::AOSP_MP) fetchChanges: applied 0 items
+04-21 11:41:28.795   928 30116 I SCS@AiSearch user 0: (BaseCollector::AOSP_MP) Collect finished. Result: true
+04-21 11:41:28.795   928 30116 I SCS@AiSearch user 0: (BaseCollector::AOSP_MP) enqueue ObserverWorker name: com.sec.android.app.myfiles, policy: APPEND_OR_REPLACE
+04-21 11:41:28.795   928  1060 I WM-WorkerWrapper: Worker result SUCCESS for Work [ id=3f84e102-223e-4c45-b80c-850390f1d755, tags={ com.sec.android.app.myfiles, com.samsung.android.scs.ai.search.data.collector.base.ObserverWorker } ]
+04-21 11:41:28.797  2398  4916 D PackageManager: setEnabledSetting : userId = 0 packageName = com.samsung.android.scs cmp = androidx.work.impl.background.systemalarm.RescheduleReceiver newState = 1 callingPackage = com.samsung.android.scs
+04-21 11:41:28.797  2398  4916 D ApplicationPolicy: getApplicationStateEnabled : pkg = com.samsung.android.scs userId : 0
+04-21 11:41:28.797  2398  4916 D ApplicationPolicy: getApplicationComponentState : pkg = com.samsung.android.scs userId : 0
+04-21 11:41:28.798   928  1060 W JobInfo : Requested important-while-foreground flag for job248213 is ignored and takes no effect
+04-21 11:41:29.164  1645  1645 D BoundBrokerSvc: onUnbind: Intent { act=com.google.android.gms.inappreach.service.START dat=chimera-action:/... xflg=0x4 cmp=com.google.android.gms/.chimera.GmsApiService }
+04-21 11:41:29.165  1645  1645 D BoundBrokerSvc: onUnbind: Intent { act=com.google.android.gms.fido.fido2.regular.START xflg=0x4 pkg=com.google.android.gms }
+04-21 11:41:29.165  1645  1645 D BoundBrokerSvc: onUnbind: Intent { act=com.google.android.gms.auth.service.START xflg=0x4 pkg=com.google.android.gms }
+04-21 11:41:29.166  1645  1645 D BoundBrokerSvc: onUnbind: Intent { act=com.google.android.gms.chimera.container.moduleinstall.ModuleInstallService.START dat=chimera-action:/... xflg=0x4 cmp=com.google.android.gms/.chimera.GmsApiService }
+04-21 11:41:29.167  1645  1645 D BoundBrokerSvc: onUnbind: Intent { act=com.google.android.gms.dck.service.START dat=chimera-action:/... xflg=0x4 cmp=com.google.android.gms/.chimera.GmsApiService }
+04-21 11:41:29.180  1645  1713 I Checkin : [CheckinApiChimeraService] onGetService

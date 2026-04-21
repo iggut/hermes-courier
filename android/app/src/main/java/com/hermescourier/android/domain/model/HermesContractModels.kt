@@ -116,7 +116,47 @@ data class HermesEnrollmentPayload(
     val publicKeyFingerprint: String,
     val appVersion: String,
     val issuedAt: String,
+    val courierMode: String? = null,
+    val bearerToken: String? = null,
 )
+
+fun parseHermesEnrollmentPayload(
+    payload: String,
+    defaultDeviceId: String,
+    defaultPublicKeyFingerprint: String,
+    defaultAppVersion: String,
+    defaultIssuedAt: String,
+): HermesEnrollmentPayload? {
+    val uri = runCatching { java.net.URI(payload) }.getOrNull() ?: return null
+    if (uri.scheme != "hermes-courier-enroll") return null
+    val query = parseQueryParameters(uri.rawQuery)
+    val gatewayUrl = query["gatewayUrl"]?.trim().orEmpty()
+    if (gatewayUrl.isBlank()) return null
+    val courierMode = query["courierMode"]?.trim()?.takeIf { it.isNotBlank() }
+    val bearerToken = query["bearerToken"]?.trim()?.takeIf { it.isNotBlank() }
+    return HermesEnrollmentPayload(
+        gatewayUrl = gatewayUrl,
+        deviceId = query["deviceId"] ?: defaultDeviceId,
+        publicKeyFingerprint = query["publicKeyFingerprint"] ?: defaultPublicKeyFingerprint,
+        appVersion = query["appVersion"] ?: defaultAppVersion,
+        issuedAt = query["issuedAt"] ?: defaultIssuedAt,
+        courierMode = courierMode,
+        bearerToken = bearerToken,
+    )
+}
+
+private fun parseQueryParameters(rawQuery: String?): Map<String, String> {
+    if (rawQuery.isNullOrBlank()) return emptyMap()
+    return rawQuery.split("&")
+        .mapNotNull { part ->
+            if (part.isBlank()) return@mapNotNull null
+            val pieces = part.split("=", limit = 2)
+            val key = java.net.URLDecoder.decode(pieces[0], Charsets.UTF_8.name())
+            val value = java.net.URLDecoder.decode(pieces.getOrElse(1) { "" }, Charsets.UTF_8.name())
+            key to value
+        }
+        .toMap()
+}
 
 data class HermesQueuedApprovalAction(
     val approvalId: String,
@@ -195,6 +235,7 @@ data class HermesCourierUiState(
     val gatewaySettings: HermesGatewaySettings = HermesGatewaySettings(),
     val deviceFingerprint: String = "pending-device-enrollment",
     val enrollmentStatus: String = "No certificate imported yet",
+    val courierPairingStatus: String = "No paired bearer token configured",
     val enrollmentQrPayload: String = "",
     val queuedApprovalActions: Int = 0,
     val queuedApprovalActionQueue: List<HermesQueuedApprovalAction> = emptyList(),

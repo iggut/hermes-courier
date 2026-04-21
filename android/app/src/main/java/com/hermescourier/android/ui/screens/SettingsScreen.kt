@@ -107,6 +107,7 @@ fun SettingsScreen(
                 )
                 Text(text = "Certificate path: ${uiState.gatewaySettings.certificatePath.ifBlank { "Not imported" }}")
                 Text(text = "Enrollment status: ${uiState.enrollmentStatus}")
+                Text(text = "Courier pairing: ${uiState.courierPairingStatus}")
                 Text(text = "Queued approvals: ${uiState.queuedApprovalActions}")
                 Text(text = "Realtime status: ${uiState.streamStatus}")
                 Text(text = "Gateway mode: ${uiState.gatewayConnectionMode}")
