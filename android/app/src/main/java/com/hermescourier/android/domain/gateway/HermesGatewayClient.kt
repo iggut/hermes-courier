@@ -232,10 +232,14 @@ class NetworkHermesGatewayClient(
             val reason = boot.exceptionOrNull()?.message ?: boot.exceptionOrNull().toString()
             checks += HermesEndpointVerificationResult("auth/bootstrap", "failed", reason)
             checks += HermesEndpointVerificationResult("dashboard", "skipped", "Skipped because auth/bootstrap failed.")
-            checks += HermesEndpointVerificationResult("sessions list/detail", "skipped", "Skipped because auth/bootstrap failed.")
-            checks += HermesEndpointVerificationResult("session-control actions", "skipped", "Skipped because auth/bootstrap failed.")
+            checks += HermesEndpointVerificationResult("sessions list", "skipped", "Skipped because auth/bootstrap failed.")
+            checks += HermesEndpointVerificationResult("session detail", "skipped", "Skipped because auth/bootstrap failed.")
+            checks += HermesEndpointVerificationResult("session-control pause", "skipped", "Skipped because auth/bootstrap failed.")
+            checks += HermesEndpointVerificationResult("session-control resume", "skipped", "Skipped because auth/bootstrap failed.")
+            checks += HermesEndpointVerificationResult("session-control terminate", "skipped", "Skipped because auth/bootstrap failed.")
             checks += HermesEndpointVerificationResult("approvals", "skipped", "Skipped because auth/bootstrap failed.")
-            checks += HermesEndpointVerificationResult("conversation", "skipped", "Skipped because auth/bootstrap failed.")
+            checks += HermesEndpointVerificationResult("conversation list", "skipped", "Skipped because auth/bootstrap failed.")
+            checks += HermesEndpointVerificationResult("conversation send", "skipped", "Skipped because auth/bootstrap failed.")
             checks += HermesEndpointVerificationResult("realtime/events", "skipped", "Skipped because auth/bootstrap failed.")
             return@withContext checks
         }
@@ -245,30 +249,36 @@ class NetworkHermesGatewayClient(
         checks += runCheck("dashboard") { fetchDashboard(session) }
         val sessionsOutcome = runCatching { fetchSessions(session) }
         if (sessionsOutcome.isSuccess) {
+            checks += HermesEndpointVerificationResult("sessions list", "ok", "Request succeeded.")
             val sessions = sessionsOutcome.getOrThrow()
             if (sessions.isEmpty()) {
-                checks += HermesEndpointVerificationResult("sessions list/detail", "partial", "Sessions list succeeded but no session exists to verify detail/action endpoints.")
-                checks += HermesEndpointVerificationResult("session-control actions", "partial", "No session available to verify control endpoints.")
+                checks += HermesEndpointVerificationResult("session detail", "skipped", "No session available to verify detail endpoint.")
+                checks += HermesEndpointVerificationResult("session-control pause", "skipped", "No session available to verify control endpoint.")
+                checks += HermesEndpointVerificationResult("session-control resume", "skipped", "No session available to verify control endpoint.")
+                checks += HermesEndpointVerificationResult("session-control terminate", "skipped", "No session available to verify control endpoint.")
             } else {
                 val firstSession = sessions.first()
-                checks += runCheck("sessions list/detail") { fetchSessionDetail(session, firstSession.sessionId) }
-                val controlResult = submitSessionControlAction(session, firstSession.sessionId, "pause")
-                checks += HermesEndpointVerificationResult(
-                    endpoint = "session-control actions",
-                    status = if (controlResult.supported && controlResult.status != "failed") "ok" else if (!controlResult.supported) "unsupported" else "failed",
-                    reason = controlResult.detail + (controlResult.endpoint?.let { " (endpoint: $it)" } ?: ""),
-                )
+                checks += runCheck("session detail") { fetchSessionDetail(session, firstSession.sessionId) }
+                checks += toSessionControlVerificationResult("session-control pause", submitSessionControlAction(session, firstSession.sessionId, "pause"))
+                checks += toSessionControlVerificationResult("session-control resume", submitSessionControlAction(session, firstSession.sessionId, "resume"))
+                checks += toSessionControlVerificationResult("session-control terminate", submitSessionControlAction(session, firstSession.sessionId, "terminate"))
             }
         } else {
             checks += HermesEndpointVerificationResult(
-                "sessions list/detail",
+                "sessions list",
                 "failed",
                 sessionsOutcome.exceptionOrNull()?.message ?: sessionsOutcome.exceptionOrNull().toString(),
             )
-            checks += HermesEndpointVerificationResult("session-control actions", "skipped", "Skipped because sessions list failed.")
+            checks += HermesEndpointVerificationResult("session detail", "skipped", "Skipped because sessions list failed.")
+            checks += HermesEndpointVerificationResult("session-control pause", "skipped", "Skipped because sessions list failed.")
+            checks += HermesEndpointVerificationResult("session-control resume", "skipped", "Skipped because sessions list failed.")
+            checks += HermesEndpointVerificationResult("session-control terminate", "skipped", "Skipped because sessions list failed.")
         }
         checks += runCheck("approvals") { fetchApprovals(session) }
-        checks += runCheck("conversation") { fetchConversation(session) }
+        checks += runCheck("conversation list") { fetchConversation(session) }
+        checks += runCheck("conversation send") {
+            submitConversationMessage(session, "live verification ping")
+        }
         checks += runCheck("realtime/events") {
             val handle = connectRealtime(session, onStatus = {}, onEnvelope = {})
             handle.close()
@@ -635,6 +645,15 @@ private fun <T> runCheck(
         onSuccess = { HermesEndpointVerificationResult(endpoint, "ok", "Request succeeded.") },
         onFailure = { HermesEndpointVerificationResult(endpoint, "failed", it.message ?: it.toString()) },
     )
+
+private fun toSessionControlVerificationResult(
+    endpoint: String,
+    result: HermesSessionControlActionResult,
+): HermesEndpointVerificationResult = HermesEndpointVerificationResult(
+    endpoint = endpoint,
+    status = if (result.supported && result.status != "failed") "ok" else if (!result.supported) "unsupported" else "failed",
+    reason = result.detail + (result.endpoint?.let { " (endpoint: $it)" } ?: ""),
+)
 
 private fun JSONArray.toSessionList(): List<HermesSessionSummary> = mutableListOf<HermesSessionSummary>().apply {
     for (index in 0 until length()) add(getJSONObject(index).toSessionSummary())

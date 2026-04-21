@@ -961,10 +961,14 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
     private fun defaultVerificationResults(reason: String, status: String): List<HermesEndpointVerificationResult> = listOf(
         HermesEndpointVerificationResult("auth/bootstrap", status, reason),
         HermesEndpointVerificationResult("dashboard", status, reason),
-        HermesEndpointVerificationResult("sessions list/detail", status, reason),
-        HermesEndpointVerificationResult("session-control actions", status, reason),
+        HermesEndpointVerificationResult("sessions list", status, reason),
+        HermesEndpointVerificationResult("session detail", status, reason),
+        HermesEndpointVerificationResult("session-control pause", status, reason),
+        HermesEndpointVerificationResult("session-control resume", status, reason),
+        HermesEndpointVerificationResult("session-control terminate", status, reason),
         HermesEndpointVerificationResult("approvals", status, reason),
-        HermesEndpointVerificationResult("conversation", status, reason),
+        HermesEndpointVerificationResult("conversation list", status, reason),
+        HermesEndpointVerificationResult("conversation send", status, reason),
         HermesEndpointVerificationResult("realtime/events", status, reason),
     )
 
