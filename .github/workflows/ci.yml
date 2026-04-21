@@ -44,9 +44,15 @@ jobs:
         working-directory: ios
         run: |
           xcodegen generate
+          DESTINATION="$(xcrun simctl list devices available | awk -F '[()]' '/iPhone/ {print $2; exit}')"
+          if [[ -z "$DESTINATION" ]]; then
+            echo "No available iPhone simulator found on runner."
+            exit 1
+          fi
+          echo "Using simulator id: $DESTINATION"
           xcodebuild \
             -project HermesCourier.xcodeproj \
             -scheme HermesCourier \
-            -destination "platform=iOS Simulator,name=iPhone 16" \
+            -destination "id=$DESTINATION" \
             -only-testing:HermesCourierTests \
             test

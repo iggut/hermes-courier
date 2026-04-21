@@ -33,6 +33,23 @@ Hermes Courier is built for those moments.
 - Manual Android builds are available on demand in `.github/workflows/android-on-demand-build.yml`.
 - The on-demand workflow produces a debug APK artifact from GitHub Actions.
 
+## Validation quickstart
+
+- Android unit tests (JDK 17 or 21): `cd android && ./gradlew :app:testDebugUnitTest --no-daemon`
+- iOS unit tests (macOS + Xcode required): see `ios/README.md` for `xcodegen generate` + `xcodebuild ... -only-testing:HermesCourierTests test`
+- Live gateway smoke pass: `./scripts/live-gateway-smoke-test.sh`
+
+### Live smoke environment
+
+- Required: `HERMES_LIVE_GATEWAY_BASE_URL`
+- Recommended auth: `HERMES_LIVE_GATEWAY_BEARER_TOKEN`
+- Optional: `HERMES_LIVE_GATEWAY_AUTH_MODE=auto|token` (default `auto`)
+- Optional: `HERMES_LIVE_GATEWAY_ALLOW_MUTATING=1` to exercise POST actions (approval decision, conversation send, session-control candidates)
+- Optional: `HERMES_LIVE_GATEWAY_SESSION_ID`, `HERMES_LIVE_GATEWAY_APPROVAL_ID` to force specific IDs
+- Optional TLS/dev modes: `HERMES_LIVE_GATEWAY_CURL_INSECURE=1` and `HERMES_LIVE_GATEWAY_TIMEOUT_SECONDS=<seconds>`
+
+The smoke script reports each endpoint as `ok`, `failed`, `unsupported`, `drift`, or `skipped`, so partial environments do not produce fake full-pass results.
+
 ## Planned features
 
 ### WebUI parity
