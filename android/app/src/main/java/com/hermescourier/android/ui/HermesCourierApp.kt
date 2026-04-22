@@ -36,6 +36,7 @@ import androidx.compose.runtime.getValue
 import kotlinx.coroutines.Job
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavController
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -44,6 +45,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.hermescourier.android.domain.HermesCourierViewModel
+import com.hermescourier.android.domain.operator.HermesOperatorNavTarget
 import com.hermescourier.android.ui.screens.ApprovalDetailScreen
 import com.hermescourier.android.ui.screens.ApprovalsScreen
 import com.hermescourier.android.ui.screens.CronScreen
@@ -84,6 +86,8 @@ internal fun approvalDetailRoute(approvalId: String): String = "approval/${Uri.e
 fun HermesCourierApp(
     initialEnrollmentPayload: String? = null,
     onInitialEnrollmentPayloadConsumed: () -> Unit = {},
+    initialOperatorNavUri: Uri? = null,
+    onInitialOperatorNavUriConsumed: () -> Unit = {},
     viewModel: HermesCourierViewModel = viewModel(),
 ) {
     val navController = rememberNavController()
@@ -101,6 +105,16 @@ fun HermesCourierApp(
             onDeepLinkConsumed = onInitialEnrollmentPayloadConsumed,
         )
         job.join()
+    }
+
+    LaunchedEffect(initialOperatorNavUri) {
+        val deep = initialOperatorNavUri ?: return@LaunchedEffect
+        navigateOperatorDeepLink(
+            navController = navController,
+            viewModel = viewModel,
+            uri = deep,
+        )
+        onInitialOperatorNavUriConsumed()
     }
 
     Scaffold(
@@ -412,6 +426,41 @@ fun HermesCourierApp(
                     onRestoreQueuedApprovalAction = viewModel::restoreQueuedApprovalAction,
                 )
             }
+        }
+    }
+}
+
+private fun navigateOperatorDeepLink(
+    navController: NavController,
+    viewModel: HermesCourierViewModel,
+    uri: Uri,
+) {
+    when (val target = HermesOperatorNavTarget.parse(uri.toString()) ?: return) {
+        HermesOperatorNavTarget.ApprovalsList -> {
+            navController.navigateToRootTab(HermesCourierRoute.Approvals.route)
+        }
+        is HermesOperatorNavTarget.ApprovalDetail -> {
+            navController.navigateToRootTab(HermesCourierRoute.Approvals.route)
+            navController.navigate(approvalDetailRoute(target.approvalId))
+        }
+        is HermesOperatorNavTarget.SessionDetailNav -> {
+            navController.navigate(sessionDetailRoute(target.sessionId))
+        }
+        is HermesOperatorNavTarget.ChatSession -> {
+            viewModel.enterSession(target.sessionId)
+            navController.navigate(HermesCourierRoute.Chat.route) {
+                launchSingleTop = true
+            }
+        }
+    }
+}
+
+private fun NavController.navigateToRootTab(route: String) {
+    navigate(route) {
+        launchSingleTop = true
+        restoreState = true
+        popUpTo(graph.findStartDestination().id) {
+            saveState = true
         }
     }
 }
