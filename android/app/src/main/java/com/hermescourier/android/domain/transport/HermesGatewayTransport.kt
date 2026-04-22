@@ -19,7 +19,7 @@ class OkHttpHermesGatewayTransport(
     private val client: OkHttpClient,
 ) : HermesGatewayTransport {
     override suspend fun get(path: String, bearerToken: String?): String {
-        val requestBuilder = Request.Builder().url(baseUrl.newBuilder().addPathSegments(path.trimStart('/')).build())
+        val requestBuilder = Request.Builder().url(baseUrl.resolvePathAndQuery(path))
         bearerToken?.let { requestBuilder.addHeader("Authorization", "Bearer $it") }
         val request = requestBuilder.get().build()
         return client.newCall(request).execute().use { response ->
@@ -31,7 +31,7 @@ class OkHttpHermesGatewayTransport(
 
     override suspend fun post(path: String, body: JSONObject, bearerToken: String?): String {
         val requestBuilder = Request.Builder()
-            .url(baseUrl.newBuilder().addPathSegments(path.trimStart('/')).build())
+            .url(baseUrl.resolvePathAndQuery(path))
             .post(body.toString().toRequestBody("application/json".toMediaType()))
         bearerToken?.let { requestBuilder.addHeader("Authorization", "Bearer $it") }
         val request = requestBuilder.build()
@@ -41,4 +41,33 @@ class OkHttpHermesGatewayTransport(
             responseBody
         }
     }
+}
+
+/**
+ * Splits `path` into segments and an optional query string before appending it
+ * to [this]. OkHttp's `addPathSegments` percent-encodes `?`, `=`, and `&`, so a
+ * caller-supplied path like `v1/logs?limit=100` would otherwise resolve to
+ * `/v1/logs%3Flimit=100` and 404 against real gateways. Handling the split here
+ * keeps every caller free to pass canonical paths that include query strings.
+ */
+internal fun HttpUrl.resolvePathAndQuery(path: String): HttpUrl {
+    val trimmed = path.trimStart('/')
+    val questionIndex = trimmed.indexOf('?')
+    val builder = newBuilder()
+    if (questionIndex < 0) {
+        builder.addPathSegments(trimmed)
+        return builder.build()
+    }
+    builder.addPathSegments(trimmed.substring(0, questionIndex))
+    val rawQuery = trimmed.substring(questionIndex + 1)
+    for (pair in rawQuery.split('&')) {
+        if (pair.isBlank()) continue
+        val eq = pair.indexOf('=')
+        if (eq < 0) {
+            builder.addQueryParameter(pair, null)
+        } else {
+            builder.addQueryParameter(pair.substring(0, eq), pair.substring(eq + 1))
+        }
+    }
+    return builder.build()
 }
