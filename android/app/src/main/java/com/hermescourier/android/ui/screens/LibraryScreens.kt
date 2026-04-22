@@ -49,6 +49,7 @@ private fun <T> CapabilityListScreen(
     contentPadding: PaddingValues,
     title: String,
     intro: String,
+    capabilityLabel: String,
     uiState: HermesCourierUiState,
     listing: HermesCapabilityListing<T>,
     onRefresh: () -> Unit,
@@ -75,6 +76,7 @@ private fun <T> CapabilityListScreen(
                 onRetryQueued = onRetryQueuedApprovalActions,
             )
         }
+        val unavailable = listing.unavailable
         item {
             Card(elevation = courierCardElevation()) {
                 Column(
@@ -87,20 +89,24 @@ private fun <T> CapabilityListScreen(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    Text(
-                        text = uiState.libraryStatus,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    OutlinedButton(onClick = onRefresh) {
-                        Text(text = if (uiState.libraryLoading) "Refreshing…" else "Refresh library")
+                    // Suppress the generic "Library loaded" status line when the
+                    // gateway has explicitly declared this capability unavailable —
+                    // the dedicated card below says what the user needs to know.
+                    if (unavailable == null) {
+                        Text(
+                            text = uiState.libraryStatus,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        OutlinedButton(onClick = onRefresh) {
+                            Text(text = if (uiState.libraryLoading) "Refreshing…" else "Refresh library")
+                        }
                     }
                 }
             }
         }
-        val unavailable = listing.unavailable
         if (unavailable != null) {
-            item { UnavailableCard(unavailable.type, unavailable.detail, unavailable.endpoint, unavailable.fallbackPollEndpoints) }
+            item { UnavailableCard(capabilityLabel = capabilityLabel) }
         } else if (listing.items.isEmpty()) {
             item {
                 if (uiState.libraryLoading) {
@@ -133,45 +139,23 @@ private fun <T> CapabilityListScreen(
 }
 
 @Composable
-private fun UnavailableCard(
-    type: String,
-    detail: String,
-    endpoint: String?,
-    fallbackPollEndpoints: List<String>,
-) {
+private fun UnavailableCard(capabilityLabel: String) {
+    // Neutral "not enabled on this gateway" treatment. This is just an optional,
+    // unsupported backend feature — no need for a giant red warning page.
     Card(
         elevation = courierCardElevation(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
     ) {
-        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(
-                text = "Gateway declared this capability unavailable",
+                text = "Not enabled on this gateway",
                 style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.onErrorContainer,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(
-                text = detail.ifBlank { "No further detail provided by the gateway." },
+                text = "The connected backend does not expose $capabilityLabel. It will appear here automatically if the gateway starts supporting it.",
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onErrorContainer,
-            )
-            if (!endpoint.isNullOrBlank()) {
-                Text(
-                    text = "Endpoint: $endpoint",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onErrorContainer,
-                )
-            }
-            if (fallbackPollEndpoints.isNotEmpty()) {
-                Text(
-                    text = "Fallback endpoints: ${fallbackPollEndpoints.joinToString(", ")}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onErrorContainer,
-                )
-            }
-            Text(
-                text = "Type: $type",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onErrorContainer,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }
@@ -214,6 +198,7 @@ fun SkillsScreen(
         contentPadding = contentPadding,
         title = "Skills",
         intro = "Skills and tools the agent can invoke. Read-only in this release.",
+        capabilityLabel = "skills",
         uiState = uiState,
         listing = uiState.skills,
         onRefresh = onRefresh,
@@ -286,6 +271,7 @@ fun MemoryScreen(
         contentPadding = contentPadding,
         title = "Memory",
         intro = "Memory snippets the agent keeps between sessions. Read-only in this release.",
+        capabilityLabel = "memory",
         uiState = uiState,
         listing = uiState.memory,
         onRefresh = onRefresh,
@@ -351,6 +337,7 @@ fun CronScreen(
         contentPadding = contentPadding,
         title = "Scheduled jobs",
         intro = "Scheduled tasks (cron-style) managed by the agent. Read-only in this release.",
+        capabilityLabel = "scheduled jobs",
         uiState = uiState,
         listing = uiState.cronJobs,
         onRefresh = onRefresh,
@@ -407,6 +394,7 @@ fun LogsScreen(
         contentPadding = contentPadding,
         title = "Activity log",
         intro = "Recent log and activity entries reported by the gateway.",
+        capabilityLabel = "activity logs",
         uiState = uiState,
         listing = uiState.logs,
         onRefresh = onRefresh,

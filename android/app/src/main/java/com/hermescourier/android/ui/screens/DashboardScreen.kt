@@ -115,30 +115,49 @@ fun DashboardScreen(
             }
         }
 
-        Card(elevation = courierCardElevation()) {
-            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text(text = "Agent library", style = MaterialTheme.typography.titleMedium)
-                Text(
-                    text = uiState.libraryStatus,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    OutlinedButton(onClick = onOpenSkills) {
-                        Text(text = libraryCountLabel("Skills", uiState.skills.items.size, uiState.skills.isSupported))
-                    }
-                    OutlinedButton(onClick = onOpenMemory) {
-                        Text(text = libraryCountLabel("Memory", uiState.memory.items.size, uiState.memory.isSupported))
-                    }
-                    OutlinedButton(onClick = onOpenCron) {
-                        Text(text = libraryCountLabel("Cron", uiState.cronJobs.items.size, uiState.cronJobs.isSupported))
-                    }
-                    OutlinedButton(onClick = onOpenLogs) {
-                        Text(text = libraryCountLabel("Logs", uiState.logs.items.size, uiState.logs.isSupported))
+        // Only surface the "Agent library" card when the connected gateway actually
+        // exposes at least one of the four library capabilities. This avoids offering
+        // four dead-end buttons on backends that don't implement skills/memory/cron/logs.
+        // When the backend later starts returning supported: true for any capability,
+        // the card reappears automatically with only the supported entry points.
+        val librarySupported = uiState.skills.isSupported ||
+            uiState.memory.isSupported ||
+            uiState.cronJobs.isSupported ||
+            uiState.logs.isSupported
+        if (librarySupported) {
+            Card(elevation = courierCardElevation()) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(text = "Agent library", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        text = uiState.libraryStatus,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        if (uiState.skills.isSupported) {
+                            OutlinedButton(onClick = onOpenSkills) {
+                                Text(text = libraryCountLabel("Skills", uiState.skills.items.size))
+                            }
+                        }
+                        if (uiState.memory.isSupported) {
+                            OutlinedButton(onClick = onOpenMemory) {
+                                Text(text = libraryCountLabel("Memory", uiState.memory.items.size))
+                            }
+                        }
+                        if (uiState.cronJobs.isSupported) {
+                            OutlinedButton(onClick = onOpenCron) {
+                                Text(text = libraryCountLabel("Cron", uiState.cronJobs.items.size))
+                            }
+                        }
+                        if (uiState.logs.isSupported) {
+                            OutlinedButton(onClick = onOpenLogs) {
+                                Text(text = libraryCountLabel("Logs", uiState.logs.items.size))
+                            }
+                        }
                     }
                 }
             }
@@ -203,8 +222,7 @@ private fun MetricTile(
     }
 }
 
-private fun libraryCountLabel(name: String, count: Int, supported: Boolean): String =
-    if (!supported) "$name (unavailable)" else "$name ($count)"
+private fun libraryCountLabel(name: String, count: Int): String = "$name ($count)"
 
 @Composable
 private fun DashboardSnapshotRow(
