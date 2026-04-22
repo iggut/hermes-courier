@@ -52,8 +52,15 @@ interface HermesGatewayClient {
         action: String,
     ): HermesSessionControlActionResult
     suspend fun fetchApprovals(session: HermesAuthSession): List<HermesApprovalSummary>
-    suspend fun fetchConversation(session: HermesAuthSession): List<HermesConversationEvent>
-    suspend fun submitConversationMessage(session: HermesAuthSession, message: String): HermesConversationEvent?
+    suspend fun fetchConversation(
+        session: HermesAuthSession,
+        sessionId: String? = null,
+    ): List<HermesConversationEvent>
+    suspend fun submitConversationMessage(
+        session: HermesAuthSession,
+        message: String,
+        sessionId: String? = null,
+    ): HermesConversationEvent?
     suspend fun submitApprovalAction(
         session: HermesAuthSession,
         approvalId: String,
@@ -189,14 +196,33 @@ class NetworkHermesGatewayClient(
         transport.get("/${HermesApiPaths.APPROVALS}", session.accessToken).toJsonArrayOrObject().toApprovalList()
     }
 
-    override suspend fun fetchConversation(session: HermesAuthSession): List<HermesConversationEvent> = withContext(Dispatchers.IO) {
-        transport.get("/${HermesApiPaths.CONVERSATION}", session.accessToken).toJsonArrayOrObject().toConversationList()
+    override suspend fun fetchConversation(
+        session: HermesAuthSession,
+        sessionId: String?,
+    ): List<HermesConversationEvent> = withContext(Dispatchers.IO) {
+        val path = buildConversationPath(sessionId)
+        transport.get(path, session.accessToken).toJsonArrayOrObject().toConversationList()
     }
 
-    override suspend fun submitConversationMessage(session: HermesAuthSession, message: String): HermesConversationEvent? = withContext(Dispatchers.IO) {
+    override suspend fun submitConversationMessage(
+        session: HermesAuthSession,
+        message: String,
+        sessionId: String?,
+    ): HermesConversationEvent? = withContext(Dispatchers.IO) {
         val payload = JSONObject().put("body", message.trim())
+        val trimmedSession = sessionId?.trim()?.takeIf { it.isNotBlank() }
+        if (trimmedSession != null) {
+            payload.put("sessionId", trimmedSession)
+        }
         val response = transport.post("/${HermesApiPaths.CONVERSATION}", payload, session.accessToken)
         response.toConversationEventOrNull(message.trim())
+    }
+
+    private fun buildConversationPath(sessionId: String?): String {
+        val base = "/${HermesApiPaths.CONVERSATION}"
+        val trimmed = sessionId?.trim()?.takeIf { it.isNotBlank() } ?: return base
+        val encoded = java.net.URLEncoder.encode(trimmed, Charsets.UTF_8.name())
+        return "$base?sessionId=$encoded"
     }
 
     override suspend fun submitApprovalAction(
@@ -363,9 +389,9 @@ class NetworkHermesGatewayClient(
             checks += HermesEndpointVerificationResult("session-control terminate", "skipped", "Skipped because sessions list failed.")
         }
         checks += runCheck("approvals") { fetchApprovals(session) }
-        checks += runCheck("conversation list") { fetchConversation(session) }
+        checks += runCheck("conversation list") { fetchConversation(session, sessionId = null) }
         checks += runCheck("conversation send") {
-            submitConversationMessage(session, "live verification ping")
+            submitConversationMessage(session, "live verification ping", sessionId = null)
         }
         checks += runCheck("realtime/events") {
             val handle = connectRealtime(session, onStatus = {}, onEnvelope = {})
@@ -593,17 +619,25 @@ class DemoHermesGatewayClient : HermesGatewayClient {
         HermesApprovalSummary("approval-2", "Share transcript", "Allow sharing the latest conversation transcript.", false),
     )
 
-    override suspend fun fetchConversation(session: HermesAuthSession): List<HermesConversationEvent> = listOf(
-        HermesConversationEvent("event-01", "Hermes", "Awaiting your next instruction.", "now"),
-        HermesConversationEvent("event-02", "You", "Review the latest approvals.", "just now"),
-        HermesConversationEvent("event-03", "Hermes", "I found 2 pending approval requests.", "just now"),
+    override suspend fun fetchConversation(
+        session: HermesAuthSession,
+        sessionId: String?,
+    ): List<HermesConversationEvent> = listOf(
+        HermesConversationEvent("event-01", "Hermes", "Awaiting your next instruction.", "now", sessionId),
+        HermesConversationEvent("event-02", "You", "Review the latest approvals.", "just now", sessionId),
+        HermesConversationEvent("event-03", "Hermes", "I found 2 pending approval requests.", "just now", sessionId),
     )
 
-    override suspend fun submitConversationMessage(session: HermesAuthSession, message: String): HermesConversationEvent? = HermesConversationEvent(
+    override suspend fun submitConversationMessage(
+        session: HermesAuthSession,
+        message: String,
+        sessionId: String?,
+    ): HermesConversationEvent? = HermesConversationEvent(
         eventId = "demo-${System.currentTimeMillis()}",
         author = "You",
         body = message.trim(),
         timestamp = "now",
+        sessionId = sessionId,
     )
 
     override suspend fun submitApprovalAction(

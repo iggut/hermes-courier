@@ -86,13 +86,50 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
     fun enterSession(sessionId: String) {
         val trimmed = sessionId.trim()
         if (trimmed.isBlank()) return
-        _uiState.update { it.copy(activeSessionId = trimmed) }
+        val previousActive = _uiState.value.activeSessionId
+        _uiState.update {
+            it.copy(
+                activeSessionId = trimmed,
+                // Clear the transcript immediately on switch so the viewer cannot see
+                // the previous session's history for a frame while the per-session
+                // fetch is in flight. Phase-3 conversation is wire-scoped now.
+                conversationEvents = if (previousActive == trimmed) it.conversationEvents else emptyList(),
+            )
+        }
         loadSessionDetailIfMissing(trimmed)
+        reloadConversationForActiveSession()
     }
 
-    /** Clears the client-side active-session focus in Chat (does not touch backend state). */
+    /** Clears the client-side active-session focus in Chat and reloads the global transcript. */
     fun clearActiveSession() {
-        _uiState.update { it.copy(activeSessionId = null) }
+        val previousActive = _uiState.value.activeSessionId
+        _uiState.update {
+            it.copy(
+                activeSessionId = null,
+                conversationEvents = if (previousActive == null) it.conversationEvents else emptyList(),
+            )
+        }
+        reloadConversationForActiveSession()
+    }
+
+    /**
+     * Re-fetch the conversation transcript using the current `activeSessionId` as the wire
+     * filter. Silent on network failure: the optimistic cleared transcript remains visible
+     * so the operator sees an empty session rather than stale cross-session content.
+     */
+    private fun reloadConversationForActiveSession() {
+        viewModelScope.launch {
+            val session = currentSession ?: return@launch
+            val client = HermesGatewayClientFactory.createOrNull(applicationContext) ?: return@launch
+            val activeId = _uiState.value.activeSessionId
+            runCatching { client.fetchConversation(session, activeId) }
+                .onSuccess { events ->
+                    _uiState.update { state ->
+                        if (state.activeSessionId != activeId) state
+                        else state.copy(conversationEvents = events)
+                    }
+                }
+        }
     }
 
     fun loadSessionDetailIfMissing(sessionId: String) {
@@ -715,11 +752,13 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
             return
         }
         viewModelScope.launch {
+            val activeSessionId = _uiState.value.activeSessionId
             val optimisticEvent = HermesConversationEvent(
                 eventId = "local-${System.currentTimeMillis()}",
                 author = "You",
                 body = trimmed,
                 timestamp = "now",
+                sessionId = activeSessionId,
             )
             _uiState.update { state ->
                 state.copy(
@@ -755,7 +794,7 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
                 return@launch
             }
             runCatching {
-                liveClient.submitConversationMessage(session, trimmed)
+                liveClient.submitConversationMessage(session, trimmed, activeSessionId)
             }.onSuccess { echoedEvent ->
                 _uiState.update { state ->
                     state.copy(
@@ -820,7 +859,8 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
         val dashboard = client.fetchDashboard(session)
         val sessions = client.fetchSessions(session)
         val approvals = client.fetchApprovals(session)
-        val conversation = client.fetchConversation(session)
+        val activeSessionId = _uiState.value.activeSessionId
+        val conversation = client.fetchConversation(session, activeSessionId)
         startRealtime(client, session)
         loadLibraryQuietly(client, session)
         val settings = HermesGatewayConfiguration.from(applicationContext).toSettings()
@@ -887,7 +927,20 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
                     removeQueuedApprovalActionForResult(result)
                 }
                 _uiState.update { state ->
-                    val updatedConversation = envelope.conversation?.let { state.conversationEvents.upsertConversationEvent(it) } ?: state.conversationEvents
+                    val incomingEvent = envelope.conversation
+                    val belongsToActive = when {
+                        incomingEvent == null -> false
+                        // Event is untagged (pre-Phase-3 servers or optimistic echoes):
+                        // apply it regardless to stay backwards compatible.
+                        incomingEvent.sessionId == null -> true
+                        state.activeSessionId == null -> false
+                        else -> incomingEvent.sessionId == state.activeSessionId
+                    }
+                    val updatedConversation = if (belongsToActive && incomingEvent != null) {
+                        state.conversationEvents.upsertConversationEvent(incomingEvent)
+                    } else {
+                        state.conversationEvents
+                    }
                     state.copy(
                         dashboard = envelope.dashboard ?: state.dashboard,
                         sessions = envelope.sessions ?: state.sessions,
@@ -913,15 +966,27 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
     }
 
     private fun List<HermesConversationEvent>.upsertConversationEvent(event: HermesConversationEvent): List<HermesConversationEvent> {
+        // Primary-key dedupe by eventId. LazyColumn uses eventId as its key, so letting a
+        // duplicate in here would crash with "Key was already used" on the next measure pass
+        // (observed in real device validation when the realtime stream re-delivered an event
+        // that was already returned by the session-scoped REST fetch).
+        val idIndex = indexOfFirst { it.eventId == event.eventId }
+        if (idIndex >= 0) {
+            return toMutableList().apply { this[idIndex] = event }
+        }
+        // Secondary match: optimistic echo (eventId starts with "local-") → replace when the
+        // server echoes the same message back with its real eventId.
         val normalizedAuthor = event.author.trim().lowercase()
         val normalizedBody = event.body.trim().lowercase()
-        val existingIndex = indexOfFirst {
-            it.author.trim().lowercase() == normalizedAuthor && it.body.trim().lowercase() == normalizedBody
+        val optimisticIndex = indexOfFirst {
+            it.eventId.startsWith("local-") &&
+                it.author.trim().lowercase() == normalizedAuthor &&
+                it.body.trim().lowercase() == normalizedBody
         }
-        if (existingIndex < 0) {
-            return this + event
+        if (optimisticIndex >= 0) {
+            return toMutableList().apply { this[optimisticIndex] = event }
         }
-        return toMutableList().apply { this[existingIndex] = event }
+        return this + event
     }
 
     private suspend fun flushQueuedApprovalActions(client: HermesGatewayClient, session: com.hermescourier.android.domain.model.HermesAuthSession?) {

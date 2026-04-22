@@ -61,10 +61,17 @@ data class HermesConversationEvent(
     val author: String,
     val body: String,
     val timestamp: String,
+    /**
+     * Backend Phase-3: every conversation event is tagged with the session it belongs to,
+     * and realtime envelopes echo the same id. Nullable so that older servers / local
+     * optimistic events still decode cleanly; when null the event is treated as global.
+     */
+    val sessionId: String? = null,
 )
 
 data class HermesConversationSendRequest(
     val body: String,
+    val sessionId: String? = null,
 )
 
 
@@ -356,11 +363,11 @@ data class HermesCourierUiState(
     /**
      * Operator-selected "active" Hermes work session surfaced in the Chat screen.
      *
-     * Client-side concept only: the backend conversation endpoint is currently global
-     * (`/v1/conversation`) and does not accept a `sessionId`, so this value drives UI
-     * context (header chip, entry points from Sessions/SessionDetail) without filtering
-     * the message stream. When null, Chat shows the global conversation without a
-     * session context chip.
+     * Phase-3 backend: when non-null, conversation fetch/send include
+     * `?sessionId=<id>` / `"sessionId": "<id>"` and the UI shows only events tagged
+     * with that session. Realtime envelopes whose `conversation.sessionId` does not
+     * match are dropped from the visible transcript. When null, Chat shows the
+     * global conversation without a session context chip.
      */
     val activeSessionId: String? = null,
 )

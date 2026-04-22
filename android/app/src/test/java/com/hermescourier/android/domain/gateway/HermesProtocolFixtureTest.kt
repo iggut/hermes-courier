@@ -49,6 +49,54 @@ class HermesProtocolFixtureTest {
         assertEquals("2026-04-21T12:04:01Z", env.eventTimestamp)
     }
 
+    /**
+     * Phase-3 backend stamps every conversation event with the session it belongs to.
+     * The field is forwarded untouched when present and stays null otherwise, so older
+     * servers and locally-authored optimistic events still decode.
+     */
+    @Test
+    fun conversationEvent_parsesSessionIdWhenPresent() {
+        val json = """
+            {
+              "eventId": "ev-sess-1",
+              "author": "Hermes",
+              "body": "Session-scoped reply",
+              "timestamp": "2026-04-22T09:00:00Z",
+              "sessionId": "sess-abc"
+            }
+        """.trimIndent().toJsonObject().toConversationEvent()
+        assertEquals("sess-abc", json.sessionId)
+
+        val legacy = """
+            {
+              "eventId": "ev-legacy-1",
+              "author": "Hermes",
+              "body": "Pre-Phase-3",
+              "timestamp": "2026-04-22T09:00:00Z"
+            }
+        """.trimIndent().toJsonObject().toConversationEvent()
+        assertEquals(null, legacy.sessionId)
+    }
+
+    @Test
+    fun realtimeConversationEnvelope_carriesNestedSessionId() {
+        val envelope = """
+            {
+              "type": "conversation",
+              "conversation": {
+                "eventId": "ev-sess-2",
+                "author": "Hermes",
+                "body": "Realtime scoped",
+                "timestamp": "2026-04-22T09:01:00Z",
+                "sessionId": "sess-xyz"
+              },
+              "eventId": "env-1"
+            }
+        """.trimIndent().toJsonObject().toRealtimeEnvelope()
+        val conv = checkNotNull(envelope.conversation)
+        assertEquals("sess-xyz", conv.sessionId)
+    }
+
     @Test
     fun realtimeApprovalResult_usesSnakeCaseAlias() {
         val env = readFixture("realtime-approval-result").toJsonObject().toRealtimeEnvelope()

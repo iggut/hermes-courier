@@ -76,6 +76,7 @@ internal fun JSONObject.toConversationEvent(): HermesConversationEvent = HermesC
     author = optString("author", "Hermes"),
     body = optString("body", optString("message", "")),
     timestamp = optString("timestamp", "now"),
+    sessionId = optString("sessionId", "").takeIf { it.isNotBlank() },
 )
 
 internal fun String.toConversationEventOrNull(fallbackMessage: String): HermesConversationEvent? {
