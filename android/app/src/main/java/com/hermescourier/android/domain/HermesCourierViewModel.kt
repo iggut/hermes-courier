@@ -35,6 +35,7 @@ import com.hermescourier.android.domain.gateway.HermesApiPaths
 import com.hermescourier.android.domain.transport.HermesOkHttpClientFactory
 import com.hermescourier.android.domain.transport.OkHttpHermesGatewayTransport
 import com.hermescourier.android.domain.storage.EncryptedHermesTokenStore
+import com.hermescourier.android.notifications.HermesOperatorNotificationDispatcher
 import com.google.zxing.BarcodeFormat
 import com.journeyapps.barcodescanner.BarcodeEncoder
 import kotlinx.coroutines.Job
@@ -43,6 +44,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.json.JSONArray
@@ -63,6 +65,8 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
     private var reconnectCountdownJob: Job? = null
     private val queuedApprovalActions = ArrayDeque<HermesQueuedApprovalAction>()
     private val queuedActionsFile = File(applicationContext.filesDir, "hermes-queued-approval-actions.json")
+    private val operatorNotifications = HermesOperatorNotificationDispatcher(applicationContext)
+    private var approvalPollFallbackJob: Job? = null
 
     private val deviceIdentity = HermesDeviceIdentity(
         deviceId = "android-courier-${android.os.Build.MODEL.lowercase().replace(' ', '-')}",
@@ -909,6 +913,7 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
             onStatus = { status ->
                 _uiState.update { it.copy(streamStatus = status) }
                 updateReconnectCountdown(status)
+                handleApprovalPollFallbackForStreamStatus(status, client)
                 if (status.contains("connected", ignoreCase = true) && client !is DemoHermesGatewayClient) {
                     viewModelScope.launch { flushQueuedApprovalActions(client, session) }
                 }
@@ -926,6 +931,7 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
                 val reconciledQueuedAction = envelope.approvalResult?.let { result ->
                     removeQueuedApprovalActionForResult(result)
                 }
+                val uiBeforeNotification = _uiState.value
                 _uiState.update { state ->
                     val incomingEvent = envelope.conversation
                     val belongsToActive = when {
@@ -961,8 +967,49 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
                         } ?: state.sessionControlStatus,
                     )
                 }
+                operatorNotifications.onRealtimeEnvelope(envelope, uiBeforeNotification)
             },
         )
+    }
+
+    private fun handleApprovalPollFallbackForStreamStatus(
+        status: String,
+        client: HermesGatewayClient,
+    ) {
+        if (status.contains("polling fallback", ignoreCase = true)) {
+            startApprovalPollFallbackIfNeeded(client)
+            return
+        }
+        if (status.contains("Realtime stream connected", ignoreCase = true)) {
+            approvalPollFallbackJob?.cancel()
+            approvalPollFallbackJob = null
+        }
+    }
+
+    private fun startApprovalPollFallbackIfNeeded(client: HermesGatewayClient) {
+        if (approvalPollFallbackJob?.isActive == true) return
+        if (client is DemoHermesGatewayClient) return
+        approvalPollFallbackJob = viewModelScope.launch {
+            while (isActive) {
+                val auth = currentSession
+                if (auth == null) {
+                    delay(15_000)
+                    continue
+                }
+                val liveClient = HermesGatewayClientFactory.createOrNull(applicationContext)
+                if (liveClient == null || liveClient is DemoHermesGatewayClient) {
+                    delay(30_000)
+                    continue
+                }
+                val previous = _uiState.value.approvals
+                runCatching { liveClient.fetchApprovals(auth) }
+                    .onSuccess { list ->
+                        operatorNotifications.onApprovalListPolled(list, previous)
+                        _uiState.update { it.copy(approvals = list) }
+                    }
+                delay(90_000)
+            }
+        }
     }
 
     private fun List<HermesConversationEvent>.upsertConversationEvent(event: HermesConversationEvent): List<HermesConversationEvent> {
@@ -1316,6 +1363,8 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
     }.getOrDefault("unknown")
 
     override fun onCleared() {
+        approvalPollFallbackJob?.cancel()
+        approvalPollFallbackJob = null
         realtimeHandle?.close()
         super.onCleared()
     }

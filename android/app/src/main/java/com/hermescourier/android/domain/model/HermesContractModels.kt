@@ -56,6 +56,12 @@ data class HermesApprovalSummary(
     val requiresBiometrics: Boolean,
 )
 
+data class HermesConversationToolCall(
+    val id: String,
+    val name: String,
+    val arguments: String = "",
+)
+
 data class HermesConversationEvent(
     val eventId: String,
     val author: String,
@@ -67,6 +73,8 @@ data class HermesConversationEvent(
      * optimistic events still decode cleanly; when null the event is treated as global.
      */
     val sessionId: String? = null,
+    val reasoning: String? = null,
+    val toolCalls: List<HermesConversationToolCall> = emptyList(),
 )
 
 data class HermesConversationSendRequest(

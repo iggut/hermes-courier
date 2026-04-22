@@ -6,6 +6,7 @@ import com.hermescourier.android.domain.model.HermesAuthChallengeResponse
 import com.hermescourier.android.domain.model.HermesAuthSession
 import com.hermescourier.android.domain.model.HermesCapabilityListing
 import com.hermescourier.android.domain.model.HermesConversationEvent
+import com.hermescourier.android.domain.model.HermesConversationToolCall
 import com.hermescourier.android.domain.model.HermesCronJob
 import com.hermescourier.android.domain.model.HermesDashboardSnapshot
 import com.hermescourier.android.domain.model.HermesLogEntry
@@ -77,6 +78,10 @@ internal fun JSONObject.toConversationEvent(): HermesConversationEvent = HermesC
     body = optString("body", optString("message", "")),
     timestamp = optString("timestamp", "now"),
     sessionId = optString("sessionId", "").takeIf { it.isNotBlank() },
+    reasoning = optString("reasoning", "").takeIf { it.isNotBlank() },
+    toolCalls = optJSONArray("toolCalls")?.toConversationToolCallList()
+        ?: optJSONArray("tool_calls")?.toConversationToolCallList()
+        ?: emptyList(),
 )
 
 internal fun String.toConversationEventOrNull(fallbackMessage: String): HermesConversationEvent? {
@@ -165,6 +170,31 @@ internal fun JSONArray.toApprovalList(): List<HermesApprovalSummary> = mutableLi
 
 internal fun JSONArray.toConversationList(): List<HermesConversationEvent> = mutableListOf<HermesConversationEvent>().apply {
     for (index in 0 until length()) add(getJSONObject(index).toConversationEvent())
+}
+
+internal fun JSONArray.toConversationToolCallList(): List<HermesConversationToolCall> = mutableListOf<HermesConversationToolCall>().apply {
+    for (index in 0 until length()) {
+        val obj = getJSONObject(index)
+        val fn = obj.optJSONObject("function")
+        val arguments = when {
+            fn != null -> fn.opt("arguments")
+            obj.has("arguments") -> obj.opt("arguments")
+            else -> null
+        }
+        val argsText = when (arguments) {
+            is JSONObject -> arguments.toString()
+            is JSONArray -> arguments.toString()
+            null -> ""
+            else -> arguments.toString()
+        }
+        add(
+            HermesConversationToolCall(
+                id = obj.optString("id", obj.optString("call_id", "")).trim(),
+                name = (fn?.optString("name", "")?.takeIf { it.isNotBlank() } ?: obj.optString("name", "tool")).trim(),
+                arguments = argsText,
+            )
+        )
+    }
 }
 
 internal fun JSONArray.toStringList(): List<String> = mutableListOf<String>().apply {

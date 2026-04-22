@@ -43,12 +43,14 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.hermescourier.android.domain.model.HermesConversationActionState
 import com.hermescourier.android.domain.model.HermesConversationEvent
+import com.hermescourier.android.domain.model.HermesConversationToolCall
 import com.hermescourier.android.domain.model.HermesCourierUiState
 import com.hermescourier.android.domain.model.HermesSessionSummary
 import com.hermescourier.android.ui.ChatSendStateIndicator
@@ -372,6 +374,21 @@ private fun ChatMessageBubble(
                 )
             }
 
+            if (!isUser && event.reasoning.orEmpty().isNotBlank()) {
+                AssistantDetailCard(
+                    label = "Thinking",
+                    content = event.reasoning.orEmpty(),
+                    modifier = Modifier.padding(top = 4.dp),
+                )
+            }
+            if (!isUser && event.toolCalls.isNotEmpty()) {
+                AssistantDetailCard(
+                    label = if (event.toolCalls.size == 1) "Action" else "Actions",
+                    content = event.toolCalls.joinToString("\n\n") { formatToolCall(it) },
+                    modifier = Modifier.padding(top = 4.dp),
+                )
+            }
+
             val metaText = buildString {
                 if (timestamp.isNotBlank()) append(timestamp)
                 val indicatorLabel = chatSendStateLabel(sendState)
@@ -410,6 +427,51 @@ private fun ChatMessageBubble(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun AssistantDetailCard(
+    label: String,
+    content: String,
+    modifier: Modifier = Modifier,
+) {
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                text = content,
+                style = MaterialTheme.typography.bodySmall,
+                fontFamily = FontFamily.Monospace,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+private fun formatToolCall(call: HermesConversationToolCall): String = buildString {
+    val name = call.name.ifBlank { "tool" }
+    append(name)
+    if (call.arguments.isNotBlank()) {
+        append("\n")
+        append(call.arguments)
+    }
+    if (call.id.isNotBlank()) {
+        append("\n")
+        append("#")
+        append(call.id)
     }
 }
 
