@@ -6,6 +6,7 @@ import java.io.FileInputStream
 import java.security.KeyStore
 import java.security.SecureRandom
 import java.security.cert.X509Certificate
+import java.util.concurrent.TimeUnit
 import javax.net.ssl.KeyManagerFactory
 import javax.net.ssl.SSLContext
 import javax.net.ssl.TrustManagerFactory
@@ -14,7 +15,19 @@ import okhttp3.OkHttpClient
 
 object HermesOkHttpClientFactory {
     fun create(configuration: HermesGatewayConfiguration): OkHttpClient {
+        // OkHttp's default readTimeout of 10s is too tight for POST /v1/conversation, which
+        // runs a synchronous Hermes CLI turn on the backend and can take 10–15s to answer
+        // (or return an explicit "unsupported / did not complete in time" payload after ~15s).
+        // With the old defaults the client raised a SocketTimeoutException and surfaced
+        // "Send failed — timeout" while the server had already accepted the message and was
+        // still producing a response. Widen the call/read/write ceilings so we either see
+        // the real server response or a genuine network failure. connectTimeout stays tight
+        // so truly unreachable gateways still fail fast.
         val builder = OkHttpClient.Builder()
+            .connectTimeout(10, TimeUnit.SECONDS)
+            .readTimeout(45, TimeUnit.SECONDS)
+            .writeTimeout(45, TimeUnit.SECONDS)
+            .callTimeout(60, TimeUnit.SECONDS)
         configuration.mtlsPkcs12File?.takeIf { it.exists() }?.let { pkcs12File ->
             val password = configuration.mtlsPkcs12Password ?: charArrayOf()
             val keyStore = KeyStore.getInstance("PKCS12").apply {
