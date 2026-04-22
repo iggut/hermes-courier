@@ -1,5 +1,10 @@
 package com.hermescourier.android.ui.screens
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,6 +21,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Warning
@@ -41,6 +47,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontFamily
@@ -78,6 +85,7 @@ fun ChatScreen(
 ) {
     var draft by rememberSaveable { mutableStateOf("") }
     var pendingDraft by rememberSaveable { mutableStateOf<String?>(null) }
+    var hasAutoScrolledToLatest by rememberSaveable(activeSession?.sessionId) { mutableStateOf(false) }
     val focusManager = LocalFocusManager.current
     val focusRequester = remember { FocusRequester() }
     val listState = rememberLazyListState()
@@ -103,8 +111,13 @@ fun ChatScreen(
         }
     }
 
-    LaunchedEffect(conversationEvents.size, isSending) {
+    LaunchedEffect(conversationEvents.size, activeSession?.sessionId, isSending) {
         if (conversationEvents.isEmpty()) return@LaunchedEffect
+        if (!hasAutoScrolledToLatest) {
+            listState.scrollToItem(conversationEvents.lastIndex.coerceAtLeast(0))
+            hasAutoScrolledToLatest = true
+            return@LaunchedEffect
+        }
         if (isNearBottom || isSending) {
             listState.animateScrollToItem(conversationEvents.lastIndex.coerceAtLeast(0))
         }
@@ -376,14 +389,18 @@ private fun ChatMessageBubble(
 
             if (!isUser && event.reasoning.orEmpty().isNotBlank()) {
                 AssistantDetailCard(
+                    stateKey = "${event.eventId}:reasoning",
                     label = "Thinking",
+                    summary = event.reasoning.orEmpty().lineSequence().firstOrNull()?.trim().orEmpty(),
                     content = event.reasoning.orEmpty(),
                     modifier = Modifier.padding(top = 4.dp),
                 )
             }
             if (!isUser && event.toolCalls.isNotEmpty()) {
                 AssistantDetailCard(
+                    stateKey = "${event.eventId}:tool-calls",
                     label = if (event.toolCalls.size == 1) "Action" else "Actions",
+                    summary = "${event.toolCalls.size} tool call${if (event.toolCalls.size == 1) "" else "s"}",
                     content = event.toolCalls.joinToString("\n\n") { formatToolCall(it) },
                     modifier = Modifier.padding(top = 4.dp),
                 )
@@ -432,11 +449,15 @@ private fun ChatMessageBubble(
 
 @Composable
 private fun AssistantDetailCard(
+    stateKey: String,
     label: String,
+    summary: String,
     content: String,
     modifier: Modifier = Modifier,
 ) {
+    var expanded by rememberSaveable(stateKey) { mutableStateOf(false) }
     Card(
+        onClick = { expanded = !expanded },
         modifier = modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
@@ -445,18 +466,51 @@ private fun AssistantDetailCard(
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            Text(
-                text = label,
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Text(
-                text = content,
-                style = MaterialTheme.typography.bodySmall,
-                fontFamily = FontFamily.Monospace,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = label,
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    if (summary.isNotBlank() && !expanded) {
+                        Text(
+                            text = summary,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+                Text(
+                    text = if (expanded) "Collapse" else "Expand",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Icon(
+                    imageVector = Icons.Filled.ArrowDropDown,
+                    contentDescription = if (expanded) "Collapse $label" else "Expand $label",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.graphicsLayer { rotationZ = if (expanded) 180f else 0f },
+                )
+            }
+            AnimatedVisibility(
+                visible = expanded,
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically(),
+            ) {
+                Text(
+                    text = content,
+                    style = MaterialTheme.typography.bodySmall,
+                    fontFamily = FontFamily.Monospace,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 2.dp),
+                )
+            }
         }
     }
 }
