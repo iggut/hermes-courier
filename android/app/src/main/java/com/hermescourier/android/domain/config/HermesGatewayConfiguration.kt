@@ -16,7 +16,9 @@ private const val PREFS_NAME = "hermes_courier_gateway"
 private const val KEY_BASE_URL = "gateway_base_url"
 private const val KEY_CERT_PATH = "gateway_certificate_path"
 private const val KEY_CERT_PASSWORD = "gateway_certificate_password"
-// First-run default: Tailscale HTTPS (physical devices cannot reach dev-machine localhost).
+// First-run default for this deployment: Tailscale HTTPS (devices cannot use dev-machine localhost).
+// Token-only pairing overwrites persisted baseUrl immediately; this value only applies before pairing
+// or after clearing app data.
 private const val DEFAULT_GATEWAY_BASE_URL = "https://jupiter.tailecd7e7.ts.net"
 
 private fun gatewayPrefs(context: Context) = EncryptedSharedPreferences.create(

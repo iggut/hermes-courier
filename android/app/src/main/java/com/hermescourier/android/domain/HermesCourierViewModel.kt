@@ -674,7 +674,21 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
                 }
                 return@launch
             }
-            val liveClient = runCatching { HermesGatewayClientFactory.create(applicationContext) }.getOrElse { fallbackGatewayClient }
+            val liveClientResult = runCatching { HermesGatewayClientFactory.create(applicationContext) }
+            val liveClient = liveClientResult.getOrNull()
+            if (liveClient == null) {
+                val detail = liveClientResult.exceptionOrNull()?.localizedMessage
+                    ?: liveClientResult.exceptionOrNull()?.toString()
+                    ?: "Unable to create live gateway client"
+                _uiState.update { state ->
+                    state.copy(
+                        conversationActionStatus = "Live gateway unavailable; cannot send: $detail",
+                        conversationActionError = detail,
+                        conversationActionState = HermesConversationActionState.Failed,
+                    )
+                }
+                return@launch
+            }
             runCatching {
                 liveClient.submitConversationMessage(session, trimmed)
             }.onSuccess { echoedEvent ->
