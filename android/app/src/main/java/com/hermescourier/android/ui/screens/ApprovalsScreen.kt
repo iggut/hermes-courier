@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -43,38 +42,39 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import com.hermescourier.android.domain.model.HermesApprovalSummary
+import com.hermescourier.android.domain.model.HermesCourierUiState
 import com.hermescourier.android.ui.CourierEmptyStateKind
 import com.hermescourier.android.ui.approvalCardSummary
-import com.hermescourier.android.ui.approvalDetailSubtitle
 import com.hermescourier.android.ui.approvalEmptyStateMessage
 import com.hermescourier.android.ui.approvalEmptyStateTitle
 import com.hermescourier.android.ui.approvalStatusBadge
+import com.hermescourier.android.ui.components.CompactStatusStrip
 import com.hermescourier.android.ui.courierCardElevation
 import com.hermescourier.android.ui.courierEmptyStateIllustration
-import com.hermescourier.android.ui.courierHeroCardElevation
 
 private val ApprovalFilters = listOf("All", "Biometrics required", "Standard review")
 
 @Composable
 fun ApprovalsScreen(
     contentPadding: PaddingValues,
+    uiState: HermesCourierUiState,
     approvals: List<HermesApprovalSummary>,
-    bootstrapState: String,
-    streamStatus: String,
     queuedApprovalActions: Int,
     approvalActionStatus: String,
     onApproveApproval: (String, String?) -> Unit,
     onRejectApproval: (String, String?) -> Unit,
     onOpenApprovalDetail: (String) -> Unit,
     onRefresh: () -> Unit,
+    onReconnectRealtime: () -> Unit,
+    onRetryQueuedApprovalActions: () -> Unit,
 ) {
     var searchQuery by rememberSaveable { mutableStateOf("") }
     var statusFilter by rememberSaveable { mutableStateOf("All") }
@@ -89,7 +89,6 @@ fun ApprovalsScreen(
     }
     val biometricsRequiredCount = filteredApprovals.count { it.requiresBiometrics }
     val standardReviewCount = filteredApprovals.size - biometricsRequiredCount
-    val pendingCount = approvals.size
     val selectedApproval = selectedApprovalId?.let { id -> approvals.firstOrNull { it.approvalId == id } }
     val actionMenuApproval = actionMenuApprovalId?.let { id -> approvals.firstOrNull { it.approvalId == id } }
 
@@ -97,56 +96,28 @@ fun ApprovalsScreen(
         modifier = Modifier
             .fillMaxSize()
             .padding(contentPadding)
-            .padding(horizontal = 20.dp, vertical = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Card(elevation = courierHeroCardElevation(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
-            Column(
-                modifier = Modifier.padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                Text(text = "Approvals", style = MaterialTheme.typography.headlineMedium)
-                Text(
-                    text = "Filter, search, and swipe cards to approve or reject quickly. Long-press for notes, copy, and detail actions.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Text(
-                    text = "Gateway state: $bootstrapState",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Text(
-                    text = "Realtime status: $streamStatus",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Text(
-                    text = "Queued approvals: $queuedApprovalActions",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = onRefresh) { Text(text = "Refresh") }
-                    Button(onClick = onRefresh) { Text(text = "Sync now") }
-                }
-            }
-        }
+        CompactStatusStrip(
+            uiState = uiState,
+            onReconnect = onReconnectRealtime,
+            onRetryQueued = onRetryQueuedApprovalActions,
+        )
 
         OutlinedTextField(
             value = searchQuery,
             onValueChange = { searchQuery = it },
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
-            label = { Text(text = "Search approvals") },
-            placeholder = { Text(text = "Title, detail, ID, or summary") },
+            placeholder = { Text(text = "Search approvals") },
         )
 
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             ApprovalFilters.forEach { filter ->
                 FilterChip(
@@ -157,66 +128,68 @@ fun ApprovalsScreen(
             }
         }
 
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            MetricCard(
-                modifier = Modifier.weight(1f),
-                label = "Visible",
-                value = filteredApprovals.size.toString(),
-                caption = "Matching filters",
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = "${filteredApprovals.size} visible",
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold,
             )
-            MetricCard(
-                modifier = Modifier.weight(1f),
-                label = "Biometrics",
-                value = biometricsRequiredCount.toString(),
-                caption = "Need a trusted device",
-            )
-            MetricCard(
-                modifier = Modifier.weight(1f),
-                label = "Standard",
-                value = standardReviewCount.toString(),
-                caption = "Can be reviewed normally",
-            )
-        }
-
-        Card(elevation = courierCardElevation()) {
-            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(text = "Delivery state", style = MaterialTheme.typography.titleMedium)
+            if (biometricsRequiredCount > 0) {
                 Text(
-                    text = "Pending in list: $pendingCount · Queued offline: $queuedApprovalActions",
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-                Text(
-                    text = "Last action: $approvalActionStatus",
-                    style = MaterialTheme.typography.bodySmall,
+                    text = "· $biometricsRequiredCount biometrics",
+                    style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            if (standardReviewCount > 0) {
+                Text(
+                    text = "· $standardReviewCount standard",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            if (queuedApprovalActions > 0) {
+                Text(
+                    text = "· $queuedApprovalActions queued",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary,
                 )
             }
         }
 
         if (filteredApprovals.isEmpty()) {
-            Card(elevation = courierHeroCardElevation()) {
-                Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Card(elevation = courierCardElevation()) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
                         courierEmptyStateIllustration(
                             kind = CourierEmptyStateKind.Approvals,
-                            modifier = Modifier.size(84.dp),
+                            modifier = Modifier.size(64.dp),
                         )
-                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Text(
                                 text = approvalEmptyStateTitle(searchQuery),
-                                style = MaterialTheme.typography.titleMedium,
+                                style = MaterialTheme.typography.titleSmall,
                             )
                             Text(
                                 text = approvalEmptyStateMessage(searchQuery),
-                                style = MaterialTheme.typography.bodyMedium,
+                                style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                     }
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
                         if (searchQuery.isNotBlank()) {
                             OutlinedButton(onClick = { searchQuery = "" }) { Text(text = "Clear search") }
                         }
@@ -230,7 +203,7 @@ fun ApprovalsScreen(
         } else {
             LazyColumn(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 items(filteredApprovals, key = { it.approvalId }) { approval ->
                     ApprovalListCard(
@@ -242,6 +215,14 @@ fun ApprovalsScreen(
                     )
                 }
             }
+        }
+
+        if (approvalActionStatus.isNotBlank() && approvalActionStatus != "idle") {
+            Text(
+                text = approvalActionStatus,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 
@@ -299,25 +280,6 @@ fun ApprovalsScreen(
     }
 }
 
-@Composable
-private fun MetricCard(
-    modifier: Modifier = Modifier,
-    label: String,
-    value: String,
-    caption: String,
-) {
-    Card(elevation = courierCardElevation(), modifier = modifier) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
-            Text(text = label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text(text = value, style = MaterialTheme.typography.headlineSmall)
-            Text(text = caption, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-    }
-}
-
 private fun approvalMatchesFilter(
     approval: HermesApprovalSummary,
     query: String,
@@ -369,17 +331,20 @@ private fun ApprovalListCard(
     SwipeToDismissBox(
         state = dismissState,
         backgroundContent = {
-            val swipeProgress = FastOutSlowInEasing.transform(dismissState.progress.coerceIn(0f, 1f))
+            val isActivelySwiping = dismissState.targetValue != SwipeToDismissBoxValue.Settled
+            val swipeProgress = if (isActivelySwiping) {
+                FastOutSlowInEasing.transform(dismissState.progress.coerceIn(0f, 1f))
+            } else 0f
             val isApproveAction = dismissState.targetValue == SwipeToDismissBoxValue.StartToEnd
             val actionLabel = if (isApproveAction) "Approve" else "Reject"
             val actionIcon = if (isApproveAction) Icons.Filled.CheckCircle else Icons.Filled.Close
             val actionContainerColor = lerp(
-                MaterialTheme.colorScheme.surfaceVariant,
+                androidx.compose.ui.graphics.Color.Transparent,
                 if (isApproveAction) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.errorContainer,
                 swipeProgress,
             )
             val actionContentColor = lerp(
-                MaterialTheme.colorScheme.onSurfaceVariant,
+                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0f),
                 if (isApproveAction) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onErrorContainer,
                 swipeProgress,
             )
@@ -409,22 +374,11 @@ private fun ApprovalListCard(
                                 alpha = 0.45f + (0.55f * swipeProgress)
                             },
                         )
-                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                            Text(
-                                text = actionLabel,
-                                style = MaterialTheme.typography.labelLarge,
-                                color = actionContentColor,
-                            )
-                            Text(
-                                text = if (isApproveAction) {
-                                    "Send it through with confidence"
-                                } else {
-                                    "Send it back for another look"
-                                },
-                                style = MaterialTheme.typography.bodySmall,
-                                color = actionContentColor.copy(alpha = 0.85f),
-                            )
-                        }
+                        Text(
+                            text = actionLabel,
+                            style = MaterialTheme.typography.labelLarge,
+                            color = actionContentColor,
+                        )
                     }
                     Text(
                         text = if (isApproveAction) "→" else "←",
@@ -440,7 +394,10 @@ private fun ApprovalListCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .graphicsLayer {
-                    val swipeProgress = FastOutSlowInEasing.transform(dismissState.progress.coerceIn(0f, 1f))
+                    val isActive = dismissState.targetValue != SwipeToDismissBoxValue.Settled
+                    val swipeProgress = if (isActive) {
+                        FastOutSlowInEasing.transform(dismissState.progress.coerceIn(0f, 1f))
+                    } else 0f
                     val scale = 1f - (0.02f * swipeProgress)
                     scaleX = scale
                     scaleY = scale
@@ -451,19 +408,28 @@ private fun ApprovalListCard(
                     onLongClick = onLongPress,
                 ),
         ) {
-            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(text = approvalStatusBadge(approval), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
-                Text(text = approval.title, style = MaterialTheme.typography.titleMedium)
-                Text(text = approval.detail, style = MaterialTheme.typography.bodyMedium)
+            Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = approval.title,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Text(
+                        text = approvalStatusBadge(approval),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
                 Text(
-                    text = approvalCardSummary(approval),
+                    text = approval.detail,
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Text(
-                    text = "Swipe right to approve or left to reject. Long-press for notes and copy actions.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = MaterialTheme.colorScheme.onSurface,
                 )
             }
         }
@@ -484,16 +450,11 @@ private fun ApprovalQuickActionsDialog(
             Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text(text = approval.title, style = MaterialTheme.typography.titleLarge)
                 Text(text = approval.detail, style = MaterialTheme.typography.bodyMedium)
-                Text(
-                    text = "Quick actions let you approve, reject, or open details without losing your place in the list.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(onClick = onApprove) { Text(text = "Approve") }
-                    OutlinedButton(onClick = onReject) { Text(text = "Reject") }
-                    OutlinedButton(onClick = onOpenDetails) { Text(text = "Open details") }
-                    OutlinedButton(onClick = onCopyApprovalId) { Text(text = "Copy approval ID") }
+                    Button(onClick = onApprove, modifier = Modifier.fillMaxWidth()) { Text(text = "Approve") }
+                    OutlinedButton(onClick = onReject, modifier = Modifier.fillMaxWidth()) { Text(text = "Reject") }
+                    OutlinedButton(onClick = onOpenDetails, modifier = Modifier.fillMaxWidth()) { Text(text = "Open details") }
+                    OutlinedButton(onClick = onCopyApprovalId, modifier = Modifier.fillMaxWidth()) { Text(text = "Copy approval ID") }
                 }
             }
         }

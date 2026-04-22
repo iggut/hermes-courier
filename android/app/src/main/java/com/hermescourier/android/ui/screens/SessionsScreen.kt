@@ -15,12 +15,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.AssistChipDefaults
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -42,19 +43,19 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import com.hermescourier.android.domain.model.HermesCourierUiState
 import com.hermescourier.android.domain.model.HermesSessionSummary
 import com.hermescourier.android.ui.CourierEmptyStateKind
-import com.hermescourier.android.ui.archiveHint
+import com.hermescourier.android.ui.components.CompactStatusStrip
 import com.hermescourier.android.ui.courierCardElevation
 import com.hermescourier.android.ui.courierEmptyStateIllustration
-import com.hermescourier.android.ui.courierHeroCardElevation
 import com.hermescourier.android.ui.sessionCardSummary
 import com.hermescourier.android.ui.sessionDetailSubtitle
 import com.hermescourier.android.ui.sessionEmptyStateMessage
@@ -66,11 +67,12 @@ private val SessionFilters = listOf("All", "Live", "Waiting", "Completed", "Need
 @Composable
 fun SessionsScreen(
     contentPadding: PaddingValues,
+    uiState: HermesCourierUiState,
     sessions: List<HermesSessionSummary>,
-    bootstrapState: String,
-    streamStatus: String,
     onOpenSessionDetail: (String) -> Unit,
     onRefresh: () -> Unit,
+    onReconnectRealtime: () -> Unit,
+    onRetryQueuedApprovalActions: () -> Unit,
 ) {
     var searchQuery by rememberSaveable { mutableStateOf("") }
     var statusFilter by rememberSaveable { mutableStateOf("All") }
@@ -98,56 +100,28 @@ fun SessionsScreen(
         modifier = Modifier
             .fillMaxSize()
             .padding(contentPadding)
-            .padding(horizontal = 20.dp, vertical = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Card(elevation = courierHeroCardElevation(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
-            Column(
-                modifier = Modifier.padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                Text(text = "Sessions", style = MaterialTheme.typography.headlineMedium)
-                Text(
-                    text = "Gateway state: $bootstrapState",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Text(
-                    text = "Search, filter, archive locally, and long-press a session to copy its ID or jump into detail faster.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Text(
-                    text = archiveHint(archivedCount),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Text(
-                    text = "Realtime status: $streamStatus",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = onRefresh) { Text(text = "Refresh") }
-                    Button(onClick = onRefresh) { Text(text = "Sync now") }
-                }
-            }
-        }
+        CompactStatusStrip(
+            uiState = uiState,
+            onReconnect = onReconnectRealtime,
+            onRetryQueued = onRetryQueuedApprovalActions,
+        )
 
         OutlinedTextField(
             value = searchQuery,
             onValueChange = { searchQuery = it },
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
-            label = { Text(text = "Search sessions") },
-            placeholder = { Text(text = "Title, status, ID, or summary") },
+            placeholder = { Text(text = "Search sessions") },
         )
 
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             SessionFilters.forEach { filter ->
                 FilterChip(
@@ -158,51 +132,66 @@ fun SessionsScreen(
             }
         }
 
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            MetricCard(
-                modifier = Modifier.weight(1f),
-                label = "Visible",
-                value = visibleSessions.size.toString(),
-                caption = "Matching the current filters",
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = "${visibleSessions.size} visible",
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold,
             )
-            MetricCard(
-                modifier = Modifier.weight(1f),
-                label = "Live",
-                value = visibleLiveCount.toString(),
-                caption = "Active sessions",
+            Text(
+                text = "· $visibleLiveCount live",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            MetricCard(
-                modifier = Modifier.weight(1f),
-                label = "Attention",
-                value = visibleAttentionCount.toString(),
-                caption = "Need a closer look",
-            )
+            if (visibleAttentionCount > 0) {
+                Text(
+                    text = "· $visibleAttentionCount attention",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
+            if (archivedCount > 0) {
+                Text(
+                    text = "· $archivedCount archived",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
 
         if (visibleSessions.isEmpty()) {
-            Card(elevation = courierHeroCardElevation()) {
-                Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Card(elevation = courierCardElevation()) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
                         courierEmptyStateIllustration(
                             kind = CourierEmptyStateKind.Sessions,
-                            modifier = Modifier.size(84.dp),
+                            modifier = Modifier.size(64.dp),
                         )
-                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Text(
                                 text = sessionEmptyStateTitle(statusFilter, searchQuery),
-                                style = MaterialTheme.typography.titleMedium,
+                                style = MaterialTheme.typography.titleSmall,
                             )
                             Text(
                                 text = sessionEmptyStateMessage(statusFilter, searchQuery),
-                                style = MaterialTheme.typography.bodyMedium,
+                                style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                     }
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
                         if (searchQuery.isNotBlank()) {
                             OutlinedButton(onClick = { searchQuery = "" }) { Text(text = "Clear search") }
                         }
@@ -216,7 +205,7 @@ fun SessionsScreen(
         } else {
             LazyColumn(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 items(visibleSessions, key = { it.sessionId }) { session ->
                     val isArchived = session.sessionId in archivedSet
@@ -266,25 +255,6 @@ fun SessionsScreen(
             },
             onDismiss = { selectedSessionId = null },
         )
-    }
-}
-
-@Composable
-private fun MetricCard(
-    modifier: Modifier = Modifier,
-    label: String,
-    value: String,
-    caption: String,
-) {
-    Card(elevation = courierCardElevation(), modifier = modifier) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
-            Text(text = label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text(text = value, style = MaterialTheme.typography.headlineSmall)
-            Text(text = caption, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
     }
 }
 
@@ -351,17 +321,20 @@ private fun SessionListCard(
     SwipeToDismissBox(
         state = dismissState,
         backgroundContent = {
-            val swipeProgress = FastOutSlowInEasing.transform(dismissState.progress.coerceIn(0f, 1f))
+            val isActivelySwiping = dismissState.targetValue != SwipeToDismissBoxValue.Settled
+            val swipeProgress = if (isActivelySwiping) {
+                FastOutSlowInEasing.transform(dismissState.progress.coerceIn(0f, 1f))
+            } else 0f
             val isRestoreAction = isArchived
             val actionLabel = if (isRestoreAction) "Restore" else "Archive"
-            val actionIcon = if (isRestoreAction) Icons.Filled.Refresh else Icons.Filled.List
+            val actionIcon = if (isRestoreAction) Icons.Filled.Refresh else Icons.AutoMirrored.Filled.List
             val actionContainerColor = lerp(
-                MaterialTheme.colorScheme.surfaceVariant,
+                androidx.compose.ui.graphics.Color.Transparent,
                 if (isRestoreAction) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.errorContainer,
                 swipeProgress,
             )
             val actionContentColor = lerp(
-                MaterialTheme.colorScheme.onSurfaceVariant,
+                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0f),
                 if (isRestoreAction) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onErrorContainer,
                 swipeProgress,
             )
@@ -387,22 +360,11 @@ private fun SessionListCard(
                             alpha = 0.45f + (0.55f * swipeProgress)
                         },
                     )
-                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        Text(
-                            text = actionLabel,
-                            style = MaterialTheme.typography.labelLarge,
-                            color = actionContentColor,
-                        )
-                        Text(
-                            text = if (isRestoreAction) {
-                                "Bring it back to the main list"
-                            } else {
-                                "Move it out of the active queue"
-                            },
-                            style = MaterialTheme.typography.bodySmall,
-                            color = actionContentColor.copy(alpha = 0.85f),
-                        )
-                    }
+                    Text(
+                        text = actionLabel,
+                        style = MaterialTheme.typography.labelLarge,
+                        color = actionContentColor,
+                    )
                 }
             }
         },
@@ -412,7 +374,10 @@ private fun SessionListCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .graphicsLayer {
-                    val swipeProgress = FastOutSlowInEasing.transform(dismissState.progress.coerceIn(0f, 1f))
+                    val isActive = dismissState.targetValue != SwipeToDismissBoxValue.Settled
+                    val swipeProgress = if (isActive) {
+                        FastOutSlowInEasing.transform(dismissState.progress.coerceIn(0f, 1f))
+                    } else 0f
                     val scale = 1f - (0.02f * swipeProgress)
                     scaleX = scale
                     scaleY = scale
@@ -426,16 +391,26 @@ private fun SessionListCard(
                 containerColor = if (isArchived) MaterialTheme.colorScheme.surfaceVariant else MaterialTheme.colorScheme.surface,
             ),
         ) {
-            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = session.title,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Text(
+                        text = if (isArchived) "Archived" else sessionStatusBadge(session.status),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
                 Text(
-                    text = if (isArchived) "Archived locally" else sessionStatusBadge(session.status),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.primary,
-                )
-                Text(text = session.title, style = MaterialTheme.typography.titleMedium)
-                Text(text = sessionCardSummary(session), style = MaterialTheme.typography.bodyMedium)
-                Text(
-                    text = sessionDetailSubtitle(session) + if (isArchived) " · Archived on this device" else "",
+                    text = sessionDetailSubtitle(session),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -460,24 +435,15 @@ private fun SessionQuickActionsDialog(
             Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text(text = session.title, style = MaterialTheme.typography.titleLarge)
                 Text(text = sessionDetailSubtitle(session), style = MaterialTheme.typography.bodyMedium)
-                Text(
-                    text = if (isArchived) {
-                        "This session is archived locally. Restore it to bring it back into the active list."
-                    } else {
-                        "Quick actions help you jump into detail, copy the session ID, or archive it locally with one tap."
-                    },
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(onClick = onOpenDetails) { Text(text = "Open details") }
-                    OutlinedButton(onClick = onCopySessionId) { Text(text = "Copy session ID") }
+                    Button(onClick = onOpenDetails, modifier = Modifier.fillMaxWidth()) { Text(text = "Open details") }
+                    OutlinedButton(onClick = onCopySessionId, modifier = Modifier.fillMaxWidth()) { Text(text = "Copy session ID") }
                     if (isArchived) {
-                        OutlinedButton(onClick = onRestore) { Text(text = "Restore session") }
+                        OutlinedButton(onClick = onRestore, modifier = Modifier.fillMaxWidth()) { Text(text = "Restore session") }
                     } else {
-                        OutlinedButton(onClick = onArchive) { Text(text = "Archive locally") }
+                        OutlinedButton(onClick = onArchive, modifier = Modifier.fillMaxWidth()) { Text(text = "Archive locally") }
                     }
-                    OutlinedButton(onClick = onRefresh) { Text(text = "Refresh") }
+                    OutlinedButton(onClick = onRefresh, modifier = Modifier.fillMaxWidth()) { Text(text = "Refresh") }
                 }
             }
         }
