@@ -312,7 +312,7 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
     private suspend fun performLiveGatewayTest() {
         reconnectCountdownJob?.cancel()
         reconnectCountdownJob = null
-        syncSettingsFromDisk()
+        persistGatewaySettings()
         _uiState.update {
             it.copy(
                 bootstrapState = "Testing live gateway",

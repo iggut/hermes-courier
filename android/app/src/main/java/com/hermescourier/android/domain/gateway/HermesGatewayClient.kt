@@ -98,6 +98,19 @@ class NetworkHermesGatewayClient(
                 }
             }
         }
+        if (configuration.mtlsPkcs12File != null) {
+            val session = HermesAuthSession(
+                sessionId = "mtls-${device.deviceId.takeLast(8)}",
+                accessToken = "",
+                refreshToken = "",
+                expiresAt = "",
+                gatewayUrl = configuration.baseUrl.toString(),
+                mtlsRequired = true,
+                scope = emptyList(),
+            )
+            tokenStore.save(session)
+            return@withContext session
+        }
         val challenge = requestChallenge(device)
         val signedNonce = signer.sign(challenge.nonce, device)
         val response = transport.post(

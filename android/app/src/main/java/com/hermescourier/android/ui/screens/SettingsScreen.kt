@@ -148,6 +148,25 @@ fun SettingsScreen(
                     label = "Certificate",
                     value = uiState.gatewaySettings.certificatePath.ifBlank { "Not imported" },
                 )
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    OutlinedButton(
+                        onClick = {
+                            certificatePicker.launch(
+                                arrayOf(
+                                    "application/x-pkcs12",
+                                    "application/pkcs12",
+                                    "application/octet-stream",
+                                ),
+                            )
+                        },
+                    ) {
+                        Text(text = "Import certificate")
+                    }
+                }
                 KeyValueRow(label = "Enrollment", value = uiState.enrollmentStatus)
                 KeyValueRow(label = "Pairing", value = uiState.courierPairingStatus)
                 if (uiState.pairingUnavailableReasons.isNotEmpty()) {
