@@ -38,7 +38,9 @@ object HermesOkHttpClientFactory {
                 init(keyStore, password)
             }
             val trustManagerFactory = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm()).apply {
-                init(keyStore)
+                // Trust the platform/system CA store for the gateway, while the PKCS#12 bundle
+                // only supplies the client identity for mTLS.
+                init(null as KeyStore?)
             }
             val trustManager = trustManagerFactory.trustManagers.filterIsInstance<X509TrustManager>().first()
             val sslContext = SSLContext.getInstance("TLS").apply {
