@@ -29,7 +29,8 @@ object HermesOkHttpClientFactory {
             .writeTimeout(45, TimeUnit.SECONDS)
             .callTimeout(60, TimeUnit.SECONDS)
         configuration.mtlsPkcs12File?.takeIf { it.exists() }?.let { pkcs12File ->
-            val password = configuration.mtlsPkcs12Password ?: charArrayOf()
+            val password = configuration.mtlsPkcs12Password
+                ?: error("mTLS password required for enrolment before loading the imported PKCS#12 bundle")
             val keyStore = KeyStore.getInstance("PKCS12").apply {
                 FileInputStream(pkcs12File).use { load(it, password) }
             }

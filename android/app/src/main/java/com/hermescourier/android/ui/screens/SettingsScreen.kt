@@ -141,8 +141,13 @@ fun SettingsScreen(
                     value = uiState.gatewaySettings.certificatePassword,
                     onValueChange = onCertificatePasswordChange,
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text(text = "PKCS#12 password") },
+                    label = { Text(text = "PKCS#12 password (required)") },
                     singleLine = true,
+                )
+                Text(
+                    text = "Required to enroll the imported PKCS#12 bundle and use it for mTLS.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 KeyValueRow(
                     label = "Certificate",

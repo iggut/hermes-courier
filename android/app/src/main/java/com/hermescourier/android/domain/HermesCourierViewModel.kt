@@ -313,6 +313,21 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
         reconnectCountdownJob?.cancel()
         reconnectCountdownJob = null
         persistGatewaySettings()
+        val gatewaySettings = _uiState.value.gatewaySettings
+        if (gatewaySettings.certificatePath.isNotBlank() && gatewaySettings.certificatePassword.isBlank()) {
+            val detail = "mTLS password required for enrolment before the imported PKCS#12 bundle can be used"
+            _uiState.update {
+                it.copy(
+                    bootstrapState = "Live gateway unavailable",
+                    authStatus = detail,
+                    gatewayConnectionMode = "Unavailable",
+                    gatewayConnectionDetail = detail,
+                    streamStatus = "Realtime stream unavailable",
+                    verificationMode = "Failed (mTLS password missing)",
+                )
+            }
+            return
+        }
         _uiState.update {
             it.copy(
                 bootstrapState = "Testing live gateway",
@@ -441,7 +456,12 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
 
     fun updateCertificatePassword(value: String) {
         _uiState.update {
-            it.copy(gatewaySettings = it.gatewaySettings.copy(certificatePassword = value))
+            val updatedSettings = it.gatewaySettings.copy(certificatePassword = value)
+            it.copy(
+                gatewaySettings = updatedSettings,
+                enrollmentStatus = enrollmentStatus(updatedSettings),
+                enrollmentQrPayload = enrollmentPayload(updatedSettings),
+            )
         }
     }
 
@@ -529,10 +549,11 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
     fun saveSettings() {
         viewModelScope.launch {
             persistGatewaySettings()
+            val gatewaySettings = _uiState.value.gatewaySettings
             _uiState.update {
                 it.copy(
-                    enrollmentStatus = "Gateway settings saved securely",
-                    enrollmentQrPayload = enrollmentPayload(it.gatewaySettings),
+                    enrollmentStatus = enrollmentStatus(gatewaySettings),
+                    enrollmentQrPayload = enrollmentPayload(gatewaySettings),
                     queuedApprovalActions = queuedApprovalActions.size,
                     queuedApprovalActionQueue = queuedApprovalActions.toList(),
                 )
