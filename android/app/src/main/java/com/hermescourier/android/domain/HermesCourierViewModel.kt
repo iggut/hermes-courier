@@ -27,7 +27,7 @@ import com.hermescourier.android.domain.model.HermesGatewaySettings
 import com.hermescourier.android.domain.model.HermesQueuedApprovalAction
 import com.hermescourier.android.domain.model.HermesSessionControlActionResult
 import com.hermescourier.android.domain.model.parseHermesEnrollmentPayload
-import com.hermescourier.android.domain.model.validateTokenOnlyPairingContract
+import com.hermescourier.android.domain.model.validateEnrollmentContract
 import com.hermescourier.android.domain.model.migrateQueuedApprovalAction
 import com.hermescourier.android.domain.model.queuedApprovalActionMatchesResult
 import com.hermescourier.android.domain.model.userFacingApprovalVerb
@@ -490,12 +490,12 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
             _uiState.update { it.copy(enrollmentStatus = "Pairing import failed: payload could not be parsed") }
             return
         }
-        val validationError = validateTokenOnlyPairingContract(parsed)
+        val validationError = validateEnrollmentContract(parsed)
         if (validationError != null) {
             _uiState.update {
                 it.copy(
                     enrollmentStatus = validationError,
-                    courierPairingStatus = "Pairing invalid: token-only contract requirements were not met",
+                    courierPairingStatus = "Pairing invalid: contract requirements were not met",
                 )
             }
             return

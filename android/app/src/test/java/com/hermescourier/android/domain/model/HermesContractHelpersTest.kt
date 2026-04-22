@@ -139,4 +139,23 @@ class HermesContractHelpersTest {
         val validationError = validateTokenOnlyPairingContract(payload)
         assertEquals("Pairing import failed: token-only pairing requires bearerToken", validationError)
     }
+
+    @Test
+    fun validateEnrollmentContract_acceptsCertificateModeWithoutBearerToken() {
+        val payload = HermesEnrollmentPayload(
+            gatewayUrl = "https://gateway.example.ts.net",
+            deviceId = "android-1",
+            publicKeyFingerprint = "fp-1",
+            appVersion = "1.0.0",
+            issuedAt = "2026-04-22T00:00:00Z",
+            courierMode = "certificate",
+            pairingMode = "certificate",
+            pairingContractVersion = "2026-04-21",
+            apiBasePath = "/v1",
+            bearerToken = null,
+        )
+
+        assertNull(validateEnrollmentContract(payload))
+    }
+
 }

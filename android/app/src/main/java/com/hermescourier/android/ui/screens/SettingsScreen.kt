@@ -206,7 +206,7 @@ fun SettingsScreen(
 
             SettingsSectionCard(title = "Device enrollment") {
                 Text(
-                    text = "Scan the Hermes WebUI pairing QR for token-only pairing. Sharing this QR remains available for fallback workflows.",
+                    text = "Scan the Hermes WebUI pairing QR to import pairing settings. Token-only and certificate modes are both supported; sharing this QR remains available for fallback workflows.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

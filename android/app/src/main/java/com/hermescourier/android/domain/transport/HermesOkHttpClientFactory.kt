@@ -37,7 +37,7 @@ object HermesOkHttpClientFactory {
                 init(keyStore, password)
             }
             val trustManagerFactory = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm()).apply {
-                init(null as KeyStore?)
+                init(keyStore)
             }
             val trustManager = trustManagerFactory.trustManagers.filterIsInstance<X509TrustManager>().first()
             val sslContext = SSLContext.getInstance("TLS").apply {

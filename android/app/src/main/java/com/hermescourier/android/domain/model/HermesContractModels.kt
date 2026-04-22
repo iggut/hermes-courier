@@ -244,21 +244,33 @@ fun parseHermesEnrollmentPayload(
     )
 }
 
-fun validateTokenOnlyPairingContract(payload: HermesEnrollmentPayload): String? {
-    if (payload.courierMode?.lowercase() != "bearer-token") {
-        return "Pairing import failed: courierMode must be bearer-token"
-    }
-    if (payload.pairingMode?.lowercase() != "token-only") {
-        return "Pairing import failed: pairingMode must be token-only"
-    }
+fun validateEnrollmentContract(payload: HermesEnrollmentPayload): String? {
     if (payload.gatewayUrl.isBlank()) {
         return "Pairing import failed: gatewayUrl is required"
     }
-    if (payload.bearerToken.isNullOrBlank()) {
-        return "Pairing import failed: token-only pairing requires bearerToken"
+    when (payload.courierMode?.lowercase()) {
+        "bearer-token" -> {
+            if (payload.pairingMode?.lowercase() != "token-only") {
+                return "Pairing import failed: pairingMode must be token-only for bearer-token courier mode"
+            }
+            if (payload.bearerToken.isNullOrBlank()) {
+                return "Pairing import failed: token-only pairing requires bearerToken"
+            }
+        }
+        "certificate" -> {
+            if (payload.pairingMode?.lowercase() != "certificate") {
+                return "Pairing import failed: pairingMode must be certificate for certificate courier mode"
+            }
+        }
+        else -> {
+            return "Pairing import failed: courierMode must be bearer-token or certificate"
+        }
     }
     return null
 }
+
+fun validateTokenOnlyPairingContract(payload: HermesEnrollmentPayload): String? =
+    validateEnrollmentContract(payload)
 
 private fun parseQueryParameters(rawQuery: String?): Map<String, String> {
     if (rawQuery.isNullOrBlank()) return emptyMap()
