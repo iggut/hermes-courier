@@ -28,6 +28,7 @@ fun SessionDetailScreen(
     contentPadding: PaddingValues,
     session: HermesSessionSummary,
     onRefresh: () -> Unit,
+    onContinueInChat: (sessionId: String) -> Unit,
     onSessionControlAction: (sessionId: String, action: String) -> Unit,
     sessionControlStatus: String,
     endpointVerificationResults: List<HermesEndpointVerificationResult>,
@@ -48,6 +49,24 @@ fun SessionDetailScreen(
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+
+        Card(
+            elevation = courierHeroCardElevation(),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+        ) {
+            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(text = "Continue the conversation", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    text = "Opens Chat scoped to this session so you pick up where you left off. The composer stays focused on this session until you exit the context.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                )
+                Button(
+                    onClick = { onContinueInChat(session.sessionId) },
+                    modifier = Modifier.fillMaxWidth(),
+                ) { Text(text = "Continue in chat") }
+            }
+        }
 
         Card(elevation = courierHeroCardElevation(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {

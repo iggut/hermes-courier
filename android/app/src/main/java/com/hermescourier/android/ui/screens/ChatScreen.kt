@@ -11,26 +11,27 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -40,6 +41,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -48,6 +50,13 @@ import androidx.compose.ui.unit.dp
 import com.hermescourier.android.domain.model.HermesConversationActionState
 import com.hermescourier.android.domain.model.HermesConversationEvent
 import com.hermescourier.android.domain.model.HermesCourierUiState
+import com.hermescourier.android.domain.model.HermesSessionSummary
+import com.hermescourier.android.ui.ChatSendStateIndicator
+import com.hermescourier.android.ui.chatActiveSessionHeadline
+import com.hermescourier.android.ui.chatActiveSessionSubtitle
+import com.hermescourier.android.ui.chatSendStateIndicator
+import com.hermescourier.android.ui.chatSendStateLabel
+import com.hermescourier.android.ui.chatShouldGroupWithPrevious
 import com.hermescourier.android.ui.components.CompactStatusStrip
 
 @Composable
@@ -58,9 +67,12 @@ fun ChatScreen(
     conversationActionStatus: String,
     conversationActionError: String?,
     conversationActionState: HermesConversationActionState,
+    activeSession: HermesSessionSummary?,
     onSendConversationMessage: (String) -> Unit,
     onReconnectRealtime: () -> Unit,
     onRetryQueuedApprovalActions: () -> Unit,
+    onExitActiveSession: () -> Unit,
+    onOpenActiveSessionDetail: (String) -> Unit,
 ) {
     var draft by rememberSaveable { mutableStateOf("") }
     var pendingDraft by rememberSaveable { mutableStateOf<String?>(null) }
@@ -69,10 +81,29 @@ fun ChatScreen(
     val listState = rememberLazyListState()
 
     val isSending = conversationActionState == HermesConversationActionState.Sending
-    val hasError = conversationActionState == HermesConversationActionState.Failed && !conversationActionError.isNullOrBlank()
+    val isDelivered = conversationActionState == HermesConversationActionState.Sent
+    val hasError = conversationActionState == HermesConversationActionState.Failed &&
+        !conversationActionError.isNullOrBlank()
 
-    LaunchedEffect(conversationEvents.size) {
-        if (conversationEvents.isNotEmpty()) {
+    val lastUserEventIndex = remember(conversationEvents) {
+        conversationEvents.indexOfLast { it.author.equals("You", ignoreCase = true) }
+    }
+
+    // Auto-scroll only on: (a) user just added an optimistic message, or (b) viewer was
+    // already near the bottom when a new message arrived. This avoids yanking the view
+    // away from an operator re-reading older context.
+    val isNearBottom by remember {
+        derivedStateOf {
+            val layout = listState.layoutInfo
+            val lastVisible = layout.visibleItemsInfo.lastOrNull() ?: return@derivedStateOf true
+            val total = layout.totalItemsCount
+            lastVisible.index >= total - 2
+        }
+    }
+
+    LaunchedEffect(conversationEvents.size, isSending) {
+        if (conversationEvents.isEmpty()) return@LaunchedEffect
+        if (isNearBottom || isSending) {
             listState.animateScrollToItem(conversationEvents.lastIndex.coerceAtLeast(0))
         }
     }
@@ -109,8 +140,13 @@ fun ChatScreen(
             onRetryQueued = onRetryQueuedApprovalActions,
         )
 
-        if (isSending) {
-            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+        if (uiState.activeSessionId != null) {
+            ActiveSessionHeader(
+                activeSessionId = uiState.activeSessionId,
+                session = activeSession,
+                onExitActiveSession = onExitActiveSession,
+                onOpenDetails = { uiState.activeSessionId.let(onOpenActiveSessionDetail) },
+            )
         }
 
         Box(
@@ -127,7 +163,7 @@ fun ChatScreen(
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     Text(
-                        text = "No messages yet",
+                        text = if (uiState.activeSessionId != null) "No messages in this session yet" else "No messages yet",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
                     )
@@ -143,10 +179,28 @@ fun ChatScreen(
                 LazyColumn(
                     state = listState,
                     modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
                 ) {
-                    items(conversationEvents, key = { it.eventId }) { event ->
-                        ChatMessageBubble(event = event)
+                    itemsIndexed(
+                        items = conversationEvents,
+                        key = { _, event -> event.eventId },
+                    ) { index, event ->
+                        val previousAuthor = conversationEvents.getOrNull(index - 1)?.author
+                        val groupedWithPrev = chatShouldGroupWithPrevious(previousAuthor, event.author)
+                        val isUser = event.author.equals("You", ignoreCase = true)
+                        val isLatestUser = isUser && index == lastUserEventIndex
+                        val indicator = chatSendStateIndicator(
+                            isUserMessage = isUser,
+                            isLatestUserMessage = isLatestUser,
+                            sending = isSending,
+                            failed = hasError,
+                            delivered = isDelivered,
+                        )
+                        ChatMessageBubble(
+                            event = event,
+                            groupedWithPrevious = groupedWithPrev,
+                            sendState = indicator,
+                        )
                     }
                 }
             }
@@ -196,7 +250,12 @@ fun ChatScreen(
             onDraftChange = { draft = it },
             isSending = isSending,
             focusRequester = focusRequester,
-            statusLabel = composerStatusLabel(conversationActionState, conversationActionStatus),
+            statusLabel = composerStatusLabel(
+                state = conversationActionState,
+                statusText = conversationActionStatus,
+                activeSessionTitle = activeSession?.title?.takeIf { it.isNotBlank() }
+                    ?: uiState.activeSessionId,
+            ),
             onSend = {
                 if (draft.isNotBlank() && !isSending) {
                     pendingDraft = draft
@@ -209,40 +268,98 @@ fun ChatScreen(
 }
 
 @Composable
-private fun ChatMessageBubble(event: HermesConversationEvent) {
+private fun ActiveSessionHeader(
+    activeSessionId: String,
+    session: HermesSessionSummary?,
+    onExitActiveSession: () -> Unit,
+    onOpenDetails: () -> Unit,
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(1.dp),
+            ) {
+                Text(
+                    text = "In session · ${chatActiveSessionHeadline(activeSessionId, session)}",
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                )
+                Text(
+                    text = chatActiveSessionSubtitle(activeSessionId, session),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                )
+            }
+            TextButton(onClick = onOpenDetails) { Text(text = "Details") }
+            IconButton(onClick = onExitActiveSession) {
+                Icon(
+                    imageVector = Icons.Filled.Close,
+                    contentDescription = "Exit session context",
+                    tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ChatMessageBubble(
+    event: HermesConversationEvent,
+    groupedWithPrevious: Boolean,
+    sendState: ChatSendStateIndicator,
+) {
     val author = event.author.ifBlank { "Unknown" }
     val body = event.body.ifBlank { "(empty message body)" }
     val timestamp = event.timestamp
     val isUser = author.equals("You", ignoreCase = true)
 
+    val topPadding = if (groupedWithPrevious) 1.dp else 8.dp
+
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = topPadding),
         horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start,
     ) {
-        Card(
-            modifier = Modifier.fillMaxWidth(0.92f),
-            colors = CardDefaults.cardColors(
-                containerColor = if (isUser) {
-                    MaterialTheme.colorScheme.primaryContainer
-                } else {
-                    MaterialTheme.colorScheme.surfaceVariant
-                },
-            ),
+        Column(
+            modifier = Modifier.fillMaxWidth(0.86f),
+            horizontalAlignment = if (isUser) Alignment.End else Alignment.Start,
         ) {
-            Column(
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(2.dp),
-            ) {
+            if (!groupedWithPrevious) {
                 Text(
                     text = author,
-                    style = MaterialTheme.typography.labelMedium,
+                    style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.SemiBold,
-                    color = if (isUser) {
-                        MaterialTheme.colorScheme.onPrimaryContainer
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    },
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(
+                        start = if (isUser) 0.dp else 8.dp,
+                        end = if (isUser) 8.dp else 0.dp,
+                        bottom = 2.dp,
+                    ),
                 )
+            }
+            Card(
+                colors = CardDefaults.cardColors(
+                    containerColor = if (isUser) {
+                        MaterialTheme.colorScheme.primaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.surfaceVariant
+                    },
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+            ) {
                 Text(
                     text = body,
                     style = MaterialTheme.typography.bodyMedium,
@@ -251,21 +368,56 @@ private fun ChatMessageBubble(event: HermesConversationEvent) {
                     } else {
                         MaterialTheme.colorScheme.onSurface
                     },
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
                 )
-                if (timestamp.isNotBlank()) {
+            }
+
+            val metaText = buildString {
+                if (timestamp.isNotBlank()) append(timestamp)
+                val indicatorLabel = chatSendStateLabel(sendState)
+                if (indicatorLabel.isNotBlank()) {
+                    if (isNotBlank()) append(" · ")
+                    append(indicatorLabel)
+                }
+            }
+            if (metaText.isNotBlank()) {
+                Row(
+                    modifier = Modifier.padding(
+                        top = 1.dp,
+                        start = if (isUser) 0.dp else 8.dp,
+                        end = if (isUser) 8.dp else 0.dp,
+                    ),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    sendStateIcon(sendState)?.let { icon ->
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = null,
+                            modifier = Modifier.size(12.dp),
+                            tint = when (sendState) {
+                                ChatSendStateIndicator.Failed -> MaterialTheme.colorScheme.error
+                                ChatSendStateIndicator.Delivered -> MaterialTheme.colorScheme.primary
+                                else -> MaterialTheme.colorScheme.onSurfaceVariant
+                            },
+                        )
+                    }
                     Text(
-                        text = timestamp,
+                        text = metaText,
                         style = MaterialTheme.typography.labelSmall,
-                        color = if (isUser) {
-                            MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        },
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
         }
     }
+}
+
+private fun sendStateIcon(state: ChatSendStateIndicator): ImageVector? = when (state) {
+    ChatSendStateIndicator.Sending -> null
+    ChatSendStateIndicator.Delivered -> Icons.Filled.Check
+    ChatSendStateIndicator.Failed -> Icons.Filled.Warning
+    ChatSendStateIndicator.None -> null
 }
 
 @Composable
@@ -342,9 +494,14 @@ private fun ChatComposer(
 private fun composerStatusLabel(
     state: HermesConversationActionState,
     statusText: String,
-): String = when (state) {
-    HermesConversationActionState.Sending -> "Sending…"
-    HermesConversationActionState.Sent -> "Delivered"
-    HermesConversationActionState.Failed -> "Failed — see error above"
-    HermesConversationActionState.Idle -> statusText.ifBlank { "Ready · mTLS secure transport" }
+    activeSessionTitle: String?,
+): String {
+    val base = when (state) {
+        HermesConversationActionState.Sending -> "Sending…"
+        HermesConversationActionState.Sent -> "Delivered"
+        HermesConversationActionState.Failed -> "Failed — see error above"
+        HermesConversationActionState.Idle -> statusText.ifBlank { "Ready · mTLS secure transport" }
+    }
+    if (activeSessionTitle.isNullOrBlank()) return base
+    return "$base · session $activeSessionTitle"
 }

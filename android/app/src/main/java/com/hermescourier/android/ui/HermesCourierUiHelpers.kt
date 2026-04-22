@@ -223,3 +223,64 @@ internal fun archiveHint(archivedCount: Int): String = when (archivedCount) {
     1 -> "1 session is archived locally. Open Archived to restore it."
     else -> "$archivedCount sessions are archived locally. Open Archived to restore them."
 }
+
+/**
+ * Headline shown in the chat active-session chip. Falls back to the raw id when the
+ * summary has not yet loaded, and to a generic "no session" hint when there is no
+ * active focus at all.
+ */
+internal fun chatActiveSessionHeadline(
+    activeSessionId: String?,
+    session: HermesSessionSummary?,
+): String = when {
+    activeSessionId == null -> "Global conversation"
+    session != null -> session.title.ifBlank { activeSessionId }
+    else -> activeSessionId
+}
+
+/**
+ * Subtitle for the chat active-session chip. Prefers a real status/updatedAt
+ * breadcrumb when the session summary is loaded; otherwise explains that we are
+ * awaiting data so the operator doesn't read a blank line as "nothing going on".
+ */
+internal fun chatActiveSessionSubtitle(
+    activeSessionId: String?,
+    session: HermesSessionSummary?,
+): String = when {
+    activeSessionId == null -> "No session selected · sending to the global conversation"
+    session != null -> sessionDetailSubtitle(session)
+    else -> "Loading session details…"
+}
+
+/** True when [current] should visually group under its predecessor (same author, no hard break). */
+internal fun chatShouldGroupWithPrevious(
+    previousAuthor: String?,
+    currentAuthor: String,
+): Boolean {
+    if (previousAuthor.isNullOrBlank()) return false
+    return previousAuthor.trim().equals(currentAuthor.trim(), ignoreCase = true)
+}
+
+/** Condensed label used on the per-message send-state glyph in optimistic bubbles. */
+internal fun chatSendStateIndicator(
+    isUserMessage: Boolean,
+    isLatestUserMessage: Boolean,
+    sending: Boolean,
+    failed: Boolean,
+    delivered: Boolean,
+): ChatSendStateIndicator = when {
+    !isUserMessage || !isLatestUserMessage -> ChatSendStateIndicator.None
+    failed -> ChatSendStateIndicator.Failed
+    sending -> ChatSendStateIndicator.Sending
+    delivered -> ChatSendStateIndicator.Delivered
+    else -> ChatSendStateIndicator.None
+}
+
+internal enum class ChatSendStateIndicator { None, Sending, Delivered, Failed }
+
+internal fun chatSendStateLabel(indicator: ChatSendStateIndicator): String = when (indicator) {
+    ChatSendStateIndicator.Sending -> "Sending…"
+    ChatSendStateIndicator.Delivered -> "Delivered"
+    ChatSendStateIndicator.Failed -> "Failed"
+    ChatSendStateIndicator.None -> ""
+}

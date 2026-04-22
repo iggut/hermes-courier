@@ -70,6 +70,7 @@ fun SessionsScreen(
     uiState: HermesCourierUiState,
     sessions: List<HermesSessionSummary>,
     onOpenSessionDetail: (String) -> Unit,
+    onOpenSessionInChat: (String) -> Unit,
     onRefresh: () -> Unit,
     onReconnectRealtime: () -> Unit,
     onRetryQueuedApprovalActions: () -> Unit,
@@ -212,7 +213,7 @@ fun SessionsScreen(
                     SessionListCard(
                         session = session,
                         isArchived = isArchived,
-                        onOpenSessionDetail = onOpenSessionDetail,
+                        onOpenSessionInChat = onOpenSessionInChat,
                         onArchive = {
                             archivedSessionIds = (archivedSessionIds + session.sessionId).distinct()
                             if (selectedSessionId == session.sessionId) {
@@ -233,6 +234,10 @@ fun SessionsScreen(
         SessionQuickActionsDialog(
             session = selectedSession,
             isArchived = selectedSession.sessionId in archivedSet,
+            onOpenInChat = {
+                selectedSessionId = null
+                onOpenSessionInChat(selectedSession.sessionId)
+            },
             onOpenDetails = {
                 selectedSessionId = null
                 onOpenSessionDetail(selectedSession.sessionId)
@@ -291,7 +296,7 @@ private fun sessionMatchesFilter(
 private fun SessionListCard(
     session: HermesSessionSummary,
     isArchived: Boolean,
-    onOpenSessionDetail: (String) -> Unit,
+    onOpenSessionInChat: (String) -> Unit,
     onArchive: () -> Unit,
     onRestore: () -> Unit,
     onLongPress: () -> Unit,
@@ -384,7 +389,7 @@ private fun SessionListCard(
                     alpha = 1f - (0.05f * swipeProgress)
                 }
                 .combinedClickable(
-                    onClick = { onOpenSessionDetail(session.sessionId) },
+                    onClick = { onOpenSessionInChat(session.sessionId) },
                     onLongClick = onLongPress,
                 ),
             colors = CardDefaults.cardColors(
@@ -414,6 +419,11 @@ private fun SessionListCard(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                Text(
+                    text = "Tap to continue in chat · long-press for details",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
     }
@@ -423,6 +433,7 @@ private fun SessionListCard(
 private fun SessionQuickActionsDialog(
     session: HermesSessionSummary,
     isArchived: Boolean,
+    onOpenInChat: () -> Unit,
     onOpenDetails: () -> Unit,
     onCopySessionId: () -> Unit,
     onArchive: () -> Unit,
@@ -436,7 +447,8 @@ private fun SessionQuickActionsDialog(
                 Text(text = session.title, style = MaterialTheme.typography.titleLarge)
                 Text(text = sessionDetailSubtitle(session), style = MaterialTheme.typography.bodyMedium)
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(onClick = onOpenDetails, modifier = Modifier.fillMaxWidth()) { Text(text = "Open details") }
+                    Button(onClick = onOpenInChat, modifier = Modifier.fillMaxWidth()) { Text(text = "Continue in chat") }
+                    OutlinedButton(onClick = onOpenDetails, modifier = Modifier.fillMaxWidth()) { Text(text = "Open details") }
                     OutlinedButton(onClick = onCopySessionId, modifier = Modifier.fillMaxWidth()) { Text(text = "Copy session ID") }
                     if (isArchived) {
                         OutlinedButton(onClick = onRestore, modifier = Modifier.fillMaxWidth()) { Text(text = "Restore session") }

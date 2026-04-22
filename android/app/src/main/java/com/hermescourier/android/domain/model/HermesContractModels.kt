@@ -353,4 +353,14 @@ data class HermesCourierUiState(
     val logs: HermesCapabilityListing<HermesLogEntry> = HermesCapabilityListing(items = emptyList()),
     val libraryStatus: String = "Not loaded yet",
     val libraryLoading: Boolean = false,
+    /**
+     * Operator-selected "active" Hermes work session surfaced in the Chat screen.
+     *
+     * Client-side concept only: the backend conversation endpoint is currently global
+     * (`/v1/conversation`) and does not accept a `sessionId`, so this value drives UI
+     * context (header chip, entry points from Sessions/SessionDetail) without filtering
+     * the message stream. When null, Chat shows the global conversation without a
+     * session context chip.
+     */
+    val activeSessionId: String? = null,
 )

@@ -205,6 +205,9 @@ fun HermesCourierApp(
                 )
             }
             composable(HermesCourierRoute.Chat.route) {
+                val activeSession = uiState.activeSessionId?.let { id ->
+                    uiState.sessions.firstOrNull { it.sessionId == id }
+                }
                 ChatScreen(
                     contentPadding = contentPadding,
                     uiState = uiState,
@@ -212,9 +215,14 @@ fun HermesCourierApp(
                     conversationActionStatus = uiState.conversationActionStatus,
                     conversationActionError = uiState.conversationActionError,
                     conversationActionState = uiState.conversationActionState,
+                    activeSession = activeSession,
                     onSendConversationMessage = viewModel::sendConversationMessage,
                     onReconnectRealtime = viewModel::reconnectRealtime,
                     onRetryQueuedApprovalActions = viewModel::retryQueuedApprovalActions,
+                    onExitActiveSession = viewModel::clearActiveSession,
+                    onOpenActiveSessionDetail = { sessionId ->
+                        navController.navigate(sessionDetailRoute(sessionId))
+                    },
                 )
             }
             composable(HermesCourierRoute.Sessions.route) {
@@ -223,6 +231,12 @@ fun HermesCourierApp(
                     uiState = uiState,
                     sessions = uiState.sessions,
                     onOpenSessionDetail = { sessionId -> navController.navigate(sessionDetailRoute(sessionId)) },
+                    onOpenSessionInChat = { sessionId ->
+                        viewModel.enterSession(sessionId)
+                        navController.navigate(HermesCourierRoute.Chat.route) {
+                            launchSingleTop = true
+                        }
+                    },
                     onRefresh = viewModel::refresh,
                     onReconnectRealtime = viewModel::reconnectRealtime,
                     onRetryQueuedApprovalActions = viewModel::retryQueuedApprovalActions,
@@ -251,6 +265,12 @@ fun HermesCourierApp(
                             contentPadding = contentPadding,
                             session = session,
                             onRefresh = viewModel::refresh,
+                            onContinueInChat = { targetSessionId ->
+                                viewModel.enterSession(targetSessionId)
+                                navController.navigate(HermesCourierRoute.Chat.route) {
+                                    launchSingleTop = true
+                                }
+                            },
                             onSessionControlAction = viewModel::submitSessionControlAction,
                             sessionControlStatus = uiState.sessionControlStatus,
                             endpointVerificationResults = uiState.endpointVerificationResults,

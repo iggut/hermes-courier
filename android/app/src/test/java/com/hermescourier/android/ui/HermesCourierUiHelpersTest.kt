@@ -86,4 +86,100 @@ class HermesCourierUiHelpersTest {
             approvalDetailSubtitle(approval),
         )
     }
+
+    @Test
+    fun chatActiveSessionHeadline_fallsBackGracefully() {
+        val loaded = HermesSessionSummary("sess-42", "Tooling review", "active", "2m ago")
+        assertEquals("Global conversation", chatActiveSessionHeadline(null, null))
+        assertEquals("Tooling review", chatActiveSessionHeadline("sess-42", loaded))
+        assertEquals("sess-42", chatActiveSessionHeadline("sess-42", null))
+    }
+
+    @Test
+    fun chatActiveSessionSubtitle_explainsMissingDataToOperator() {
+        val loaded = HermesSessionSummary("sess-7", "Night run", "completed", "5h ago")
+        assertEquals(
+            "No session selected · sending to the global conversation",
+            chatActiveSessionSubtitle(null, null),
+        )
+        assertEquals(
+            "Updated 5h ago · Completed",
+            chatActiveSessionSubtitle("sess-7", loaded),
+        )
+        assertEquals(
+            "Loading session details…",
+            chatActiveSessionSubtitle("sess-7", null),
+        )
+    }
+
+    @Test
+    fun chatShouldGroupWithPrevious_ignoresWhitespaceAndCaseButRequiresSameAuthor() {
+        assertEquals(false, chatShouldGroupWithPrevious(null, "You"))
+        assertEquals(false, chatShouldGroupWithPrevious("", "You"))
+        assertEquals(true, chatShouldGroupWithPrevious("You", "you"))
+        assertEquals(true, chatShouldGroupWithPrevious(" Hermes ", "Hermes"))
+        assertEquals(false, chatShouldGroupWithPrevious("Hermes", "You"))
+    }
+
+    @Test
+    fun chatSendStateIndicator_onlyPaintsLatestUserBubble() {
+        assertEquals(
+            ChatSendStateIndicator.None,
+            chatSendStateIndicator(
+                isUserMessage = false,
+                isLatestUserMessage = false,
+                sending = true,
+                failed = false,
+                delivered = false,
+            ),
+        )
+        assertEquals(
+            ChatSendStateIndicator.None,
+            chatSendStateIndicator(
+                isUserMessage = true,
+                isLatestUserMessage = false,
+                sending = true,
+                failed = false,
+                delivered = false,
+            ),
+        )
+        assertEquals(
+            ChatSendStateIndicator.Sending,
+            chatSendStateIndicator(
+                isUserMessage = true,
+                isLatestUserMessage = true,
+                sending = true,
+                failed = false,
+                delivered = false,
+            ),
+        )
+        assertEquals(
+            ChatSendStateIndicator.Failed,
+            chatSendStateIndicator(
+                isUserMessage = true,
+                isLatestUserMessage = true,
+                sending = true,
+                failed = true,
+                delivered = true,
+            ),
+        )
+        assertEquals(
+            ChatSendStateIndicator.Delivered,
+            chatSendStateIndicator(
+                isUserMessage = true,
+                isLatestUserMessage = true,
+                sending = false,
+                failed = false,
+                delivered = true,
+            ),
+        )
+    }
+
+    @Test
+    fun chatSendStateLabel_isHumanReadable() {
+        assertEquals("Sending…", chatSendStateLabel(ChatSendStateIndicator.Sending))
+        assertEquals("Delivered", chatSendStateLabel(ChatSendStateIndicator.Delivered))
+        assertEquals("Failed", chatSendStateLabel(ChatSendStateIndicator.Failed))
+        assertEquals("", chatSendStateLabel(ChatSendStateIndicator.None))
+    }
 }

@@ -78,6 +78,23 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
         loadQueuedApprovalActions()
     }
 
+    /**
+     * Marks [sessionId] as the active Hermes work-session focused in Chat. Loads session
+     * detail if the summary isn't already in memory so the Chat header chip can render a
+     * real title. No backend side-effect: the conversation endpoint remains global.
+     */
+    fun enterSession(sessionId: String) {
+        val trimmed = sessionId.trim()
+        if (trimmed.isBlank()) return
+        _uiState.update { it.copy(activeSessionId = trimmed) }
+        loadSessionDetailIfMissing(trimmed)
+    }
+
+    /** Clears the client-side active-session focus in Chat (does not touch backend state). */
+    fun clearActiveSession() {
+        _uiState.update { it.copy(activeSessionId = null) }
+    }
+
     fun loadSessionDetailIfMissing(sessionId: String) {
         viewModelScope.launch {
             if (_uiState.value.sessions.any { it.sessionId == sessionId }) {
