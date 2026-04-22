@@ -124,7 +124,7 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
     private fun reloadConversationForActiveSession() {
         viewModelScope.launch {
             val session = currentSession ?: return@launch
-            val client = HermesGatewayClientFactory.createOrNull(applicationContext) ?: return@launch
+            val client = liveClientOrNull() ?: return@launch
             val activeId = _uiState.value.activeSessionId
             runCatching { client.fetchConversation(session, activeId) }
                 .onSuccess { events ->
@@ -152,7 +152,7 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
                 }
                 return@launch
             }
-            val liveClient = HermesGatewayClientFactory.createOrNull(applicationContext)
+            val liveClient = liveClientOrNull()
             if (liveClient == null) {
                 _uiState.update {
                     it.copy(
@@ -201,19 +201,28 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
                     sessionDetailLoadError = null,
                 )
             }
-            val liveClient = HermesGatewayClientFactory.createOrNull(applicationContext)
+            val pairedTokenAvailable = hasPairedBearerToken()
+            val liveClient = if (pairedTokenAvailable) liveClientOrNull() else null
             if (liveClient == null) {
-                val detail = "Secure gateway client could not be created from the current settings"
+                val detail = if (pairedTokenAvailable) {
+                    "Secure gateway client could not be created from the current settings"
+                } else {
+                    "No paired bearer token configured. Scan the Hermes WebUI pairing QR first."
+                }
                 _uiState.update {
                     it.copy(
-                        bootstrapState = "Gateway unavailable",
+                        bootstrapState = if (pairedTokenAvailable) "Gateway unavailable" else "Awaiting paired bearer token",
                         authStatus = detail,
                         gatewayConnectionMode = "Unavailable",
                         gatewayConnectionDetail = detail,
                         streamStatus = "Realtime stream unavailable",
                     verificationMode = "Skipped (live gateway unavailable)",
                     endpointVerificationResults = defaultVerificationResults(
-                        reason = "Live gateway client could not be created from current settings.",
+                        reason = if (pairedTokenAvailable) {
+                            "Live gateway client could not be created from current settings."
+                        } else {
+                            "No paired bearer token is stored yet."
+                        },
                         status = "failed",
                     ),
                     )
@@ -315,7 +324,7 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
                 verificationMode = "Running live endpoint verification",
             )
         }
-        val liveClient = HermesGatewayClientFactory.createOrNull(applicationContext)
+        val liveClient = liveClientOrNull()
         if (liveClient == null) {
             val detail = "Secure gateway client could not be created from the current settings"
             _uiState.update {
@@ -573,7 +582,7 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
     fun refreshLibrary() {
         viewModelScope.launch {
             val session = currentSession
-            val liveClient = HermesGatewayClientFactory.createOrNull(applicationContext)
+            val liveClient = liveClientOrNull()
             val client: HermesGatewayClient = liveClient ?: fallbackGatewayClient
             val effectiveSession = session ?: runCatching { client.bootstrap(deviceIdentity) }.getOrNull()
             if (effectiveSession == null) {
@@ -996,7 +1005,7 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
                     delay(15_000)
                     continue
                 }
-                val liveClient = HermesGatewayClientFactory.createOrNull(applicationContext)
+                val liveClient = liveClientOrNull()
                 if (liveClient == null || liveClient is DemoHermesGatewayClient) {
                     delay(30_000)
                     continue
@@ -1234,6 +1243,15 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
             )
         )
     }
+
+    private suspend fun liveClientOrNull(): HermesGatewayClient? {
+        if (!hasPairedBearerToken()) return null
+        return liveClientOrNull()
+    }
+
+    private suspend fun hasPairedBearerToken(): Boolean = runCatching {
+        EncryptedHermesTokenStore(applicationContext).load()?.accessToken?.isNotBlank() == true
+    }.getOrDefault(false)
 
     private fun pairingStatusFromTokenStore(): String {
         val hasToken = runCatching {
