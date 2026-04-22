@@ -16,4 +16,16 @@ object HermesApiPaths {
     fun sessionDetail(sessionId: String): String = "v1/sessions/$sessionId"
     fun sessionControlAction(sessionId: String): String = "v1/sessions/$sessionId/actions"
     fun sessionActionEndpoint(sessionId: String, action: String): String = "v1/sessions/$sessionId/$action"
+
+    // Phase-1 WebUI-parity surfaces. Gateways that have not implemented these
+    // respond with an `UnavailablePayload`; the client treats `supported:false`
+    // as terminal.
+    const val SKILLS = "v1/skills"
+    const val MEMORY = "v1/memory"
+    const val CRON = "v1/cron"
+    const val LOGS = "v1/logs"
+
+    fun skillDetail(skillId: String): String = "v1/skills/$skillId"
+    fun memoryDetail(memoryId: String): String = "v1/memory/$memoryId"
+    fun cronDetail(cronId: String): String = "v1/cron/$cronId"
 }

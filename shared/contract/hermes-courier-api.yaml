@@ -12,6 +12,10 @@ tags:
   - name: sessions
   - name: approvals
   - name: events
+  - name: skills
+  - name: memory
+  - name: cron
+  - name: logs
 components:
   securitySchemes:
     mutualTLS:
@@ -188,6 +192,119 @@ components:
         detail:
           type: string
         updatedAt:
+          type: string
+    UnavailablePayload:
+      type: object
+      description: >
+        Shared shape gateways return when a feature is not implemented yet.
+        Clients must treat `supported: false` as terminal — they must not retry,
+        regardless of `retryable`. If `fallbackPollEndpoints` is present, clients
+        may substitute those routes for equivalent data.
+      additionalProperties: true
+      required: [type, supported, detail]
+      properties:
+        type:
+          type: string
+          description: Stable identifier for the unavailable capability (e.g. `events_unavailable`, `skills_unavailable`).
+        supported:
+          type: boolean
+        detail:
+          type: string
+        endpoint:
+          type: string
+        retryable:
+          type: boolean
+        fallbackPollEndpoints:
+          type: array
+          items:
+            type: string
+    Skill:
+      type: object
+      additionalProperties: false
+      required: [skillId, name, enabled]
+      properties:
+        skillId:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        enabled:
+          type: boolean
+        version:
+          type: string
+        lastUsedAt:
+          type: string
+          format: date-time
+        scopes:
+          type: array
+          items:
+            type: string
+    MemoryItem:
+      type: object
+      additionalProperties: false
+      required: [memoryId, title, updatedAt]
+      properties:
+        memoryId:
+          type: string
+        title:
+          type: string
+        snippet:
+          type: string
+        body:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+        updatedAt:
+          type: string
+          format: date-time
+        pinned:
+          type: boolean
+    CronJob:
+      type: object
+      additionalProperties: false
+      required: [cronId, name, schedule, enabled]
+      properties:
+        cronId:
+          type: string
+        name:
+          type: string
+        schedule:
+          type: string
+          description: Human-readable schedule expression (cron string or natural-language).
+        enabled:
+          type: boolean
+        description:
+          type: string
+        nextRunAt:
+          type: string
+          format: date-time
+        lastRunAt:
+          type: string
+          format: date-time
+        lastStatus:
+          type: string
+          description: Freeform short label (`ok`, `failed`, `skipped`, etc.).
+    LogEntry:
+      type: object
+      additionalProperties: false
+      required: [logId, severity, timestamp, message]
+      properties:
+        logId:
+          type: string
+        severity:
+          type: string
+          description: One of `debug`, `info`, `warn`, `error`; case-insensitive.
+        timestamp:
+          type: string
+          format: date-time
+        message:
+          type: string
+        source:
+          type: string
+        sessionId:
           type: string
     RealtimeEventEnvelope:
       type: object
@@ -437,3 +554,171 @@ paths:
       responses:
         '200':
           description: Stream established (SSE) or WebSocket upgrade negotiated per gateway.
+        '426':
+          description: >
+            Gateway declined the WebSocket upgrade. Body follows `UnavailablePayload`
+            with `type: events_unavailable`. Clients must stop retrying when
+            `supported: false`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnavailablePayload'
+  /v1/skills:
+    get:
+      tags: [skills]
+      summary: List of skills / tools / capabilities exposed by the agent.
+      description: >
+        Read-only in this contract. Gateways that have not implemented skills
+        yet should respond with `UnavailablePayload` (type `skills_unavailable`)
+        and HTTP 200 or 501; clients render an "unsupported" state.
+      responses:
+        '200':
+          description: Skills list (or `UnavailablePayload`).
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: array
+                    items:
+                      $ref: '#/components/schemas/Skill'
+                  - $ref: '#/components/schemas/UnavailablePayload'
+        '404':
+          description: Gateway does not implement /v1/skills. Clients treat as unsupported.
+        '501':
+          description: Gateway returns an `UnavailablePayload` with `supported:false`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnavailablePayload'
+  /v1/skills/{skillId}:
+    parameters:
+      - name: skillId
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      tags: [skills]
+      summary: Full skill detail.
+      responses:
+        '200':
+          description: Skill detail (or `UnavailablePayload`).
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/Skill'
+                  - $ref: '#/components/schemas/UnavailablePayload'
+        '404':
+          description: Unknown skill or gateway does not implement skills.
+  /v1/memory:
+    get:
+      tags: [memory]
+      summary: Recent memory entries for operator review.
+      description: Read-only. Unsupported gateways follow the `UnavailablePayload` pattern.
+      responses:
+        '200':
+          description: Memory entries (or `UnavailablePayload`).
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: array
+                    items:
+                      $ref: '#/components/schemas/MemoryItem'
+                  - $ref: '#/components/schemas/UnavailablePayload'
+        '404':
+          description: Gateway does not implement /v1/memory.
+  /v1/memory/{memoryId}:
+    parameters:
+      - name: memoryId
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      tags: [memory]
+      summary: Full memory item detail.
+      responses:
+        '200':
+          description: Memory item (or `UnavailablePayload`).
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/MemoryItem'
+                  - $ref: '#/components/schemas/UnavailablePayload'
+        '404':
+          description: Unknown memory or gateway does not implement memory.
+  /v1/cron:
+    get:
+      tags: [cron]
+      summary: Scheduled task list.
+      description: Read-only. Unsupported gateways follow the `UnavailablePayload` pattern.
+      responses:
+        '200':
+          description: Cron jobs (or `UnavailablePayload`).
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: array
+                    items:
+                      $ref: '#/components/schemas/CronJob'
+                  - $ref: '#/components/schemas/UnavailablePayload'
+        '404':
+          description: Gateway does not implement /v1/cron.
+  /v1/cron/{cronId}:
+    parameters:
+      - name: cronId
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      tags: [cron]
+      summary: Cron job detail.
+      responses:
+        '200':
+          description: Cron job (or `UnavailablePayload`).
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/CronJob'
+                  - $ref: '#/components/schemas/UnavailablePayload'
+        '404':
+          description: Unknown job or gateway does not implement cron.
+  /v1/logs:
+    get:
+      tags: [logs]
+      summary: Recent log / activity entries.
+      description: Read-only. Unsupported gateways follow the `UnavailablePayload` pattern.
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          description: Optional upper bound on the number of entries returned (gateway may clamp).
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 500
+        - name: severity
+          in: query
+          required: false
+          description: Optional severity filter (`debug|info|warn|error`).
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Log entries (or `UnavailablePayload`).
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: array
+                    items:
+                      $ref: '#/components/schemas/LogEntry'
+                  - $ref: '#/components/schemas/UnavailablePayload'
+        '404':
+          description: Gateway does not implement /v1/logs.

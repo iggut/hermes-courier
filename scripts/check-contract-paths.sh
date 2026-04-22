@@ -31,6 +31,13 @@ require_in_yaml "/v1/sessions/{sessionId}/{action}"
 require_in_yaml "/v1/approvals"
 require_in_yaml "/v1/conversation"
 require_in_yaml "/v1/events"
+require_in_yaml "/v1/skills"
+require_in_yaml "/v1/skills/{skillId}"
+require_in_yaml "/v1/memory"
+require_in_yaml "/v1/memory/{memoryId}"
+require_in_yaml "/v1/cron"
+require_in_yaml "/v1/cron/{cronId}"
+require_in_yaml "/v1/logs"
 
 require_kt_swift() {
   local kt_needle="$1"
@@ -55,5 +62,12 @@ require_kt_swift 'v1/sessions/$sessionId/$action' '/v1/sessions/\(sessionId)/\(a
 require_kt_swift "v1/approvals" "/v1/approvals"
 require_kt_swift "v1/conversation" "/v1/conversation"
 require_kt_swift "v1/events" "/v1/events"
+require_kt_swift "v1/skills" "/v1/skills"
+require_kt_swift 'v1/skills/$skillId' '/v1/skills/\(skillId)'
+require_kt_swift "v1/memory" "/v1/memory"
+require_kt_swift 'v1/memory/$memoryId' '/v1/memory/\(memoryId)'
+require_kt_swift "v1/cron" "/v1/cron"
+require_kt_swift 'v1/cron/$cronId' '/v1/cron/\(cronId)'
+require_kt_swift "v1/logs" "/v1/logs"
 
 echo "Contract path check OK."

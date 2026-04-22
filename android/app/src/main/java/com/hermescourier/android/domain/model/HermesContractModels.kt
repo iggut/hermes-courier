@@ -92,6 +92,68 @@ data class HermesEndpointVerificationResult(
     val reason: String,
 )
 
+/**
+ * Shared representation of the `UnavailablePayload` contract shape. A capability
+ * is unavailable when the gateway signals `supported: false`; clients MUST NOT
+ * retry (regardless of `retryable`).
+ */
+data class HermesUnavailablePayload(
+    val type: String,
+    val detail: String,
+    val endpoint: String? = null,
+    val fallbackPollEndpoints: List<String> = emptyList(),
+)
+
+/**
+ * Read-only listing of a feature. `items` is null when the gateway declared the
+ * feature unsupported; `unavailable` carries the payload in that case.
+ */
+data class HermesCapabilityListing<T>(
+    val items: List<T>,
+    val unavailable: HermesUnavailablePayload? = null,
+    val isSupported: Boolean = unavailable == null,
+)
+
+data class HermesSkill(
+    val skillId: String,
+    val name: String,
+    val description: String = "",
+    val enabled: Boolean = true,
+    val version: String? = null,
+    val lastUsedAt: String? = null,
+    val scopes: List<String> = emptyList(),
+)
+
+data class HermesMemoryItem(
+    val memoryId: String,
+    val title: String,
+    val snippet: String = "",
+    val body: String? = null,
+    val tags: List<String> = emptyList(),
+    val updatedAt: String = "",
+    val pinned: Boolean = false,
+)
+
+data class HermesCronJob(
+    val cronId: String,
+    val name: String,
+    val schedule: String,
+    val enabled: Boolean = true,
+    val description: String = "",
+    val nextRunAt: String? = null,
+    val lastRunAt: String? = null,
+    val lastStatus: String? = null,
+)
+
+data class HermesLogEntry(
+    val logId: String,
+    val severity: String,
+    val timestamp: String,
+    val message: String,
+    val source: String? = null,
+    val sessionId: String? = null,
+)
+
 data class HermesRealtimeEnvelope(
     val type: String,
     val dashboard: HermesDashboardSnapshot? = null,
@@ -285,4 +347,10 @@ data class HermesCourierUiState(
     val sessionControlStatus: String = "No session-control action submitted",
     val sessionDetailLoading: Boolean = false,
     val sessionDetailLoadError: String? = null,
+    val skills: HermesCapabilityListing<HermesSkill> = HermesCapabilityListing(items = emptyList()),
+    val memory: HermesCapabilityListing<HermesMemoryItem> = HermesCapabilityListing(items = emptyList()),
+    val cronJobs: HermesCapabilityListing<HermesCronJob> = HermesCapabilityListing(items = emptyList()),
+    val logs: HermesCapabilityListing<HermesLogEntry> = HermesCapabilityListing(items = emptyList()),
+    val libraryStatus: String = "Not loaded yet",
+    val libraryLoading: Boolean = false,
 )

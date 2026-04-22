@@ -507,6 +507,54 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
         }
     }
 
+    /**
+     * Reloads the Phase-1 WebUI-parity surfaces (skills, memory, cron, logs).
+     * Runs against the live gateway when one is available; otherwise uses the
+     * demo fallback so the library screens are never empty in offline mode.
+     */
+    fun refreshLibrary() {
+        viewModelScope.launch {
+            val session = currentSession
+            val liveClient = HermesGatewayClientFactory.createOrNull(applicationContext)
+            val client: HermesGatewayClient = liveClient ?: fallbackGatewayClient
+            val effectiveSession = session ?: runCatching { client.bootstrap(deviceIdentity) }.getOrNull()
+            if (effectiveSession == null) {
+                _uiState.update { it.copy(libraryStatus = "Cannot load library: no authenticated session") }
+                return@launch
+            }
+            if (session == null) currentSession = effectiveSession
+            _uiState.update { it.copy(libraryLoading = true, libraryStatus = "Loading library from gateway") }
+            loadLibraryQuietly(client, effectiveSession)
+        }
+    }
+
+    private suspend fun loadLibraryQuietly(
+        client: HermesGatewayClient,
+        session: HermesAuthSession,
+    ) {
+        val skills = runCatching { client.fetchSkills(session) }
+        val memory = runCatching { client.fetchMemory(session) }
+        val cron = runCatching { client.fetchCronJobs(session) }
+        val logs = runCatching { client.fetchLogs(session, limit = 100, severity = null) }
+        val failures = listOf(skills, memory, cron, logs)
+            .mapNotNull { it.exceptionOrNull() }
+        val status = when {
+            failures.isNotEmpty() -> "Library loaded with ${failures.size} transient failure(s): ${failures.first().message ?: failures.first()}"
+            client is DemoHermesGatewayClient -> "Library loaded from demo fallback"
+            else -> "Library loaded"
+        }
+        _uiState.update {
+            it.copy(
+                skills = skills.getOrDefault(it.skills),
+                memory = memory.getOrDefault(it.memory),
+                cronJobs = cron.getOrDefault(it.cronJobs),
+                logs = logs.getOrDefault(it.logs),
+                libraryLoading = false,
+                libraryStatus = status,
+            )
+        }
+    }
+
     fun copyEnrollmentQrPayload() {
         val payload = _uiState.value.enrollmentQrPayload
         if (payload.isBlank()) {
@@ -757,6 +805,7 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
         val approvals = client.fetchApprovals(session)
         val conversation = client.fetchConversation(session)
         startRealtime(client, session)
+        loadLibraryQuietly(client, session)
         val settings = HermesGatewayConfiguration.from(applicationContext).toSettings()
         val queuedCount = queuedApprovalActions.size
         val verificationResults = if (client is DemoHermesGatewayClient) {

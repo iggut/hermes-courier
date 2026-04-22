@@ -4,11 +4,17 @@ import com.hermescourier.android.domain.model.HermesApprovalActionResult
 import com.hermescourier.android.domain.model.HermesApprovalSummary
 import com.hermescourier.android.domain.model.HermesAuthChallengeResponse
 import com.hermescourier.android.domain.model.HermesAuthSession
+import com.hermescourier.android.domain.model.HermesCapabilityListing
 import com.hermescourier.android.domain.model.HermesConversationEvent
+import com.hermescourier.android.domain.model.HermesCronJob
 import com.hermescourier.android.domain.model.HermesDashboardSnapshot
+import com.hermescourier.android.domain.model.HermesLogEntry
+import com.hermescourier.android.domain.model.HermesMemoryItem
 import com.hermescourier.android.domain.model.HermesRealtimeEnvelope
 import com.hermescourier.android.domain.model.HermesSessionControlActionResult
 import com.hermescourier.android.domain.model.HermesSessionSummary
+import com.hermescourier.android.domain.model.HermesSkill
+import com.hermescourier.android.domain.model.HermesUnavailablePayload
 import org.json.JSONArray
 import org.json.JSONObject
 import org.json.JSONTokener
@@ -162,4 +168,101 @@ internal fun JSONArray.toConversationList(): List<HermesConversationEvent> = mut
 
 internal fun JSONArray.toStringList(): List<String> = mutableListOf<String>().apply {
     for (index in 0 until length()) add(getString(index))
+}
+
+/**
+ * Detects an `UnavailablePayload` body. Returns null when the body is a regular
+ * response or when the payload is missing the `supported: false` signal. A
+ * body with `type == *_unavailable` or explicit `supported == false` counts as
+ * unavailable; `type: events_unavailable` is the canonical shape but we treat
+ * any `*_unavailable` type the same way so the client does not need a case for
+ * every future capability.
+ */
+internal fun JSONObject.toUnavailableOrNull(): HermesUnavailablePayload? {
+    val type = optString("type", "")
+    val hasExplicitSupported = has("supported")
+    val supportedValue = if (hasExplicitSupported) optBoolean("supported", true) else true
+    val looksUnavailable = type.endsWith("_unavailable") || (hasExplicitSupported && !supportedValue)
+    if (!looksUnavailable) return null
+    val fallback = optJSONArray("fallbackPollEndpoints")?.toStringList().orEmpty()
+    return HermesUnavailablePayload(
+        type = type.ifBlank { "unavailable" },
+        detail = optString("detail", ""),
+        endpoint = optString("endpoint", "").takeIf { it.isNotBlank() },
+        fallbackPollEndpoints = fallback,
+    )
+}
+
+internal fun JSONObject.toSkill(): HermesSkill = HermesSkill(
+    skillId = optString("skillId", optString("id", "skill-unknown")),
+    name = optString("name", "Untitled skill"),
+    description = optString("description", ""),
+    enabled = optBoolean("enabled", true),
+    version = optString("version", "").takeIf { it.isNotBlank() },
+    lastUsedAt = optString("lastUsedAt", "").takeIf { it.isNotBlank() },
+    scopes = optJSONArray("scopes")?.toStringList() ?: emptyList(),
+)
+
+internal fun JSONObject.toMemoryItem(): HermesMemoryItem = HermesMemoryItem(
+    memoryId = optString("memoryId", optString("id", "memory-unknown")),
+    title = optString("title", optString("name", "Untitled memory")),
+    snippet = optString("snippet", optString("summary", "")),
+    body = optString("body", "").takeIf { it.isNotBlank() },
+    tags = optJSONArray("tags")?.toStringList() ?: emptyList(),
+    updatedAt = optString("updatedAt", optString("timestamp", "")),
+    pinned = optBoolean("pinned", false),
+)
+
+internal fun JSONObject.toCronJob(): HermesCronJob = HermesCronJob(
+    cronId = optString("cronId", optString("id", "cron-unknown")),
+    name = optString("name", "Unnamed job"),
+    schedule = optString("schedule", optString("expression", "")),
+    enabled = optBoolean("enabled", true),
+    description = optString("description", ""),
+    nextRunAt = optString("nextRunAt", "").takeIf { it.isNotBlank() },
+    lastRunAt = optString("lastRunAt", "").takeIf { it.isNotBlank() },
+    lastStatus = optString("lastStatus", "").takeIf { it.isNotBlank() },
+)
+
+internal fun JSONObject.toLogEntry(): HermesLogEntry = HermesLogEntry(
+    logId = optString("logId", optString("id", "log-unknown")),
+    severity = optString("severity", optString("level", "info")),
+    timestamp = optString("timestamp", ""),
+    message = optString("message", optString("body", "")),
+    source = optString("source", "").takeIf { it.isNotBlank() },
+    sessionId = optString("sessionId", "").takeIf { it.isNotBlank() },
+)
+
+/**
+ * Parses a list-or-unavailable response body. When the body is an
+ * `UnavailablePayload`, returns a capability listing with empty items and the
+ * unavailable signal. When the body is a bare array or a `{ items: [...] }`
+ * envelope, returns the parsed list.
+ */
+internal fun <T> parseCapabilityListing(
+    body: String,
+    mapObject: (JSONObject) -> T,
+): HermesCapabilityListing<T> {
+    if (body.isBlank()) return HermesCapabilityListing(items = emptyList())
+    val token = runCatching { JSONTokener(body).nextValue() }.getOrNull()
+    return when (token) {
+        is JSONArray -> {
+            val items = buildList<T> { for (i in 0 until token.length()) token.optJSONObject(i)?.let { add(mapObject(it)) } }
+            HermesCapabilityListing(items = items)
+        }
+        is JSONObject -> {
+            val unavailable = token.toUnavailableOrNull()
+            if (unavailable != null) {
+                HermesCapabilityListing(items = emptyList(), unavailable = unavailable)
+            } else {
+                val array = token.optJSONArray("items")
+                    ?: token.optJSONArray("data")
+                    ?: token.optJSONArray("results")
+                    ?: JSONArray().put(token)
+                val items = buildList<T> { for (i in 0 until array.length()) array.optJSONObject(i)?.let { add(mapObject(it)) } }
+                HermesCapabilityListing(items = items)
+            }
+        }
+        else -> HermesCapabilityListing(items = emptyList())
+    }
 }

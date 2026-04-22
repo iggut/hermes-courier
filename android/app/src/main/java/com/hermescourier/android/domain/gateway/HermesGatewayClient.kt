@@ -39,6 +39,7 @@ import okhttp3.Request
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
 import org.json.JSONObject
+import android.util.Log
 
 interface HermesGatewayClient {
     suspend fun bootstrap(device: HermesDeviceIdentity): HermesAuthSession
@@ -67,6 +68,11 @@ interface HermesGatewayClient {
     ): Closeable
 
     suspend fun verifyLiveEndpoints(device: HermesDeviceIdentity): List<HermesEndpointVerificationResult>
+
+    suspend fun fetchSkills(session: HermesAuthSession): com.hermescourier.android.domain.model.HermesCapabilityListing<com.hermescourier.android.domain.model.HermesSkill>
+    suspend fun fetchMemory(session: HermesAuthSession): com.hermescourier.android.domain.model.HermesCapabilityListing<com.hermescourier.android.domain.model.HermesMemoryItem>
+    suspend fun fetchCronJobs(session: HermesAuthSession): com.hermescourier.android.domain.model.HermesCapabilityListing<com.hermescourier.android.domain.model.HermesCronJob>
+    suspend fun fetchLogs(session: HermesAuthSession, limit: Int? = null, severity: String? = null): com.hermescourier.android.domain.model.HermesCapabilityListing<com.hermescourier.android.domain.model.HermesLogEntry>
 }
 
 class NetworkHermesGatewayClient(
@@ -119,13 +125,16 @@ class NetworkHermesGatewayClient(
     ): HermesSessionControlActionResult = withContext(Dispatchers.IO) {
         val normalizedAction = normalizeSessionControlActionWire(action)
         val candidates = HermesApiPaths.sessionControlCandidates(sessionId, normalizedAction)
+        Log.i("HermesSessionCtl", "submit sessionId=$sessionId action=$normalizedAction candidates=${candidates.joinToString { it.path }}")
         var unsupportedCount = 0
         var lastFailure = "No session-control endpoint candidates were configured."
         for (candidate in candidates) {
             val payload = candidate.bodyFactory(normalizedAction)
+            Log.i("HermesSessionCtl", "POST path=${candidate.path} body=${payload.toString().take(200)}")
             runCatching {
                 transport.post(candidate.path, payload, session.accessToken)
             }.onSuccess { raw ->
+                Log.i("HermesSessionCtl", "response path=${candidate.path} body=${raw.take(400)}")
                 val fallback = HermesSessionControlActionResult(
                     sessionId = sessionId,
                     action = normalizedAction,
@@ -142,6 +151,7 @@ class NetworkHermesGatewayClient(
             }.onFailure { error ->
                 val message = error.message ?: error.toString()
                 lastFailure = "POST ${candidate.path} failed: $message"
+                Log.w("HermesSessionCtl", "failure path=${candidate.path} error=$message")
                 if (message.contains(" 404:") || message.contains(" 405:")) {
                     unsupportedCount += 1
                 } else {
@@ -215,6 +225,68 @@ class NetworkHermesGatewayClient(
             )
         }
         result.toJsonObject().toApprovalActionResult(approvalId, decision)
+    }
+
+    override suspend fun fetchSkills(session: HermesAuthSession): com.hermescourier.android.domain.model.HermesCapabilityListing<com.hermescourier.android.domain.model.HermesSkill> =
+        fetchCapabilityListing("/${HermesApiPaths.SKILLS}", "skills", session.accessToken) { it.toSkill() }
+
+    override suspend fun fetchMemory(session: HermesAuthSession): com.hermescourier.android.domain.model.HermesCapabilityListing<com.hermescourier.android.domain.model.HermesMemoryItem> =
+        fetchCapabilityListing("/${HermesApiPaths.MEMORY}", "memory", session.accessToken) { it.toMemoryItem() }
+
+    override suspend fun fetchCronJobs(session: HermesAuthSession): com.hermescourier.android.domain.model.HermesCapabilityListing<com.hermescourier.android.domain.model.HermesCronJob> =
+        fetchCapabilityListing("/${HermesApiPaths.CRON}", "cron", session.accessToken) { it.toCronJob() }
+
+    override suspend fun fetchLogs(
+        session: HermesAuthSession,
+        limit: Int?,
+        severity: String?,
+    ): com.hermescourier.android.domain.model.HermesCapabilityListing<com.hermescourier.android.domain.model.HermesLogEntry> {
+        val query = buildList {
+            if (limit != null) add("limit=$limit")
+            if (!severity.isNullOrBlank()) add("severity=${severity.lowercase()}")
+        }.joinToString(separator = "&")
+        val path = if (query.isEmpty()) "/${HermesApiPaths.LOGS}" else "/${HermesApiPaths.LOGS}?$query"
+        return fetchCapabilityListing(path, "logs", session.accessToken) { it.toLogEntry() }
+    }
+
+    /**
+     * Fetches a list-or-unavailable capability endpoint. `404` is treated as an
+     * unsupported signal (gateway has no such route); `5xx` and network errors
+     * are surfaced to the caller so the UI can retry. Bodies with the
+     * `UnavailablePayload` shape are honoured as terminal.
+     */
+    private suspend fun <T> fetchCapabilityListing(
+        path: String,
+        kind: String,
+        bearer: String,
+        mapObject: (JSONObject) -> T,
+    ): com.hermescourier.android.domain.model.HermesCapabilityListing<T> = withContext(Dispatchers.IO) {
+        val outcome = runCatching { transport.get(path, bearer) }
+        if (outcome.isSuccess) {
+            val body = outcome.getOrThrow()
+            return@withContext parseCapabilityListing(body, mapObject)
+        }
+        val error = outcome.exceptionOrNull()
+        val message = error?.message ?: error?.toString().orEmpty()
+        val is404 = message.contains(" 404:")
+        val is405 = message.contains(" 405:")
+        val is501 = message.contains(" 501:")
+        if (is404 || is405 || is501) {
+            val detail = when {
+                is404 -> "Gateway does not expose $path (HTTP 404)."
+                is405 -> "Gateway rejected GET $path (HTTP 405)."
+                else -> "Gateway returned HTTP 501 for $path."
+            }
+            return@withContext com.hermescourier.android.domain.model.HermesCapabilityListing(
+                items = emptyList(),
+                unavailable = com.hermescourier.android.domain.model.HermesUnavailablePayload(
+                    type = "${kind}_unavailable",
+                    detail = detail,
+                    endpoint = path,
+                ),
+            )
+        }
+        throw error ?: IllegalStateException("Unknown failure fetching $path")
     }
 
     override fun connectRealtime(
@@ -348,29 +420,73 @@ private class RealtimeConnectionManager(
             var attempt = 0
             while (isActive && !cancelled) {
                 val completed = CompletableDeferred<Int>()
+                val wsUrl = configuration.baseUrl.newBuilder().addPathSegments(HermesApiPaths.EVENTS_STREAM).build()
                 val request = Request.Builder()
-                    .url(configuration.baseUrl.newBuilder().addPathSegments(HermesApiPaths.EVENTS_STREAM).build())
+                    .url(wsUrl)
                     .addHeader("Authorization", "Bearer ${session.accessToken}")
                     .build()
                 onStatus(if (attempt == 0) "Realtime stream connecting" else "Realtime stream reconnecting")
+                Log.i(TAG, "connect attempt=$attempt url=$wsUrl tokenExpiresAt=${session.expiresAt}")
+                val connectStartedAtMs = System.currentTimeMillis()
                 currentSocket = okHttpClient.newWebSocket(request, object : WebSocketListener() {
                     override fun onOpen(webSocket: WebSocket, response: okhttp3.Response) {
                         attempt = 0
+                        val elapsed = System.currentTimeMillis() - connectStartedAtMs
+                        val protocol = response.protocol.toString()
+                        val upgradeHeader = response.header("Upgrade") ?: "<none>"
+                        val connectionHeader = response.header("Connection") ?: "<none>"
+                        val serverHeader = response.header("Server") ?: "<none>"
+                        Log.i(
+                            TAG,
+                            "onOpen code=${response.code} proto=$protocol upgrade=$upgradeHeader connection=$connectionHeader server=$serverHeader elapsedMs=$elapsed",
+                        )
                         onStatus("Realtime stream connected")
                     }
 
                     override fun onMessage(webSocket: WebSocket, text: String) {
+                        Log.d(TAG, "onMessage bytes=${text.length}")
                         runCatching { text.toJsonObject().toRealtimeEnvelope() }
                             .onSuccess(onEnvelope)
-                            .onFailure { onStatus("Realtime parse error: ${it.message ?: "unknown"}") }
+                            .onFailure {
+                                Log.w(TAG, "parse error", it)
+                                onStatus("Realtime parse error: ${it.message ?: "unknown"}")
+                            }
                     }
 
                     override fun onFailure(webSocket: WebSocket, t: Throwable, response: okhttp3.Response?) {
-                        onStatus("Realtime stream error: ${t.message ?: "unknown"}")
+                        val elapsed = System.currentTimeMillis() - connectStartedAtMs
+                        val httpCode = response?.code ?: -1
+                        val responseBody = runCatching { response?.body?.string().orEmpty() }.getOrDefault("")
+                        Log.w(
+                            TAG,
+                            "onFailure httpCode=$httpCode elapsedMs=$elapsed exception=${t.javaClass.simpleName} message=${t.message} fullBody=$responseBody",
+                            t,
+                        )
+                        val parsedUnavailable = parseUnavailableBody(responseBody)
+                        if (parsedUnavailable != null && !parsedUnavailable.supported) {
+                            val detail = parsedUnavailable.detail.ifBlank { "Realtime stream not supported by this gateway" }
+                            val fallbackHint = parsedUnavailable.fallbackPollEndpoints.joinToString(", ")
+                            Log.i(TAG, "gateway signalled unsupported; halting reconnect loop detail=$detail fallbackPollEndpoints=$fallbackHint")
+                            val statusMessage = if (fallbackHint.isNotEmpty()) {
+                                "Realtime unsupported by gateway (polling fallback: $fallbackHint)"
+                            } else {
+                                "Realtime unsupported by gateway: $detail"
+                            }
+                            onStatus(statusMessage)
+                            cancelled = true
+                        } else {
+                            onStatus("Realtime stream error: ${t.message ?: "unknown"}")
+                        }
                         completed.complete(-1)
                     }
 
+                    override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
+                        Log.i(TAG, "onClosing code=$code reason=$reason")
+                    }
+
                     override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
+                        val elapsed = System.currentTimeMillis() - connectStartedAtMs
+                        Log.i(TAG, "onClosed code=$code reason=$reason elapsedMs=$elapsed")
                         onStatus("Realtime stream closed ($code) $reason")
                         completed.complete(code)
                     }
@@ -384,10 +500,44 @@ private class RealtimeConnectionManager(
                 }
                 attempt = (attempt + 1).coerceAtMost(5)
                 val backoffSeconds = (1L shl attempt).coerceAtMost(30L)
+                Log.i(TAG, "backoff attempt=$attempt seconds=$backoffSeconds")
                 onStatus("Realtime reconnecting in ${backoffSeconds}s")
                 delay(backoffSeconds * 1000)
             }
+            Log.i(TAG, "loop exiting cancelled=$cancelled isActive=$isActive")
         }
+    }
+
+    private data class GatewayUnavailable(
+        val supported: Boolean,
+        val detail: String,
+        val fallbackPollEndpoints: List<String>,
+    )
+
+    private fun parseUnavailableBody(body: String): GatewayUnavailable? {
+        if (body.isBlank()) return null
+        return runCatching {
+            val json = JSONObject(body)
+            val type = json.optString("type")
+            val supported = json.optBoolean("supported", true)
+            val isUnavailable = type == "events_unavailable" || !supported
+            if (!isUnavailable) return@runCatching null
+            val detail = json.optString("detail", "")
+            val fallbackArray = json.optJSONArray("fallbackPollEndpoints")
+            val fallback = buildList {
+                if (fallbackArray != null) {
+                    for (i in 0 until fallbackArray.length()) {
+                        val value = fallbackArray.optString(i, "")
+                        if (value.isNotBlank()) add(value)
+                    }
+                }
+            }
+            GatewayUnavailable(supported = supported, detail = detail, fallbackPollEndpoints = fallback)
+        }.getOrNull()
+    }
+
+    companion object {
+        private const val TAG = "HermesRealtime"
     }
 
     override fun close() {
@@ -497,6 +647,95 @@ class DemoHermesGatewayClient : HermesGatewayClient {
         HermesEndpointVerificationResult("approvals", "demo", "Demo fallback"),
         HermesEndpointVerificationResult("conversation", "demo", "Demo fallback"),
         HermesEndpointVerificationResult("realtime/events", "demo", "Demo fallback"),
+    )
+
+    override suspend fun fetchSkills(session: HermesAuthSession) = com.hermescourier.android.domain.model.HermesCapabilityListing(
+        items = listOf(
+            com.hermescourier.android.domain.model.HermesSkill(
+                skillId = "demo-skill-web-search",
+                name = "Web search",
+                description = "Runs a web query against the configured search provider.",
+                enabled = true,
+                version = "1.0.0",
+                scopes = listOf("net:read"),
+            ),
+            com.hermescourier.android.domain.model.HermesSkill(
+                skillId = "demo-skill-repo",
+                name = "Local repo",
+                description = "Reads/writes files in the paired development workspace.",
+                enabled = true,
+                version = "0.9.0",
+                scopes = listOf("fs:read", "fs:write"),
+            ),
+            com.hermescourier.android.domain.model.HermesSkill(
+                skillId = "demo-skill-notify",
+                name = "Notify",
+                description = "Sends a push notification to this device.",
+                enabled = false,
+            ),
+        ),
+    )
+
+    override suspend fun fetchMemory(session: HermesAuthSession) = com.hermescourier.android.domain.model.HermesCapabilityListing(
+        items = listOf(
+            com.hermescourier.android.domain.model.HermesMemoryItem(
+                memoryId = "demo-memory-pos",
+                title = "orderking-pos-observer context",
+                snippet = "Primary target repo, host-app integration in progress.",
+                body = "orderking-pos-observer is the primary demo target. Hermes is currently implementing the host-app integration step.",
+                tags = listOf("project", "active"),
+                updatedAt = "just now",
+                pinned = true,
+            ),
+            com.hermescourier.android.domain.model.HermesMemoryItem(
+                memoryId = "demo-memory-pref",
+                title = "Operator preferences",
+                snippet = "Prefers concise status reports and reversible session actions.",
+                tags = listOf("operator"),
+                updatedAt = "yesterday",
+            ),
+        ),
+    )
+
+    override suspend fun fetchCronJobs(session: HermesAuthSession) = com.hermescourier.android.domain.model.HermesCapabilityListing(
+        items = listOf(
+            com.hermescourier.android.domain.model.HermesCronJob(
+                cronId = "demo-cron-digest",
+                name = "Daily digest",
+                schedule = "0 9 * * *",
+                enabled = true,
+                description = "Summarise active sessions and pending approvals each morning.",
+                lastRunAt = "today 09:00",
+                lastStatus = "ok",
+            ),
+            com.hermescourier.android.domain.model.HermesCronJob(
+                cronId = "demo-cron-sweep",
+                name = "Approval sweep",
+                schedule = "*/15 * * * *",
+                enabled = false,
+                description = "Poll for stale approvals every 15 minutes when enabled.",
+                lastStatus = "paused",
+            ),
+        ),
+    )
+
+    override suspend fun fetchLogs(session: HermesAuthSession, limit: Int?, severity: String?) = com.hermescourier.android.domain.model.HermesCapabilityListing(
+        items = listOf(
+            com.hermescourier.android.domain.model.HermesLogEntry(
+                logId = "demo-log-1",
+                severity = "info",
+                timestamp = "just now",
+                message = "Demo log: gateway bootstrap completed.",
+                source = "demo",
+            ),
+            com.hermescourier.android.domain.model.HermesLogEntry(
+                logId = "demo-log-2",
+                severity = "warn",
+                timestamp = "2m ago",
+                message = "Demo log: approval queue fell back to local storage.",
+                source = "demo",
+            ),
+        ),
     )
 }
 

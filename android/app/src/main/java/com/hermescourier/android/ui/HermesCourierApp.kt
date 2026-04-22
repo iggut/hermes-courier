@@ -46,11 +46,15 @@ import androidx.navigation.navArgument
 import com.hermescourier.android.domain.HermesCourierViewModel
 import com.hermescourier.android.ui.screens.ApprovalDetailScreen
 import com.hermescourier.android.ui.screens.ApprovalsScreen
+import com.hermescourier.android.ui.screens.CronScreen
 import com.hermescourier.android.ui.screens.DashboardScreen
 import com.hermescourier.android.ui.screens.ChatScreen
+import com.hermescourier.android.ui.screens.LogsScreen
+import com.hermescourier.android.ui.screens.MemoryScreen
 import com.hermescourier.android.ui.screens.SessionDetailScreen
 import com.hermescourier.android.ui.screens.SessionsScreen
 import com.hermescourier.android.ui.screens.SettingsScreen
+import com.hermescourier.android.ui.screens.SkillsScreen
 
 enum class HermesCourierRoute(val route: String, val label: String) {
     Dashboard("dashboard", "Dashboard"),
@@ -64,6 +68,13 @@ private const val SESSION_DETAIL_ROUTE = "session/{sessionId}"
 private const val SESSION_DETAIL_ARG = "sessionId"
 private const val APPROVAL_DETAIL_ROUTE = "approval/{approvalId}"
 private const val APPROVAL_DETAIL_ARG = "approvalId"
+
+internal object HermesLibraryRoute {
+    const val SKILLS = "library/skills"
+    const val MEMORY = "library/memory"
+    const val CRON = "library/cron"
+    const val LOGS = "library/logs"
+}
 
 internal fun sessionDetailRoute(sessionId: String): String = "session/${Uri.encode(sessionId)}"
 internal fun approvalDetailRoute(approvalId: String): String = "approval/${Uri.encode(approvalId)}"
@@ -79,7 +90,9 @@ fun HermesCourierApp(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route ?: HermesCourierRoute.Dashboard.route
-    val isDetailRoute = currentRoute.startsWith("session/") || currentRoute.startsWith("approval/")
+    val isDetailRoute = currentRoute.startsWith("session/") ||
+        currentRoute.startsWith("approval/") ||
+        currentRoute.startsWith("library/")
     val isSettingsRoute = currentRoute == HermesCourierRoute.Settings.route
 
     LaunchedEffect(initialEnrollmentPayload) {
@@ -185,6 +198,10 @@ fun HermesCourierApp(
                     onOpenSettings = { navController.navigate(HermesCourierRoute.Settings.route) },
                     onReconnectRealtime = viewModel::reconnectRealtime,
                     onRetryQueuedApprovalActions = viewModel::retryQueuedApprovalActions,
+                    onOpenSkills = { navController.navigate(HermesLibraryRoute.SKILLS) },
+                    onOpenMemory = { navController.navigate(HermesLibraryRoute.MEMORY) },
+                    onOpenCron = { navController.navigate(HermesLibraryRoute.CRON) },
+                    onOpenLogs = { navController.navigate(HermesLibraryRoute.LOGS) },
                 )
             }
             composable(HermesCourierRoute.Chat.route) {
@@ -314,6 +331,46 @@ fun HermesCourierApp(
                     )
                 }
             }
+            composable(HermesLibraryRoute.SKILLS) {
+                LaunchedEffect(Unit) { viewModel.refreshLibrary() }
+                SkillsScreen(
+                    contentPadding = contentPadding,
+                    uiState = uiState,
+                    onRefresh = viewModel::refreshLibrary,
+                    onReconnectRealtime = viewModel::reconnectRealtime,
+                    onRetryQueuedApprovalActions = viewModel::retryQueuedApprovalActions,
+                )
+            }
+            composable(HermesLibraryRoute.MEMORY) {
+                LaunchedEffect(Unit) { viewModel.refreshLibrary() }
+                MemoryScreen(
+                    contentPadding = contentPadding,
+                    uiState = uiState,
+                    onRefresh = viewModel::refreshLibrary,
+                    onReconnectRealtime = viewModel::reconnectRealtime,
+                    onRetryQueuedApprovalActions = viewModel::retryQueuedApprovalActions,
+                )
+            }
+            composable(HermesLibraryRoute.CRON) {
+                LaunchedEffect(Unit) { viewModel.refreshLibrary() }
+                CronScreen(
+                    contentPadding = contentPadding,
+                    uiState = uiState,
+                    onRefresh = viewModel::refreshLibrary,
+                    onReconnectRealtime = viewModel::reconnectRealtime,
+                    onRetryQueuedApprovalActions = viewModel::retryQueuedApprovalActions,
+                )
+            }
+            composable(HermesLibraryRoute.LOGS) {
+                LaunchedEffect(Unit) { viewModel.refreshLibrary() }
+                LogsScreen(
+                    contentPadding = contentPadding,
+                    uiState = uiState,
+                    onRefresh = viewModel::refreshLibrary,
+                    onReconnectRealtime = viewModel::reconnectRealtime,
+                    onRetryQueuedApprovalActions = viewModel::retryQueuedApprovalActions,
+                )
+            }
             composable(HermesCourierRoute.Settings.route) {
                 SettingsScreen(
                     contentPadding = contentPadding,
@@ -345,6 +402,10 @@ private fun routeTitle(route: String): String = when {
     route == HermesCourierRoute.Sessions.route -> "Sessions"
     route == HermesCourierRoute.Approvals.route -> "Approvals"
     route == HermesCourierRoute.Settings.route -> "Settings"
+    route == HermesLibraryRoute.SKILLS -> "Skills"
+    route == HermesLibraryRoute.MEMORY -> "Memory"
+    route == HermesLibraryRoute.CRON -> "Scheduled jobs"
+    route == HermesLibraryRoute.LOGS -> "Activity log"
     route.startsWith("session/") -> "Session detail"
     route.startsWith("approval/") -> "Approval detail"
     else -> "Hermes Courier"

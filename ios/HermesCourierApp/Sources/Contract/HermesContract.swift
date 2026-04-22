@@ -26,6 +26,25 @@ enum HermesAPIPaths {
     static func sessionActionEndpoint(sessionId: String, action: String) -> String {
         "/v1/sessions/\(sessionId)/\(action)"
     }
+
+    // Phase-1 WebUI-parity surfaces. Gateways that have not implemented these
+    // yet return an `UnavailablePayload` (see shared/contract/README.md).
+    static let skills = "/v1/skills"
+    static let memory = "/v1/memory"
+    static let cron = "/v1/cron"
+    static let logs = "/v1/logs"
+
+    static func skillDetail(skillId: String) -> String {
+        "/v1/skills/\(skillId)"
+    }
+
+    static func memoryDetail(memoryId: String) -> String {
+        "/v1/memory/\(memoryId)"
+    }
+
+    static func cronDetail(cronId: String) -> String {
+        "/v1/cron/\(cronId)"
+    }
 }
 
 struct HermesDeviceIdentity: Codable, Hashable {

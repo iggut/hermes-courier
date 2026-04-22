@@ -40,6 +40,10 @@ fun DashboardScreen(
     onOpenSettings: () -> Unit,
     onReconnectRealtime: () -> Unit,
     onRetryQueuedApprovalActions: () -> Unit,
+    onOpenSkills: () -> Unit = {},
+    onOpenMemory: () -> Unit = {},
+    onOpenCron: () -> Unit = {},
+    onOpenLogs: () -> Unit = {},
 ) {
     val completedSessions = uiState.sessions.count { it.status.contains("completed", ignoreCase = true) }
     val attentionSessions = uiState.sessions.count { it.status.contains("error", ignoreCase = true) }
@@ -113,6 +117,35 @@ fun DashboardScreen(
 
         Card(elevation = courierCardElevation()) {
             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(text = "Agent library", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    text = uiState.libraryStatus,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    OutlinedButton(onClick = onOpenSkills) {
+                        Text(text = libraryCountLabel("Skills", uiState.skills.items.size, uiState.skills.isSupported))
+                    }
+                    OutlinedButton(onClick = onOpenMemory) {
+                        Text(text = libraryCountLabel("Memory", uiState.memory.items.size, uiState.memory.isSupported))
+                    }
+                    OutlinedButton(onClick = onOpenCron) {
+                        Text(text = libraryCountLabel("Cron", uiState.cronJobs.items.size, uiState.cronJobs.isSupported))
+                    }
+                    OutlinedButton(onClick = onOpenLogs) {
+                        Text(text = libraryCountLabel("Logs", uiState.logs.items.size, uiState.logs.isSupported))
+                    }
+                }
+            }
+        }
+
+        Card(elevation = courierCardElevation()) {
+            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text(text = "Live snapshot", style = MaterialTheme.typography.titleMedium)
                 if (uiState.sessions.isEmpty() && uiState.approvals.isEmpty()) {
                     Row(
@@ -169,6 +202,9 @@ private fun MetricTile(
         }
     }
 }
+
+private fun libraryCountLabel(name: String, count: Int, supported: Boolean): String =
+    if (!supported) "$name (unavailable)" else "$name ($count)"
 
 @Composable
 private fun DashboardSnapshotRow(
