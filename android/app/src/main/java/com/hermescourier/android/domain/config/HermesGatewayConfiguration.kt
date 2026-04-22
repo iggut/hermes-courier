@@ -5,6 +5,9 @@ import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import com.hermescourier.android.domain.model.HermesGatewaySettings
 import java.io.File
+import java.io.IOException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
@@ -47,7 +50,7 @@ data class HermesGatewayConfiguration(
             HermesGatewayConfiguration(baseUrl = DEFAULT_GATEWAY_BASE_URL.toHttpUrl())
         }
 
-        fun save(context: Context, settings: HermesGatewaySettings) {
+        suspend fun save(context: Context, settings: HermesGatewaySettings) {
             save(
                 context,
                 HermesGatewayConfiguration(
@@ -58,14 +61,15 @@ data class HermesGatewayConfiguration(
             )
         }
 
-        fun save(context: Context, configuration: HermesGatewayConfiguration) {
-            runCatching {
+        suspend fun save(context: Context, configuration: HermesGatewayConfiguration) {
+            withContext(Dispatchers.IO) {
                 val prefs = gatewayPrefs(context)
-                prefs.edit()
+                val ok = prefs.edit()
                     .putString(KEY_BASE_URL, configuration.baseUrl.toString())
                     .putString(KEY_CERT_PATH, configuration.mtlsPkcs12File?.absolutePath.orEmpty())
                     .putString(KEY_CERT_PASSWORD, configuration.mtlsPkcs12Password?.concatToString().orEmpty())
-                    .apply()
+                    .commit()
+                if (!ok) throw IOException("Gateway settings commit failed")
             }
         }
 

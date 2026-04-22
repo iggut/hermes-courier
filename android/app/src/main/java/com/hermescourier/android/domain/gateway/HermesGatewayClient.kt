@@ -32,6 +32,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.withContext
+import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -79,7 +80,7 @@ class NetworkHermesGatewayClient(
         tokenStore.load()?.let { paired ->
             if (paired.accessToken.isNotBlank()) {
                 val storedBase = paired.gatewayUrl.trim().toHttpUrlOrNull()
-                if (storedBase != null && storedBase == configuration.baseUrl) {
+                if (storedBase != null && pairedGatewayBaseMatches(storedBase, configuration.baseUrl)) {
                     return@withContext paired
                 }
             }
@@ -314,6 +315,19 @@ class NetworkHermesGatewayClient(
         SecureRandom().nextBytes(bytes)
         return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes)
     }
+}
+
+/**
+ * Token-only pairing persists [HermesAuthSession.gatewayUrl] as the base captured at import time;
+ * [HermesGatewayConfiguration.baseUrl] can differ by trivial normalization (for example a trailing
+ * slash). Courier-enabled gateways reject unauthenticated [HermesApiPaths.AUTH_CHALLENGE] calls,
+ * so a strict [HttpUrl] mismatch must not force a challenge round-trip.
+ */
+private fun pairedGatewayBaseMatches(stored: HttpUrl, configured: HttpUrl): Boolean {
+    if (stored == configured) return true
+    return stored.scheme == configured.scheme &&
+        stored.host == configured.host &&
+        stored.port == configured.port
 }
 
 private class RealtimeConnectionManager(

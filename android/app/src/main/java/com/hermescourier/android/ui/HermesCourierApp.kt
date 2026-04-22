@@ -33,6 +33,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import kotlinx.coroutines.Job
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.hermescourier.android.ui.components.GatewayStatusBanner
@@ -82,10 +83,11 @@ fun HermesCourierApp(
     val isDetailRoute = currentRoute.startsWith("session/") || currentRoute.startsWith("approval/")
 
     LaunchedEffect(initialEnrollmentPayload) {
-        viewModel.runInitialAppBootstrap(
+        val job: Job = viewModel.runInitialAppBootstrap(
             deepLinkPayload = initialEnrollmentPayload,
             onDeepLinkConsumed = onInitialEnrollmentPayloadConsumed,
         )
+        job.join()
     }
 
     Scaffold(

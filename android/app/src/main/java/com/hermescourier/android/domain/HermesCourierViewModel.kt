@@ -239,87 +239,89 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
     }
 
     fun testLiveGateway() {
-        viewModelScope.launch {
-            reconnectCountdownJob?.cancel()
-            reconnectCountdownJob = null
-            syncSettingsFromDisk()
+        viewModelScope.launch { performLiveGatewayTest() }
+    }
+
+    private suspend fun performLiveGatewayTest() {
+        reconnectCountdownJob?.cancel()
+        reconnectCountdownJob = null
+        syncSettingsFromDisk()
+        _uiState.update {
+            it.copy(
+                bootstrapState = "Testing live gateway",
+                authStatus = "Attempting live secure bootstrap",
+                gatewayConnectionMode = "Testing live gateway",
+                gatewayConnectionDetail = "Running live connection test",
+                realtimeReconnectProgress = 0f,
+                realtimeReconnectCountdown = "Reconnect now",
+                verificationMode = "Running live endpoint verification",
+            )
+        }
+        val liveClient = HermesGatewayClientFactory.createOrNull(applicationContext)
+        if (liveClient == null) {
+            val detail = "Secure gateway client could not be created from the current settings"
             _uiState.update {
                 it.copy(
-                    bootstrapState = "Testing live gateway",
-                    authStatus = "Attempting live secure bootstrap",
-                    gatewayConnectionMode = "Testing live gateway",
-                    gatewayConnectionDetail = "Running live connection test",
-                    realtimeReconnectProgress = 0f,
-                    realtimeReconnectCountdown = "Reconnect now",
-                    verificationMode = "Running live endpoint verification",
+                    bootstrapState = "Live gateway unavailable",
+                    authStatus = detail,
+                    gatewayConnectionMode = "Unavailable",
+                    gatewayConnectionDetail = detail,
+                    streamStatus = "Realtime stream unavailable",
+                    verificationMode = "Failed (live gateway unavailable)",
+                    endpointVerificationResults = defaultVerificationResults(
+                        reason = detail,
+                        status = "failed",
+                    ),
                 )
             }
-            val liveClient = HermesGatewayClientFactory.createOrNull(applicationContext)
-            if (liveClient == null) {
-                val detail = "Secure gateway client could not be created from the current settings"
-                _uiState.update {
-                    it.copy(
-                        bootstrapState = "Live gateway unavailable",
-                        authStatus = detail,
-                        gatewayConnectionMode = "Unavailable",
-                        gatewayConnectionDetail = detail,
-                        streamStatus = "Realtime stream unavailable",
-                        verificationMode = "Failed (live gateway unavailable)",
-                        endpointVerificationResults = defaultVerificationResults(
-                            reason = detail,
-                            status = "failed",
-                        ),
-                    )
-                }
-                return@launch
-            }
-            val verification = runCatching { liveClient.verifyLiveEndpoints(deviceIdentity) }
-            verification.onSuccess { checks ->
-                _uiState.update { state ->
-                    state.copy(
-                        endpointVerificationResults = checks,
-                        verificationMode = "Live verification completed",
-                    )
-                }
-            }.onFailure { error ->
-                _uiState.update { state ->
-                    state.copy(
-                        endpointVerificationResults = defaultVerificationResults(
-                            reason = error.localizedMessage ?: error.toString(),
-                            status = "failed",
-                        ),
-                        verificationMode = "Live verification failed",
-                    )
-                }
-            }
-            runCatching {
-                loadFromGateway(
-                    liveClient,
-                    connectionMode = "Live gateway",
-                    connectionDetail = "Live gateway handshake completed",
-                )
-            }.onSuccess { state ->
-                _uiState.value = state.copy(
-                    bootstrapState = "Live gateway connected",
-                    authStatus = "Authenticated against ${state.dashboard.connectionState}",
-                    gatewayConnectionMode = "Live gateway",
-                    gatewayConnectionDetail = "Live gateway handshake completed",
+            return
+        }
+        val verification = runCatching { liveClient.verifyLiveEndpoints(deviceIdentity) }
+        verification.onSuccess { checks ->
+            _uiState.update { state ->
+                state.copy(
+                    endpointVerificationResults = checks,
                     verificationMode = "Live verification completed",
-                    endpointVerificationResults = verification.getOrNull() ?: state.endpointVerificationResults,
                 )
-                flushQueuedApprovalActions(liveClient, currentSession)
-            }.onFailure { error ->
-                val detail = error.localizedMessage ?: error.toString()
-                _uiState.update {
-                    it.copy(
-                        bootstrapState = "Live gateway test failed",
-                        authStatus = detail,
-                        gatewayConnectionMode = "Unavailable",
-                        gatewayConnectionDetail = detail,
-                        streamStatus = "Realtime stream unavailable",
-                        verificationMode = "Live load failed",
-                    )
-                }
+            }
+        }.onFailure { error ->
+            _uiState.update { state ->
+                state.copy(
+                    endpointVerificationResults = defaultVerificationResults(
+                        reason = error.localizedMessage ?: error.toString(),
+                        status = "failed",
+                    ),
+                    verificationMode = "Live verification failed",
+                )
+            }
+        }
+        runCatching {
+            loadFromGateway(
+                liveClient,
+                connectionMode = "Live gateway",
+                connectionDetail = "Live gateway handshake completed",
+            )
+        }.onSuccess { state ->
+            _uiState.value = state.copy(
+                bootstrapState = "Live gateway connected",
+                authStatus = "Authenticated against ${state.dashboard.connectionState}",
+                gatewayConnectionMode = "Live gateway",
+                gatewayConnectionDetail = "Live gateway handshake completed",
+                verificationMode = "Live verification completed",
+                endpointVerificationResults = verification.getOrNull() ?: state.endpointVerificationResults,
+            )
+            flushQueuedApprovalActions(liveClient, currentSession)
+        }.onFailure { error ->
+            val detail = error.localizedMessage ?: error.toString()
+            _uiState.update {
+                it.copy(
+                    bootstrapState = "Live gateway test failed",
+                    authStatus = detail,
+                    gatewayConnectionMode = "Unavailable",
+                    gatewayConnectionDetail = detail,
+                    streamStatus = "Realtime stream unavailable",
+                    verificationMode = "Live load failed",
+                )
             }
         }
     }
@@ -397,16 +399,14 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
     fun runInitialAppBootstrap(
         deepLinkPayload: String?,
         onDeepLinkConsumed: () -> Unit = {},
-    ) {
-        viewModelScope.launch {
-            val trimmed = deepLinkPayload?.trim().orEmpty()
-            if (trimmed.startsWith("hermes-courier-enroll://")) {
-                applyTokenOnlyEnrollmentFromPayload(trimmed)
-                onDeepLinkConsumed()
-                testLiveGateway()
-            } else {
-                refresh()
-            }
+    ): Job = viewModelScope.launch {
+        val trimmed = deepLinkPayload?.trim().orEmpty()
+        if (trimmed.startsWith("hermes-courier-enroll://")) {
+            applyTokenOnlyEnrollmentFromPayload(trimmed)
+            performLiveGatewayTest()
+            onDeepLinkConsumed()
+        } else {
+            refresh()
         }
     }
 

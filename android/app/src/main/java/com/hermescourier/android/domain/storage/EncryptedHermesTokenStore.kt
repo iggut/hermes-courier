@@ -5,6 +5,9 @@ import android.content.Context
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import com.hermescourier.android.domain.model.HermesAuthSession
+import java.io.IOException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -19,17 +22,20 @@ class EncryptedHermesTokenStore(context: Context) : HermesTokenStore {
         EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
     )
 
-    override suspend fun save(session: HermesAuthSession) {
-        sharedPreferences.edit().putString(KEY_SESSION, session.toJson().toString()).apply()
+    override suspend fun save(session: HermesAuthSession) = withContext(Dispatchers.IO) {
+        val ok = sharedPreferences.edit().putString(KEY_SESSION, session.toJson().toString()).commit()
+        if (!ok) throw IOException("Hermes token store commit failed")
     }
 
-    override suspend fun load(): HermesAuthSession? {
-        val json = sharedPreferences.getString(KEY_SESSION, null) ?: return null
-        return hermesAuthSessionFromJson(JSONObject(json))
+    override suspend fun load(): HermesAuthSession? = withContext(Dispatchers.IO) {
+        val json = sharedPreferences.getString(KEY_SESSION, null) ?: return@withContext null
+        hermesAuthSessionFromJson(JSONObject(json))
     }
 
     override suspend fun clear() {
-        sharedPreferences.edit().remove(KEY_SESSION).apply()
+        withContext(Dispatchers.IO) {
+            sharedPreferences.edit().remove(KEY_SESSION).commit()
+        }
     }
 
     private companion object {
