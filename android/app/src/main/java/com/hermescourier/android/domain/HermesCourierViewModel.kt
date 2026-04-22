@@ -201,27 +201,27 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
                     sessionDetailLoadError = null,
                 )
             }
-            val pairedTokenAvailable = hasPairedBearerToken()
-            val liveClient = if (pairedTokenAvailable) liveClientOrNull() else null
+            val pairedGatewayConfigured = hasPairedGatewayCredentials()
+            val liveClient = liveClientOrNull()
             if (liveClient == null) {
-                val detail = if (pairedTokenAvailable) {
-                    "Secure gateway client could not be created from the current settings"
+                val detail = if (pairedGatewayConfigured) {
+                    "Secure gateway client could not be created from the current settings (check the imported certificate and gateway URL)"
                 } else {
-                    "No paired bearer token configured. Scan the Hermes WebUI pairing QR first."
+                    "No paired gateway credentials configured. Scan the Hermes WebUI pairing QR or import the certificate first."
                 }
                 _uiState.update {
                     it.copy(
-                        bootstrapState = if (pairedTokenAvailable) "Gateway unavailable" else "Awaiting paired bearer token",
+                        bootstrapState = if (pairedGatewayConfigured) "Paired, but gateway not responding" else "Awaiting gateway pairing",
                         authStatus = detail,
                         gatewayConnectionMode = "Unavailable",
                         gatewayConnectionDetail = detail,
                         streamStatus = "Realtime stream unavailable",
                     verificationMode = "Skipped (live gateway unavailable)",
                     endpointVerificationResults = defaultVerificationResults(
-                        reason = if (pairedTokenAvailable) {
+                        reason = if (pairedGatewayConfigured) {
                             "Live gateway client could not be created from current settings."
                         } else {
-                            "No paired bearer token is stored yet."
+                            "No paired gateway credentials are stored yet."
                         },
                         status = "failed",
                     ),
@@ -1244,23 +1244,30 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
         )
     }
 
-    private suspend fun liveClientOrNull(): HermesGatewayClient? {
-        if (!hasPairedBearerToken()) return null
-        return liveClientOrNull()
-    }
+    private suspend fun liveClientOrNull(): HermesGatewayClient? = runCatching {
+        HermesGatewayClientFactory.create(applicationContext)
+    }.getOrNull()
 
-    private suspend fun hasPairedBearerToken(): Boolean = runCatching {
-        EncryptedHermesTokenStore(applicationContext).load()?.accessToken?.isNotBlank() == true
+    private suspend fun hasPairedGatewayCredentials(): Boolean = runCatching {
+        val configuration = HermesGatewayConfiguration.from(applicationContext)
+        val hasCertificate = configuration.mtlsPkcs12File?.exists() == true
+        val hasBearerSession = EncryptedHermesTokenStore(applicationContext).load()?.accessToken?.isNotBlank() == true
+        hasCertificate || hasBearerSession
     }.getOrDefault(false)
 
     private fun pairingStatusFromTokenStore(): String {
         val hasToken = runCatching {
             runBlocking { EncryptedHermesTokenStore(applicationContext).load() }
         }.getOrNull()?.accessToken?.isNotBlank() == true
-        return if (hasToken) {
+        val hasCertificate = runCatching {
+            HermesGatewayConfiguration.from(applicationContext).mtlsPkcs12File?.exists() == true
+        }.getOrDefault(false)
+        return if (hasCertificate) {
+            "Certificate pairing configured"
+        } else if (hasToken) {
             "Bearer pairing configured (manual token entry not required)"
         } else {
-            "No paired bearer token configured"
+            "No paired gateway credentials configured"
         }
     }
 
@@ -1299,10 +1306,14 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
             }
             _uiState.update {
                 it.copy(
-                    pairingBackendStatus = if (tokenBacked && qrAvailable && pairingMode == "token-only") {
-                        "Pairing backend ready for token-only QR flow"
-                    } else {
-                        "Pairing backend reports limited availability"
+                    pairingBackendStatus = when {
+                        tokenBacked && qrAvailable && pairingMode == "token-only" -> {
+                            "Pairing backend ready for token-only QR flow"
+                        }
+                        qrAvailable && postScanBootstrap && pairingMode == "certificate" -> {
+                            "Pairing backend ready for certificate QR flow"
+                        }
+                        else -> "Pairing backend reports limited availability"
                     },
                     pairingBackendDetail = "mode=$pairingMode, tokenBackedPairingAvailable=$tokenBacked, qrPairingAvailable=$qrAvailable, postScanBootstrapAvailable=$postScanBootstrap",
                     pairingUnavailableReasons = unavailableReasons,
