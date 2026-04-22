@@ -816,6 +816,14 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
         } else {
             _uiState.value.endpointVerificationResults
         }
+        // Do NOT overwrite streamStatus / realtimeReconnectCountdown here. `startRealtime`
+        // above already registered the WebSocket listener, and its async `onStatus` callback
+        // is the single source of truth for realtime liveness. Forcing "Realtime stream
+        // connected" from the REST-bootstrap path lied on gateways that immediately reject
+        // the WS upgrade with `events_unavailable` / `supported: false`. The updated
+        // streamStatus (either "Realtime stream connected" on real opens, or
+        // "Realtime unsupported by gateway (polling fallback: ...)" on 426) is preserved
+        // by reading `_uiState.value` at the moment of return.
         return _uiState.value.copy(
             bootstrapState = "Secure gateway ready",
             authStatus = "Session ${session.sessionId} authenticated through ${session.gatewayUrl}",
@@ -832,8 +840,6 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
             enrollmentQrPayload = enrollmentPayload(settings),
             queuedApprovalActions = queuedCount,
             queuedApprovalActionQueue = queuedApprovalActions.toList(),
-            streamStatus = "Realtime stream connected",
-            realtimeReconnectCountdown = "Connected",
             endpointVerificationResults = verificationResults,
             verificationMode = if (client is DemoHermesGatewayClient) "Demo fallback (explicit)" else _uiState.value.verificationMode,
         )

@@ -184,15 +184,17 @@ fun CompactStatusStrip(
 
 private fun freshnessShort(ui: HermesCourierUiState): String {
     val last = ui.dashboard.lastSyncLabel.ifBlank { "unknown" }
-    return if (ui.streamStatus.contains("connected", ignoreCase = true) &&
-        !ui.streamStatus.contains("disconnected", ignoreCase = true)
-    ) {
-        "synced $last"
-    } else if (ui.streamStatus.contains("reconnecting", ignoreCase = true)) {
-        "reconnecting — $last"
-    } else if (ui.streamStatus.contains("disconnected", ignoreCase = true)) {
-        "stale — $last"
-    } else {
-        last
+    val stream = ui.streamStatus
+    val isUnsupported = stream.contains("unsupported", ignoreCase = true) ||
+        stream.contains("unavailable", ignoreCase = true)
+    return when {
+        // Gateway explicitly said realtime is off; don't lie about "synced" just because
+        // REST is live. Polling is the honest mode here.
+        isUnsupported -> "polling — $last"
+        stream.contains("connected", ignoreCase = true) &&
+            !stream.contains("disconnected", ignoreCase = true) -> "synced $last"
+        stream.contains("reconnecting", ignoreCase = true) -> "reconnecting — $last"
+        stream.contains("disconnected", ignoreCase = true) -> "stale — $last"
+        else -> last
     }
 }
