@@ -46,7 +46,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.Closeable
@@ -1276,7 +1275,7 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
             gatewaySettings = settings,
             deviceFingerprint = deviceFingerprint,
             enrollmentStatus = enrollmentStatus(settings),
-            courierPairingStatus = pairingStatusFromTokenStore(),
+            courierPairingStatus = "Checking pairing status…",
             enrollmentQrPayload = enrollmentPayload(settings),
             gatewayConnectionMode = "Unknown",
             gatewayConnectionDetail = "No gateway check has run yet",
@@ -1342,9 +1341,9 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
         hasCertificate || hasBearerSession
     }.getOrDefault(false)
 
-    private fun pairingStatusFromTokenStore(): String {
+    private suspend fun pairingStatusFromTokenStore(): String {
         val hasToken = runCatching {
-            runBlocking { EncryptedHermesTokenStore(applicationContext).load() }
+            EncryptedHermesTokenStore(applicationContext).load()
         }.getOrNull()?.accessToken?.isNotBlank() == true
         val hasCertificate = runCatching {
             HermesGatewayConfiguration.from(applicationContext).mtlsPkcs12File?.exists() == true

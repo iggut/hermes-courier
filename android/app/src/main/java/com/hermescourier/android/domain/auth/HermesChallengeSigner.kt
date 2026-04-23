@@ -16,6 +16,13 @@ interface HermesChallengeSigner {
     fun sign(nonce: String, device: HermesDeviceIdentity): String
 }
 
+/**
+ * Builds the canonical signable message from a nonce and device identity.
+ * The pipe-delimited format is: `nonce|deviceId|platform|appVersion`.
+ */
+internal fun buildChallengeSignableMessage(nonce: String, device: HermesDeviceIdentity): String =
+    listOf(nonce, device.deviceId, device.platform, device.appVersion).joinToString("|")
+
 class AndroidKeystoreChallengeSigner(
     private val alias: String = "hermes_courier_device_signing",
 ) : HermesChallengeSigner {
@@ -32,7 +39,7 @@ class AndroidKeystoreChallengeSigner(
         val privateKey = keyStore.getKey(alias, null) as java.security.PrivateKey? ?: error("Android Keystore private key missing for $alias")
         val signature = Signature.getInstance("SHA256withRSA")
         signature.initSign(privateKey)
-
+        signature.update(buildChallengeSignableMessage(nonce, device).toByteArray(StandardCharsets.UTF_8))
         return Base64.getEncoder().encodeToString(signature.sign())
     }
 
@@ -50,9 +57,6 @@ class AndroidKeystoreChallengeSigner(
         generator.initialize(spec)
         generator.generateKeyPair()
     }
-
-    private fun buildMessage(nonce: String, device: HermesDeviceIdentity): String =
-        listOf(nonce, device.deviceId, device.platform, device.appVersion).joinToString("|")
 
     private fun sha256(bytes: ByteArray): String =
         MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }

@@ -19,3 +19,7 @@ xcuserdata/
 # macOS / general
 .DS_Store
 .tools
+
+# Diagnostic leftovers
+tmp/
+artifacts/

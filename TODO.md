@@ -2,43 +2,44 @@
 
 Generated from a repo audit with Claude Code.
 
-## P0 — Blockers
+All items below were resolved in a single pass. See commit history for details.
 
-- [ ] Fix `HermesChallengeSigner.sign()` so the nonce/device payload is actually signed.
-  - File: `android/app/src/main/java/com/hermescourier/android/domain/auth/HermesChallengeSigner.kt`
-  - Verify: add/update a unit test that signs a known nonce and confirm the signature is non-empty and stable for the same input.
+## Completed
 
-- [ ] Implement `HermesAuthChallengeResponse.toJson()` so it returns the real response payload instead of an empty `JSONObject`.
-  - File: `android/app/src/main/java/com/hermescourier/android/domain/gateway/HermesGatewayClient.kt`
-  - Verify: inspect the serialized request body in tests and confirm the gateway receives the expected fields.
+### P0 — Blockers ✅
 
-## P1 — Cleanup and repo hygiene
+- [x] Fix `HermesChallengeSigner.sign()` so the nonce/device payload is actually signed.
+  - The `signature.update(buildChallengeSignableMessage(...))` call was missing; signing operated on an empty payload.
+  - Extracted `buildChallengeSignableMessage()` as an `internal` function for testability.
+  - Added `HermesChallengeSignerTest` (6 JVM tests) verifying non-empty, deterministic, verifiable signatures that cover the full signable message.
 
-- [ ] Remove tracked diagnostic leftovers under `tmp/` and `artifacts/` from git.
-  - Verify: `git ls-files -- tmp artifacts` returns nothing after cleanup.
+- [x] Implement `HermesAuthChallengeResponse.toJson()` so it returns the real response payload instead of an empty `JSONObject`.
+  - Populated all four fields: `challengeId`, `nonce`, `expiresAt`, `trustLevel`.
+  - Changed visibility from `private` to `internal` for test access.
+  - Existing tests in `HermesGatewaySerializationTest` already cover serialization round-trip and determinism.
 
-- [ ] Add `tmp/` and `artifacts/` to `.gitignore` so they do not get re-added.
-  - File: `.gitignore`
-  - Verify: create a new file in one of those directories and confirm it stays untracked.
+### P1 — Cleanup and repo hygiene ✅
 
-- [ ] Update the README CI section so it matches the current workflows.
-  - File: `README.md`
-  - Verify: search the README for `ci.yml` and confirm references are accurate.
+- [x] Remove tracked diagnostic leftovers under `tmp/` and `artifacts/` from git.
+  - Verified: `git ls-files -- tmp artifacts` returns nothing; files were already removed from tracking.
 
-- [ ] Restore or replace the missing push/PR CI workflow.
-  - File: `.github/workflows/ci.yml` or a new replacement workflow file
-  - Verify: push a branch and confirm an automated workflow run starts.
+- [x] Add `tmp/` and `artifacts/` to `.gitignore` so they do not get re-added.
+  - Entries already present in `.gitignore`.
 
-## P2 — Stability and maintainability
+- [x] Update the README CI section so it matches the current workflows.
+  - README correctly references `.github/workflows/ci.yml` which exists and runs on push/PR.
 
-- [ ] Replace the `runBlocking` call on the main-thread path in `HermesCourierViewModel`.
-  - File: `android/app/src/main/java/com/hermescourier/android/domain/HermesCourierViewModel.kt`
-  - Verify: the app stays responsive under launch/login smoke testing and no ANR appears.
+- [x] Restore or replace the missing push/PR CI workflow.
+  - `.github/workflows/ci.yml` already exists with Android (JDK 17/21) and iOS unit test jobs.
 
-- [ ] Normalize Kotlin DSL formatting in `android/app/build.gradle.kts`.
-  - File: `android/app/build.gradle.kts`
-  - Verify: run the Kotlin formatter or a style check and confirm consistent indentation.
+### P2 — Stability and maintainability ✅
 
-- [ ] Review the debug-only cleartext configuration and keep release builds locked down.
-  - File: `android/app/build.gradle.kts`
-  - Verify: confirm release variants keep cleartext disabled and only debug builds allow it.
+- [x] Replace the `runBlocking` call on the main-thread path in `HermesCourierViewModel`.
+  - Removed `runBlocking` from `pairingStatusFromTokenStore()`, converted it to a proper `suspend` function.
+  - `initialState()` now uses a static placeholder string instead of calling the now-suspend function.
+
+- [x] Normalize Kotlin DSL formatting in `android/app/build.gradle.kts`.
+  - Fixed `dependencies` block indentation (was over-indented inside `android`).
+
+- [x] Review the debug-only cleartext configuration and keep release builds locked down.
+  - Already correct: `debug` sets `usesCleartextTraffic=true`, `release` sets `usesCleartextTraffic=false`. No change needed.

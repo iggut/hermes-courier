@@ -1,4 +1,0 @@
---------- beginning of main
-04-21 23:18:33.927 I/HermesRealtime( 7777): connect attempt=0 url=https://jupiter.tailecd7e7.ts.net/v1/events tokenExpiresAt=paired-via-qr
-04-21 23:18:33.982 I/HermesRealtime( 7777): onOpen code=101 proto=http/1.1 upgrade=websocket connection=Upgrade server=<none> elapsedMs=55
-04-21 23:18:33.985 D/HermesRealtime( 7777): onMessage bytes=6291

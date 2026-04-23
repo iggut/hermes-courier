@@ -818,18 +818,22 @@ class DemoHermesGatewayClient : HermesGatewayClient {
     )
 }
 
-private fun HermesAuthChallengeResponse.toJson(): JSONObject = JSONObject()
+internal fun HermesAuthChallengeResponse.toJson(): JSONObject = JSONObject()
+    .put("challengeId", challengeId)
+    .put("nonce", nonce)
+    .put("expiresAt", expiresAt)
+    .put("trustLevel", trustLevel)
 
-private fun HermesAuthChallengeRequest.toJson(): JSONObject = JSONObject()
+internal fun HermesAuthChallengeRequest.toJson(): JSONObject = JSONObject()
     .put("device", device.toJson())
     .put("nonce", nonce)
 
-private fun HermesAuthResponseRequest.toJson(): JSONObject = JSONObject()
+internal fun HermesAuthResponseRequest.toJson(): JSONObject = JSONObject()
     .put("challengeId", challengeId)
     .put("signedNonce", signedNonce)
     .put("device", device.toJson())
 
-private fun HermesDeviceIdentity.toJson(): JSONObject = JSONObject()
+internal fun HermesDeviceIdentity.toJson(): JSONObject = JSONObject()
     .put("deviceId", deviceId)
     .put("platform", platform)
     .put("appVersion", appVersion)
