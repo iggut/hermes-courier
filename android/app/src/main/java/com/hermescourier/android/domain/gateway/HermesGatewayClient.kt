@@ -77,6 +77,9 @@ interface HermesGatewayClient {
     suspend fun verifyLiveEndpoints(device: HermesDeviceIdentity): List<HermesEndpointVerificationResult>
 
     suspend fun fetchSkills(session: HermesAuthSession): com.hermescourier.android.domain.model.HermesCapabilityListing<com.hermescourier.android.domain.model.HermesSkill>
+    suspend fun saveSkill(session: HermesAuthSession, name: String, content: String, category: String = ""): Boolean
+    suspend fun deleteSkill(session: HermesAuthSession, name: String): Boolean
+    suspend fun fetchSkillContent(session: HermesAuthSession, name: String, category: String = ""): String?
     suspend fun fetchMemory(session: HermesAuthSession): com.hermescourier.android.domain.model.HermesCapabilityListing<com.hermescourier.android.domain.model.HermesMemoryItem>
     suspend fun fetchCronJobs(session: HermesAuthSession): com.hermescourier.android.domain.model.HermesCapabilityListing<com.hermescourier.android.domain.model.HermesCronJob>
     suspend fun fetchLogs(session: HermesAuthSession, limit: Int? = null, severity: String? = null): com.hermescourier.android.domain.model.HermesCapabilityListing<com.hermescourier.android.domain.model.HermesLogEntry>
@@ -268,6 +271,31 @@ class NetworkHermesGatewayClient(
 
     override suspend fun fetchSkills(session: HermesAuthSession): com.hermescourier.android.domain.model.HermesCapabilityListing<com.hermescourier.android.domain.model.HermesSkill> =
         fetchCapabilityListing("/${HermesApiPaths.SKILLS}", "skills", session.accessToken) { it.toSkill() }
+
+    override suspend fun saveSkill(session: HermesAuthSession, name: String, content: String, category: String): Boolean =
+        withContext(Dispatchers.IO) {
+            val body = JSONObject().put("name", name).put("content", content)
+            if (category.isNotBlank()) body.put("category", category)
+            val response = transport.post("/${HermesApiPaths.SKILLS_SAVE}", body, session.accessToken)
+            response.toJsonObject().optBoolean("ok", false)
+        }
+
+    override suspend fun deleteSkill(session: HermesAuthSession, name: String): Boolean =
+        withContext(Dispatchers.IO) {
+            val body = JSONObject().put("name", name)
+            val response = transport.post("/${HermesApiPaths.SKILLS_DELETE}", body, session.accessToken)
+            response.toJsonObject().optBoolean("ok", false)
+        }
+
+    override suspend fun fetchSkillContent(session: HermesAuthSession, name: String, category: String): String? =
+        withContext(Dispatchers.IO) {
+            val body = JSONObject().put("name", name)
+            if (category.isNotBlank()) body.put("category", category)
+            runCatching {
+                val response = transport.post("/${HermesApiPaths.SKILL_CONTENT}", body, session.accessToken)
+                response.toJsonObject().optString("content", "").takeIf { it.isNotBlank() }
+            }.getOrNull()
+        }
 
     override suspend fun fetchMemory(session: HermesAuthSession): com.hermescourier.android.domain.model.HermesCapabilityListing<com.hermescourier.android.domain.model.HermesMemoryItem> =
         fetchCapabilityListing("/${HermesApiPaths.MEMORY}", "memory", session.accessToken) { it.toMemoryItem() }
@@ -722,6 +750,10 @@ class DemoHermesGatewayClient : HermesGatewayClient {
             ),
         ),
     )
+
+    override suspend fun saveSkill(session: HermesAuthSession, name: String, content: String, category: String): Boolean = true
+    override suspend fun deleteSkill(session: HermesAuthSession, name: String): Boolean = true
+    override suspend fun fetchSkillContent(session: HermesAuthSession, name: String, category: String): String? = null
 
     override suspend fun fetchMemory(session: HermesAuthSession) = com.hermescourier.android.domain.model.HermesCapabilityListing(
         items = listOf(

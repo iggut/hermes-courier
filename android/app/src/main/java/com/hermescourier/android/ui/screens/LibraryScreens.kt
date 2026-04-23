@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -21,8 +22,11 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.ui.window.Dialog
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -58,6 +62,7 @@ private fun <T> CapabilityListScreen(
     emptyHint: String,
     itemKey: (T) -> String,
     itemRenderer: @Composable (T) -> Unit,
+    headerAction: @Composable (() -> Unit)? = null,
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -98,8 +103,11 @@ private fun <T> CapabilityListScreen(
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
-                        OutlinedButton(onClick = onRefresh) {
-                            Text(text = if (uiState.libraryLoading) "Refreshing…" else "Refresh library")
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            OutlinedButton(onClick = onRefresh) {
+                                Text(text = if (uiState.libraryLoading) "Refreshing…" else "Refresh library")
+                            }
+                            headerAction?.invoke()
                         }
                     }
                 }
@@ -193,25 +201,91 @@ fun SkillsScreen(
     onRefresh: () -> Unit,
     onReconnectRealtime: () -> Unit,
     onRetryQueuedApprovalActions: () -> Unit,
+    onSaveSkill: (name: String, content: String, category: String) -> Unit,
+    onDeleteSkill: (name: String) -> Unit,
+    onFetchSkillContent: suspend (name: String, category: String) -> String?,
 ) {
+    var showCreateDialog by rememberSaveable { mutableStateOf(false) }
+    var editSkill by rememberSaveable { mutableStateOf<HermesSkill?>(null) }
+    var editSkillContent by rememberSaveable { mutableStateOf<String?>(null) }
+    var deleteSkill by rememberSaveable { mutableStateOf<HermesSkill?>(null) }
+
     CapabilityListScreen(
         contentPadding = contentPadding,
         title = "Skills",
-        intro = "Skills and tools the agent can invoke. Read-only in this release.",
+        intro = "Skills and tools the agent can invoke.",
         capabilityLabel = "skills",
         uiState = uiState,
         listing = uiState.skills,
         onRefresh = onRefresh,
         onReconnectRealtime = onReconnectRealtime,
         onRetryQueuedApprovalActions = onRetryQueuedApprovalActions,
-        emptyHint = "The gateway returned an empty skills list. Ask the Hermes backend to register a skill, then refresh.",
+        emptyHint = "The gateway returned an empty skills list. Tap \"+ New skill\" to create one.",
         itemKey = { it.skillId },
-        itemRenderer = { skill -> SkillRow(skill) },
+        itemRenderer = { skill ->
+            SkillRow(
+                skill = skill,
+                onEdit = { editSkill = skill },
+                onDelete = { deleteSkill = skill },
+            )
+        },
+        headerAction = {
+            Button(onClick = { showCreateDialog = true }) { Text("+ New skill") }
+        },
     )
+
+    if (showCreateDialog) {
+        SkillEditDialog(
+            title = "New skill",
+            initialName = "",
+            initialContent = "",
+            initialCategory = "",
+            onSave = { name, content, category ->
+                onSaveSkill(name, content, category)
+                showCreateDialog = false
+            },
+            onDismiss = { showCreateDialog = false },
+        )
+    }
+
+    val editing = editSkill
+    if (editing != null) {
+        LaunchedEffect(editing.skillId) {
+            editSkillContent = onFetchSkillContent(editing.name, "")
+        }
+        SkillEditDialog(
+            title = "Edit skill",
+            initialName = editing.name,
+            initialContent = editSkillContent ?: editing.description,
+            initialCategory = "",
+            onSave = { name, content, category ->
+                onSaveSkill(name, content, category)
+                editSkill = null
+                editSkillContent = null
+            },
+            onDismiss = { editSkill = null; editSkillContent = null },
+        )
+    }
+
+    val deleting = deleteSkill
+    if (deleting != null) {
+        SkillDeleteConfirmDialog(
+            skillName = deleting.name,
+            onConfirm = {
+                onDeleteSkill(deleting.name)
+                deleteSkill = null
+            },
+            onDismiss = { deleteSkill = null },
+        )
+    }
 }
 
 @Composable
-private fun SkillRow(skill: HermesSkill) {
+private fun SkillRow(
+    skill: HermesSkill,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit,
+) {
     ExpandableCard(
         summary = {
             Text(text = skill.name, style = MaterialTheme.typography.titleSmall)
@@ -239,6 +313,10 @@ private fun SkillRow(skill: HermesSkill) {
             if (skill.scopes.isNotEmpty()) {
                 ScopeRow(labels = skill.scopes)
             }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(onClick = onEdit) { Text("Edit") }
+                OutlinedButton(onClick = onDelete) { Text("Delete") }
+            }
         },
     )
 }
@@ -255,6 +333,95 @@ private fun ScopeRow(labels: List<String>) {
                     containerColor = MaterialTheme.colorScheme.surfaceVariant,
                 ),
             )
+        }
+    }
+}
+
+@Composable
+private fun SkillEditDialog(
+    title: String,
+    initialName: String,
+    initialContent: String,
+    initialCategory: String,
+    onSave: (name: String, content: String, category: String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var name by rememberSaveable { mutableStateOf(initialName) }
+    var content by rememberSaveable { mutableStateOf(initialContent) }
+    var category by rememberSaveable { mutableStateOf(initialCategory) }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Card {
+            Column(
+                modifier = Modifier.padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Text(text = title, style = MaterialTheme.typography.titleLarge)
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("Skill name") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                )
+                OutlinedTextField(
+                    value = category,
+                    onValueChange = { category = it },
+                    label = { Text("Category (optional)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                )
+                OutlinedTextField(
+                    value = content,
+                    onValueChange = { content = it },
+                    label = { Text("Skill content (SKILL.md)") },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(200.dp),
+                    singleLine = false,
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                ) {
+                    OutlinedButton(onClick = onDismiss) { Text("Cancel") }
+                    Spacer(modifier = Modifier.weight(1f))
+                    Button(
+                        onClick = { onSave(name.trim(), content, category.trim()) },
+                        enabled = name.trim().isNotBlank() && content.isNotBlank(),
+                    ) { Text("Save") }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SkillDeleteConfirmDialog(
+    skillName: String,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    Dialog(onDismissRequest = onDismiss) {
+        Card {
+            Column(
+                modifier = Modifier.padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Text(text = "Delete skill?", style = MaterialTheme.typography.titleLarge)
+                Text(
+                    text = "This will permanently remove \"$skillName\" from the gateway. This action cannot be undone.",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                ) {
+                    OutlinedButton(onClick = onDismiss) { Text("Cancel") }
+                    Spacer(modifier = Modifier.weight(1f))
+                    Button(onClick = onConfirm) { Text("Delete") }
+                }
+            }
         }
     }
 }

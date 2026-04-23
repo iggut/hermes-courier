@@ -16,6 +16,7 @@ import com.hermescourier.android.domain.model.HermesSessionControlActionResult
 import com.hermescourier.android.domain.model.HermesSessionSummary
 import com.hermescourier.android.domain.model.HermesSkill
 import com.hermescourier.android.domain.model.HermesUnavailablePayload
+import java.io.IOException
 import org.json.JSONArray
 import org.json.JSONObject
 import org.json.JSONTokener
@@ -93,14 +94,22 @@ internal fun String.toConversationEventOrNull(fallbackMessage: String): HermesCo
             timestamp = "now",
         )
     }
-    return runCatching {
-        val parsed = JSONTokener(this).nextValue()
-        when (parsed) {
-            is JSONObject -> parsed.toConversationEvent()
-            is JSONArray -> parsed.optJSONObject(parsed.length() - 1)?.toConversationEvent()
-            else -> null
+    val parsed = runCatching { JSONTokener(this).nextValue() }.getOrNull()
+    return when (parsed) {
+        is JSONObject -> {
+            val hasExplicitSupported = parsed.has("supported")
+            val isSupported = if (hasExplicitSupported) parsed.optBoolean("supported", true) else true
+            if (hasExplicitSupported && !isSupported) {
+                val detail = parsed.optString("detail", "").ifBlank {
+                    parsed.optString("body", "Conversation is not supported in the current runtime.")
+                }
+                throw IOException(detail)
+            }
+            parsed.toConversationEvent()
         }
-    }.getOrNull()
+        is JSONArray -> parsed.optJSONObject(parsed.length() - 1)?.toConversationEvent()
+        else -> null
+    }
 }
 
 internal fun JSONObject.toApprovalActionResult(

@@ -171,8 +171,11 @@ internal fun dashboardFreshnessLabel(
 
 internal fun sessionStatusBadge(status: String): String = when {
     status.contains("active", ignoreCase = true) -> "Live session"
+    status.contains("running", ignoreCase = true) -> "Live session"
     status.contains("pending", ignoreCase = true) -> "Waiting"
+    status.contains("paused", ignoreCase = true) -> "Paused"
     status.contains("completed", ignoreCase = true) -> "Completed"
+    status.contains("terminated", ignoreCase = true) -> "Completed"
     status.contains("error", ignoreCase = true) -> "Needs attention"
     else -> status.replaceFirstChar { it.uppercaseChar() }
 }

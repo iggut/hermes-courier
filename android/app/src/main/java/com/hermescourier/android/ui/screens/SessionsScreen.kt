@@ -62,7 +62,7 @@ import com.hermescourier.android.ui.sessionEmptyStateMessage
 import com.hermescourier.android.ui.sessionEmptyStateTitle
 import com.hermescourier.android.ui.sessionStatusBadge
 
-private val SessionFilters = listOf("All", "Live", "Waiting", "Completed", "Needs attention", "Archived")
+private val SessionFilters = listOf("All", "Live", "Waiting", "Paused", "Completed", "Needs attention", "Archived")
 
 @Composable
 fun SessionsScreen(
@@ -92,7 +92,9 @@ fun SessionsScreen(
             )
         }
     }
-    val visibleLiveCount = visibleSessions.count { it.status.contains("active", ignoreCase = true) }
+    val visibleLiveCount = visibleSessions.count {
+        it.status.contains("active", ignoreCase = true) || it.status.contains("running", ignoreCase = true)
+    }
     val visibleAttentionCount = visibleSessions.count { it.status.contains("error", ignoreCase = true) }
     val archivedCount = archivedSessionIds.size
     val selectedSession = selectedSessionId?.let { id -> sessions.firstOrNull { it.sessionId == id } }

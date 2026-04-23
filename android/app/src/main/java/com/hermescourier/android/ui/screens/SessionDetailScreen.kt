@@ -92,34 +92,38 @@ fun SessionDetailScreen(
             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(text = "Session control", style = MaterialTheme.typography.titleMedium)
                 Text(
-                    text = "These actions hit live gateway session-control endpoints only; unsupported endpoints are reported explicitly.",
+                    text = "Manage this session directly from the gateway.",
                     style = MaterialTheme.typography.bodySmall,
                 )
                 Button(
                     onClick = { onSessionControlAction(session.sessionId, "pause") },
-                    enabled = support.canInvoke,
+                    enabled = support.canPause,
                     modifier = Modifier.fillMaxWidth(),
                 ) { Text(text = "Pause session") }
                 Button(
                     onClick = { onSessionControlAction(session.sessionId, "resume") },
-                    enabled = support.canInvoke,
+                    enabled = support.canResume,
                     modifier = Modifier.fillMaxWidth(),
                 ) { Text(text = "Resume session") }
                 OutlinedButton(
                     onClick = { onSessionControlAction(session.sessionId, "terminate") },
-                    enabled = support.canInvoke,
+                    enabled = support.canTerminate,
                     modifier = Modifier.fillMaxWidth(),
                 ) { Text(text = "Terminate session") }
-                Text(
-                    text = support.detail,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Text(
-                    text = "Status: $sessionControlStatus",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                if (support.detail.isNotBlank()) {
+                    Text(
+                        text = support.detail,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                if (sessionControlStatus.isNotBlank()) {
+                    Text(
+                        text = sessionControlStatus,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
         }
 
@@ -135,7 +139,12 @@ fun SessionDetailScreen(
     }
 }
 
-private data class SessionControlSupport(val canInvoke: Boolean, val detail: String)
+private data class SessionControlSupport(
+    val canPause: Boolean,
+    val canResume: Boolean,
+    val canTerminate: Boolean,
+    val detail: String,
+)
 
 private fun rememberSessionControlSupport(
     results: List<HermesEndpointVerificationResult>,
@@ -143,29 +152,30 @@ private fun rememberSessionControlSupport(
     val controlResults = results.filter { it.endpoint.startsWith("session-control", ignoreCase = true) }
     if (controlResults.isEmpty()) {
         return SessionControlSupport(
-            canInvoke = true,
-            detail = "Capability unknown until endpoint verification runs; actions stay enabled.",
+            canPause = true,
+            canResume = true,
+            canTerminate = true,
+            detail = "",
         )
     }
-    val unsupported = controlResults.count { it.status.equals("unsupported", ignoreCase = true) }
-    val ok = controlResults.count { it.status.equals("ok", ignoreCase = true) }
-    val failed = controlResults.count { it.status.equals("failed", ignoreCase = true) }
-    return when {
-        ok > 0 -> SessionControlSupport(
-            canInvoke = true,
-            detail = "Gateway verified at least one session-control endpoint.",
-        )
-        unsupported == controlResults.size -> SessionControlSupport(
-            canInvoke = false,
-            detail = "Gateway reports session-control endpoints unsupported for this environment.",
-        )
-        failed == controlResults.size -> SessionControlSupport(
-            canInvoke = true,
-            detail = "Session-control checks failed during verification; you can retry from Settings.",
-        )
-        else -> SessionControlSupport(
-            canInvoke = true,
-            detail = "Session-control capability is partially available; see Settings verification for endpoint details.",
-        )
+    // Only disable a specific action when the backend explicitly confirmed "unsupported".
+    // Verification statuses like "skipped", "demo", or "failed" are inconclusive — the
+    // actual backend may still support session control even when the WebUI proxy does not
+    // map the route. Buttons stay enabled so the user can try; a real 404/405 from the
+    // backend will surface a clear message through sessionControlStatus.
+    fun actionUnsupported(verb: String): Boolean {
+        val match = controlResults.firstOrNull { it.endpoint.contains(verb, ignoreCase = true) }
+        return match?.status?.equals("unsupported", ignoreCase = true) == true
     }
+    val allUnsupported = controlResults.isNotEmpty() && controlResults.all { it.status.equals("unsupported", ignoreCase = true) }
+    val detail = when {
+        allUnsupported -> "This gateway doesn't support session control yet."
+        else -> ""
+    }
+    return SessionControlSupport(
+        canPause = !actionUnsupported("pause"),
+        canResume = !actionUnsupported("resume"),
+        canTerminate = !actionUnsupported("terminate"),
+        detail = detail,
+    )
 }

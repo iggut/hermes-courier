@@ -1,0 +1,11 @@
+Implement Hermes Courier parity fixes using the local context file webui-parity-context.md and the Android source in this repository only.
+
+Goals:
+- Chat messages must send reliably from Courier.
+- Session control on the Session details screen must support pause / resume / terminate when the backend supports them. Do not show unsupported unless the backend truly lacks support.
+- The sessions list must include the full backend session set; remove any client-side truncation or unnecessary filtering that hides sessions.
+- Skills must be editable from Courier. At minimum add create/save and delete, and add update/edit if feasible from the backend/local skill APIs. Keep read-only fallback only when the backend genuinely lacks support.
+
+Use the webui parity context as the source of truth for expected endpoint behavior. Keep the current architecture, preserve security-first defaults, and make the UX copy user-friendly.
+
+After editing, run the appropriate Gradle checks for this Android app and fix any failures. Then summarize the exact files changed and any limitations left.

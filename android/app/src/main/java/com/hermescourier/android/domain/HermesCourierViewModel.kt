@@ -435,7 +435,13 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
                 }
             _uiState.update {
                 it.copy(
-                    sessionControlStatus = "${result.action} ${result.sessionId}: ${result.status} (${result.detail})",
+                    sessionControlStatus = when {
+                        result.supported && result.status == "submitted" -> "${result.action.replaceFirstChar { it.uppercaseChar() }} request sent."
+                        result.supported && result.status == "accepted" -> "${result.action.replaceFirstChar { it.uppercaseChar() }} accepted."
+                        result.supported && result.status == "failed" -> "${result.action.replaceFirstChar { it.uppercaseChar() }} failed: ${result.detail}"
+                        !result.supported -> "${result.action.replaceFirstChar { it.uppercaseChar() }} is not available on this gateway yet."
+                        else -> "${result.action.replaceFirstChar { it.uppercaseChar() }}: ${result.status}"
+                    },
                 )
             }
             if (result.supported && result.status != "failed") {
@@ -613,6 +619,64 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
             if (session == null) currentSession = effectiveSession
             _uiState.update { it.copy(libraryLoading = true, libraryStatus = "Loading library from gateway") }
             loadLibraryQuietly(client, effectiveSession)
+        }
+    }
+
+    fun saveSkill(name: String, content: String, category: String = "", onComplete: (Boolean) -> Unit = {}) {
+        viewModelScope.launch {
+            val session = currentSession
+            val liveClient = liveClientOrNull()
+            if (session == null || liveClient == null) {
+                _uiState.update { it.copy(libraryStatus = "Cannot save skill: no live gateway connection") }
+                onComplete(false)
+                return@launch
+            }
+            runCatching { liveClient.saveSkill(session, name, content, category) }
+                .onSuccess { ok ->
+                    if (ok) {
+                        _uiState.update { it.copy(libraryStatus = "Skill \"$name\" saved.") }
+                        loadLibraryQuietly(liveClient, session)
+                    } else {
+                        _uiState.update { it.copy(libraryStatus = "Skill save returned a non-ok response.") }
+                    }
+                    onComplete(ok)
+                }
+                .onFailure { error ->
+                    _uiState.update { it.copy(libraryStatus = "Skill save failed: ${error.localizedMessage ?: error}") }
+                    onComplete(false)
+                }
+        }
+    }
+
+    suspend fun fetchSkillContent(name: String, category: String = ""): String? {
+        val session = currentSession ?: return null
+        val client = liveClientOrNull() ?: return null
+        return runCatching { client.fetchSkillContent(session, name, category) }.getOrNull()
+    }
+
+    fun deleteSkill(name: String, onComplete: (Boolean) -> Unit = {}) {
+        viewModelScope.launch {
+            val session = currentSession
+            val liveClient = liveClientOrNull()
+            if (session == null || liveClient == null) {
+                _uiState.update { it.copy(libraryStatus = "Cannot delete skill: no live gateway connection") }
+                onComplete(false)
+                return@launch
+            }
+            runCatching { liveClient.deleteSkill(session, name) }
+                .onSuccess { ok ->
+                    if (ok) {
+                        _uiState.update { it.copy(libraryStatus = "Skill \"$name\" deleted.") }
+                        loadLibraryQuietly(liveClient, session)
+                    } else {
+                        _uiState.update { it.copy(libraryStatus = "Skill delete returned a non-ok response.") }
+                    }
+                    onComplete(ok)
+                }
+                .onFailure { error ->
+                    _uiState.update { it.copy(libraryStatus = "Skill delete failed: ${error.localizedMessage ?: error}") }
+                    onComplete(false)
+                }
         }
     }
 
@@ -802,30 +866,32 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
                     conversationActionState = HermesConversationActionState.Sending,
                 )
             }
-            val session = currentSession ?: run {
+            val liveClient = liveClientOrNull()
+            if (liveClient == null) {
                 _uiState.update { state ->
                     state.copy(
-                        conversationActionStatus = "Connect to a live gateway before sending",
-                        conversationActionError = "No authenticated session is available yet.",
+                        conversationActionStatus = "Live gateway unavailable; cannot send",
+                        conversationActionError = "Live gateway unavailable; connect in Settings first.",
                         conversationActionState = HermesConversationActionState.Failed,
                     )
                 }
                 return@launch
             }
-            val liveClientResult = runCatching { HermesGatewayClientFactory.create(applicationContext) }
-            val liveClient = liveClientResult.getOrNull()
-            if (liveClient == null) {
-                val detail = liveClientResult.exceptionOrNull()?.localizedMessage
-                    ?: liveClientResult.exceptionOrNull()?.toString()
-                    ?: "Unable to create live gateway client"
-                _uiState.update { state ->
-                    state.copy(
-                        conversationActionStatus = "Live gateway unavailable; cannot send: $detail",
-                        conversationActionError = detail,
-                        conversationActionState = HermesConversationActionState.Failed,
-                    )
+            var session = currentSession
+            if (session == null) {
+                session = runCatching { liveClient.bootstrap(deviceIdentity) }.getOrNull()
+                if (session != null) {
+                    currentSession = session
+                } else {
+                    _uiState.update { state ->
+                        state.copy(
+                            conversationActionStatus = "Connect to a live gateway before sending",
+                            conversationActionError = "No authenticated session is available yet.",
+                            conversationActionState = HermesConversationActionState.Failed,
+                        )
+                    }
+                    return@launch
                 }
-                return@launch
             }
             runCatching {
                 liveClient.submitConversationMessage(session, trimmed, activeSessionId)

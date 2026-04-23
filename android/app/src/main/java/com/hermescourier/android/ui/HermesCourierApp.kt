@@ -373,6 +373,9 @@ fun HermesCourierApp(
                     onRefresh = viewModel::refreshLibrary,
                     onReconnectRealtime = viewModel::reconnectRealtime,
                     onRetryQueuedApprovalActions = viewModel::retryQueuedApprovalActions,
+                    onSaveSkill = { name, content, category -> viewModel.saveSkill(name, content, category) },
+                    onDeleteSkill = { name -> viewModel.deleteSkill(name) },
+                    onFetchSkillContent = { name, category -> viewModel.fetchSkillContent(name, category) },
                 )
             }
             composable(HermesLibraryRoute.MEMORY) {
