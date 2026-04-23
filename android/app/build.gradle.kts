@@ -19,7 +19,7 @@ android {
 
     buildTypes {
         debug {
-            applicationIdSuffix = ".debug"
+            applicationIdSuffix = ".debugtest"
             versionNameSuffix = "-debug"
             manifestPlaceholders["usesCleartextTraffic"] = "true"
         }
