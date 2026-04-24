@@ -1031,10 +1031,11 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
                     val incomingEvent = envelope.conversation
                     val belongsToActive = when {
                         incomingEvent == null -> false
-                        // Event is untagged (pre-Phase-3 servers or optimistic echoes):
-                        // apply it regardless to stay backwards compatible.
+                        // If the active view is global (Dashboard), show all events, or at least global ones.
+                        // For parity with hermes-webui: if no session is requested, show everything.
+                        state.activeSessionId == null -> incomingEvent.sessionId == null
+                        // If the active view is a specific session, show global un-tagged events + session events.
                         incomingEvent.sessionId == null -> true
-                        state.activeSessionId == null -> false
                         else -> incomingEvent.sessionId == state.activeSessionId
                     }
                     val updatedConversation = if (belongsToActive && incomingEvent != null) {

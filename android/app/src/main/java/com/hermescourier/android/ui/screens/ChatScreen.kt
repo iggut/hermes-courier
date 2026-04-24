@@ -368,22 +368,28 @@ private fun ChatMessageBubble(
             Card(
                 colors = CardDefaults.cardColors(
                     containerColor = if (isUser) {
-                        MaterialTheme.colorScheme.primaryContainer
+                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.95f)
                     } else {
-                        MaterialTheme.colorScheme.surfaceVariant
+                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.85f)
                     },
                 ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+                shape = androidx.compose.foundation.shape.RoundedCornerShape(
+                    topStart = 16.dp,
+                    topEnd = 16.dp,
+                    bottomStart = if (isUser) 16.dp else 4.dp,
+                    bottomEnd = if (isUser) 4.dp else 16.dp,
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = if (isUser) 2.dp else 1.dp),
             ) {
                 Text(
                     text = body,
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = MaterialTheme.typography.bodyMedium.copy(lineHeight = androidx.compose.ui.unit.TextUnit(20f, androidx.compose.ui.unit.TextUnitType.Sp)),
                     color = if (isUser) {
                         MaterialTheme.colorScheme.onPrimaryContainer
                     } else {
                         MaterialTheme.colorScheme.onSurface
                     },
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
                 )
             }
 

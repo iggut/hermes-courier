@@ -305,25 +305,19 @@ private fun SessionListCard(
 ) {
     val dismissState = rememberSwipeToDismissBoxState(confirmValueChange = { target ->
         when (target) {
-            SwipeToDismissBoxValue.EndToStart -> {
-                if (!isArchived) {
-                    onArchive()
-                    true
-                } else {
-                    false
-                }
-            }
-            SwipeToDismissBoxValue.StartToEnd -> {
-                if (isArchived) {
-                    onRestore()
-                    true
-                } else {
-                    false
-                }
-            }
+            SwipeToDismissBoxValue.EndToStart -> !isArchived
+            SwipeToDismissBoxValue.StartToEnd -> isArchived
             SwipeToDismissBoxValue.Settled -> false
         }
     })
+
+    LaunchedEffect(dismissState.currentValue) {
+        if (dismissState.currentValue == SwipeToDismissBoxValue.EndToStart && !isArchived) {
+            onArchive()
+        } else if (dismissState.currentValue == SwipeToDismissBoxValue.StartToEnd && isArchived) {
+            onRestore()
+        }
+    }
 
     SwipeToDismissBox(
         state = dismissState,

@@ -612,6 +612,17 @@ private extension Array where Element == HermesConversationEvent {
             copy[index] = event
             return copy
         }
+        let normalizedAuthor = event.author.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let normalizedBody = event.body.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if let index = firstIndex(where: {
+            $0.eventId.starts(with: "local-") &&
+            $0.author.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == normalizedAuthor &&
+            $0.body.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == normalizedBody
+        }) {
+            var copy = self
+            copy[index] = event
+            return copy
+        }
         return self + [event]
     }
 }
