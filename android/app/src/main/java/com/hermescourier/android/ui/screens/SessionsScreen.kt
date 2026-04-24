@@ -287,9 +287,9 @@ private fun sessionMatchesFilter(
     val isArchived = session.sessionId in archivedSet
 
     val filterMatches = when (filter) {
-        "All" -> !isArchived
+        "All" -> true
         "Archived" -> isArchived
-        else -> !isArchived && sessionStatusBadge(session.status).equals(filter, ignoreCase = true)
+        else -> sessionStatusBadge(session.status).equals(filter, ignoreCase = true)
     }
     return queryMatches && filterMatches
 }

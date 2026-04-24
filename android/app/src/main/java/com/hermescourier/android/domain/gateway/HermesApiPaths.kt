@@ -9,6 +9,7 @@ object HermesApiPaths {
     const val SESSIONS = "v1/sessions"
     const val APPROVALS = "v1/approvals"
     const val CONVERSATION = "v1/conversation"
+    const val MODELS = "v1/models"
     /** Mobile clients use a WebSocket at this path; the contract describes live events. */
     const val EVENTS_STREAM = "v1/events"
 

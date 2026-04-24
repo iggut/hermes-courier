@@ -243,6 +243,11 @@ internal fun JSONObject.toSkill(): HermesSkill = HermesSkill(
     scopes = optJSONArray("scopes")?.toStringList() ?: emptyList(),
 )
 
+internal fun JSONObject.toModel(): HermesModel = HermesModel(
+    id = optString("id", ""),
+    name = optString("name", optString("id", "")),
+)
+
 internal fun JSONObject.toMemoryItem(): HermesMemoryItem = HermesMemoryItem(
     memoryId = optString("memoryId", optString("id", "memory-unknown")),
     title = optString("title", optString("name", "Untitled memory")),

@@ -129,6 +129,11 @@ data class HermesCapabilityListing<T>(
     val isSupported: Boolean = unavailable == null,
 )
 
+data class HermesModel(
+    val id: String,
+    val name: String,
+)
+
 data class HermesSkill(
     val skillId: String,
     val name: String,
@@ -380,6 +385,8 @@ data class HermesCourierUiState(
     val logs: HermesCapabilityListing<HermesLogEntry> = HermesCapabilityListing(items = emptyList()),
     val libraryStatus: String = "Not loaded yet",
     val libraryLoading: Boolean = false,
+    val models: HermesCapabilityListing<HermesModel> = HermesCapabilityListing(items = emptyList()),
+    val selectedModel: String? = null,
     /**
      * Operator-selected "active" Hermes work session surfaced in the Chat screen.
      *

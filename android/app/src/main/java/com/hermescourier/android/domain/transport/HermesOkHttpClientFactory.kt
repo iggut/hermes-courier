@@ -25,9 +25,9 @@ object HermesOkHttpClientFactory {
         // so truly unreachable gateways still fail fast.
         val builder = OkHttpClient.Builder()
             .connectTimeout(10, TimeUnit.SECONDS)
-            .readTimeout(45, TimeUnit.SECONDS)
-            .writeTimeout(45, TimeUnit.SECONDS)
-            .callTimeout(60, TimeUnit.SECONDS)
+            .readTimeout(120, TimeUnit.SECONDS)
+            .writeTimeout(120, TimeUnit.SECONDS)
+            .callTimeout(120, TimeUnit.SECONDS)
         configuration.mtlsPkcs12File?.takeIf { it.exists() }?.let { pkcs12File ->
             val password = configuration.mtlsPkcs12Password
                 ?: error("mTLS password required for enrolment before loading the imported PKCS#12 bundle")

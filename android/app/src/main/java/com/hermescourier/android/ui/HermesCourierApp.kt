@@ -237,6 +237,7 @@ fun HermesCourierApp(
                     onOpenActiveSessionDetail = { sessionId ->
                         navController.navigate(sessionDetailRoute(sessionId))
                     },
+                    onModelSelected = viewModel::updateSelectedModel,
                 )
             }
             composable(HermesCourierRoute.Sessions.route) {

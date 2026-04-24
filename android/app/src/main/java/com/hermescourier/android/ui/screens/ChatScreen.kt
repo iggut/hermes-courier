@@ -82,6 +82,7 @@ fun ChatScreen(
     onRetryQueuedApprovalActions: () -> Unit,
     onExitActiveSession: () -> Unit,
     onOpenActiveSessionDetail: (String) -> Unit,
+    onModelSelected: (String) -> Unit,
 ) {
     var draft by rememberSaveable { mutableStateOf("") }
     var pendingDraft by rememberSaveable { mutableStateOf<String?>(null) }
@@ -271,6 +272,9 @@ fun ChatScreen(
                 activeSessionTitle = activeSession?.title?.takeIf { it.isNotBlank() }
                     ?: uiState.activeSessionId,
             ),
+            models = uiState.models.items,
+            selectedModel = uiState.selectedModel,
+            onModelSelected = onModelSelected,
             onSend = {
                 if (draft.isNotBlank() && !isSending) {
                     pendingDraft = draft
@@ -549,9 +553,13 @@ private fun ChatComposer(
     isSending: Boolean,
     focusRequester: FocusRequester,
     statusLabel: String,
+    models: List<com.hermescourier.android.domain.model.HermesModel>,
+    selectedModel: String?,
+    onModelSelected: (String) -> Unit,
     onSend: () -> Unit,
     onClear: () -> Unit,
 ) {
+    var showModelPicker by remember { mutableStateOf(false) }
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -604,11 +612,76 @@ private fun ChatComposer(
                     }
                 }
             }
-            Text(
-                text = statusLabel,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Text(
+                    text = statusLabel,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.weight(1f),
+                )
+                if (models.isNotEmpty()) {
+                    val currentModelName = models.find { it.id == selectedModel }?.name ?: selectedModel ?: "Default model"
+                    TextButton(
+                        onClick = { showModelPicker = true },
+                        contentPadding = PaddingValues(horizontal = 8.dp),
+                    ) {
+                        Text(
+                            text = currentModelName,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                        Icon(
+                            imageVector = Icons.Default.ArrowDropDown,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    if (showModelPicker) {
+        androidx.compose.ui.window.Dialog(onDismissRequest = { showModelPicker = false }) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(24.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+            ) {
+                Column(
+                    modifier = Modifier
+                        .padding(16.dp)
+                        .androidx.compose.foundation.verticalScroll(androidx.compose.foundation.rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Text(text = "Select model", style = MaterialTheme.typography.titleMedium)
+                    models.forEach { model ->
+                        TextButton(
+                            onClick = {
+                                onModelSelected(model.id)
+                                showModelPicker = false
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text(text = model.name)
+                                if (model.id == selectedModel) {
+                                    Icon(imageVector = Icons.Default.Check, contentDescription = "Selected")
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }

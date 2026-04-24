@@ -115,6 +115,10 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
         reloadConversationForActiveSession()
     }
 
+    fun updateSelectedModel(modelId: String?) {
+        _uiState.update { it.copy(selectedModel = modelId) }
+    }
+
     /**
      * Re-fetch the conversation transcript using the current `activeSessionId` as the wire
      * filter. Silent on network failure: the optimistic cleared transcript remains visible
@@ -687,7 +691,8 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
         val memory = runCatching { client.fetchMemory(session) }
         val cron = runCatching { client.fetchCronJobs(session) }
         val logs = runCatching { client.fetchLogs(session, limit = 100, severity = null) }
-        val failures = listOf(skills, memory, cron, logs)
+        val models = runCatching { client.fetchModels(session) }
+        val failures = listOf(skills, memory, cron, logs, models)
             .mapNotNull { it.exceptionOrNull() }
         val status = when {
             failures.isNotEmpty() -> "Library loaded with ${failures.size} transient failure(s): ${failures.first().message ?: failures.first()}"
@@ -700,6 +705,8 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
                 memory = memory.getOrDefault(it.memory),
                 cronJobs = cron.getOrDefault(it.cronJobs),
                 logs = logs.getOrDefault(it.logs),
+                models = models.getOrDefault(it.models),
+                selectedModel = it.selectedModel ?: models.getOrNull()?.items?.firstOrNull()?.id,
                 libraryLoading = false,
                 libraryStatus = status,
             )
@@ -892,8 +899,10 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
                     return@launch
                 }
             }
+            val activeSessionId = _uiState.value.activeSessionId
+            val selectedModel = _uiState.value.selectedModel
             runCatching {
-                liveClient.submitConversationMessage(session, trimmed, activeSessionId)
+                liveClient.submitConversationMessage(session, trimmed, activeSessionId, selectedModel)
             }.onSuccess { echoedEvent ->
                 _uiState.update { state ->
                     state.copy(
@@ -958,6 +967,7 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
         val dashboard = client.fetchDashboard(session)
         val sessions = client.fetchSessions(session)
         val approvals = client.fetchApprovals(session)
+        val models = client.fetchModels(session)
         val activeSessionId = _uiState.value.activeSessionId
         val conversation = client.fetchConversation(session, activeSessionId)
         startRealtime(client, session)
@@ -989,6 +999,8 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
             sessions = sessions,
             approvals = approvals,
             conversationEvents = conversation,
+            models = models,
+            selectedModel = _uiState.value.selectedModel ?: models.items.firstOrNull()?.id,
             gatewaySettings = settings,
             deviceFingerprint = deviceIdentity.publicKeyFingerprint,
             enrollmentStatus = enrollmentStatus(settings),
