@@ -124,17 +124,25 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
      * filter. Silent on network failure: the optimistic cleared transcript remains visible
      * so the operator sees an empty session rather than stale cross-session content.
      */
+    private suspend fun client(): HermesGatewayClient = liveClientOrNull() ?: fallbackGatewayClient
+
     private fun reloadConversationForActiveSession() {
+        val activeId = _uiState.value.activeSessionId
+        println("Hermes: reloadConversationForActiveSession activeId=$activeId")
         viewModelScope.launch {
+            val client = client()
             val session = currentSession ?: return@launch
-            val client = liveClientOrNull() ?: return@launch
-            val activeId = _uiState.value.activeSessionId
             runCatching { client.fetchConversation(session, activeId) }
-                .onSuccess { events ->
-                    _uiState.update { state ->
+                .onSuccess { events: List<HermesConversationEvent> ->
+                    println("Hermes: fetchConversation SUCCESS, got ${events.size} events")
+                    _uiState.update { state: HermesCourierUiState ->
                         if (state.activeSessionId != activeId) state
                         else state.copy(conversationEvents = events)
                     }
+                }
+                .onFailure { error: Throwable ->
+                    println("Hermes: fetchConversation FAILED for activeId=$activeId: ${error.message}")
+                    error.printStackTrace()
                 }
         }
     }
@@ -899,10 +907,12 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
                     return@launch
                 }
             }
-            val activeSessionId = _uiState.value.activeSessionId
-            val selectedModel = _uiState.value.selectedModel
+            val model = _uiState.value.selectedModel
+            val activeId = _uiState.value.activeSessionId
+            println("Hermes: sendMessage activeId=$activeId model=$model")
+            
             runCatching {
-                liveClient.submitConversationMessage(session, trimmed, activeSessionId, selectedModel)
+                liveClient.submitConversationMessage(session, trimmed, activeId, model)
             }.onSuccess { echoedEvent ->
                 _uiState.update { state ->
                     state.copy(
@@ -918,6 +928,7 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
                 }
             }.onFailure { error ->
                 val detail = error.localizedMessage ?: error.toString()
+                println("Hermes: POST v1/conversation FAILED: $detail")
                 _uiState.update { state ->
                     state.copy(
                         conversationActionStatus = "Saved locally; live send failed: $detail",
@@ -990,7 +1001,14 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
         // streamStatus (either "Realtime stream connected" on real opens, or
         // "Realtime unsupported by gateway (polling fallback: ...)" on 426) is preserved
         // by reading `_uiState.value` at the moment of return.
+        val currentState = _uiState.value
+        val currentActiveId = currentState.activeSessionId ?: sessions.firstOrNull()?.sessionId
+        println("Hermes: loadFromGateway currentActiveId=$currentActiveId from currentState=${currentState.activeSessionId} or sessions=${sessions.firstOrNull()?.sessionId}")
+        val currentModel = currentState.selectedModel ?: models.items.firstOrNull()?.id
+        
         return _uiState.value.copy(
+            activeSessionId = currentActiveId,
+            selectedModel = currentModel,
             bootstrapState = "Secure gateway ready",
             authStatus = "Session ${session.sessionId} authenticated through ${session.gatewayUrl}",
             gatewayConnectionMode = connectionMode,
@@ -1000,7 +1018,6 @@ class HermesCourierViewModel(application: Application) : AndroidViewModel(applic
             approvals = approvals,
             conversationEvents = conversation,
             models = models,
-            selectedModel = _uiState.value.selectedModel ?: models.items.firstOrNull()?.id,
             gatewaySettings = settings,
             deviceFingerprint = deviceIdentity.publicKeyFingerprint,
             enrollmentStatus = enrollmentStatus(settings),

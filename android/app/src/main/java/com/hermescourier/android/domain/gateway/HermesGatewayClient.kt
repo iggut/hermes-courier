@@ -14,6 +14,7 @@ import com.hermescourier.android.domain.model.HermesConversationSendRequest
 import com.hermescourier.android.domain.model.HermesDashboardSnapshot
 import com.hermescourier.android.domain.model.HermesDeviceIdentity
 import com.hermescourier.android.domain.model.HermesEndpointVerificationResult
+import com.hermescourier.android.domain.model.HermesModel
 import com.hermescourier.android.domain.model.HermesRealtimeEnvelope
 import com.hermescourier.android.domain.model.HermesSessionControlActionResult
 import com.hermescourier.android.domain.model.HermesSessionSummary
@@ -54,19 +55,19 @@ interface HermesGatewayClient {
     suspend fun fetchApprovals(session: HermesAuthSession): List<HermesApprovalSummary>
     suspend fun fetchConversation(
         session: HermesAuthSession,
-        sessionId: String? = null,
+        sessionId: String?,
     ): List<HermesConversationEvent>
     suspend fun submitConversationMessage(
         session: HermesAuthSession,
         message: String,
-        sessionId: String? = null,
-        model: String? = null,
+        sessionId: String?,
+        model: String?,
     ): HermesConversationEvent?
     suspend fun submitApprovalAction(
         session: HermesAuthSession,
         approvalId: String,
         action: String,
-        note: String? = null,
+        note: String?,
     ): HermesApprovalActionResult
 
     fun connectRealtime(
@@ -76,14 +77,14 @@ interface HermesGatewayClient {
     ): Closeable
 
     suspend fun verifyLiveEndpoints(device: HermesDeviceIdentity): List<HermesEndpointVerificationResult>
-    suspend fun fetchModels(session: HermesAuthSession): com.hermescourier.android.domain.model.HermesCapabilityListing<com.hermescourier.android.domain.model.HermesModel>
+    suspend fun fetchModels(session: HermesAuthSession): com.hermescourier.android.domain.model.HermesCapabilityListing<HermesModel>
     suspend fun fetchSkills(session: HermesAuthSession): com.hermescourier.android.domain.model.HermesCapabilityListing<com.hermescourier.android.domain.model.HermesSkill>
-    suspend fun saveSkill(session: HermesAuthSession, name: String, content: String, category: String = ""): Boolean
+    suspend fun saveSkill(session: HermesAuthSession, name: String, content: String, category: String): Boolean
     suspend fun deleteSkill(session: HermesAuthSession, name: String): Boolean
-    suspend fun fetchSkillContent(session: HermesAuthSession, name: String, category: String = ""): String?
+    suspend fun fetchSkillContent(session: HermesAuthSession, name: String, category: String): String?
     suspend fun fetchMemory(session: HermesAuthSession): com.hermescourier.android.domain.model.HermesCapabilityListing<com.hermescourier.android.domain.model.HermesMemoryItem>
     suspend fun fetchCronJobs(session: HermesAuthSession): com.hermescourier.android.domain.model.HermesCapabilityListing<com.hermescourier.android.domain.model.HermesCronJob>
-    suspend fun fetchLogs(session: HermesAuthSession, limit: Int? = null, severity: String? = null): com.hermescourier.android.domain.model.HermesCapabilityListing<com.hermescourier.android.domain.model.HermesLogEntry>
+    suspend fun fetchLogs(session: HermesAuthSession, limit: Int?, severity: String?): com.hermescourier.android.domain.model.HermesCapabilityListing<com.hermescourier.android.domain.model.HermesLogEntry>
 }
 
 class NetworkHermesGatewayClient(
@@ -213,64 +214,7 @@ class NetworkHermesGatewayClient(
         transport.get("/${HermesApiPaths.APPROVALS}", session.accessToken).toJsonArrayOrObject().toApprovalList()
     }
 
-    override suspend fun fetchConversation(
-        session: HermesAuthSession,
-        sessionId: String?,
-    ): List<HermesConversationEvent> = withContext(Dispatchers.IO) {
-        val path = buildConversationPath(sessionId)
-        transport.get(path, session.accessToken).toJsonArrayOrObject().toConversationList()
-    }
-
-    override suspend fun submitConversationMessage(
-        session: HermesAuthSession,
-        message: String,
-        sessionId: String?,
-        model: String?,
-    ): HermesConversationEvent? = withContext(Dispatchers.IO) {
-        val body = JSONObject()
-            .put("body", message)
-        if (!sessionId.isNullOrBlank()) body.put("sessionId", sessionId)
-        if (!model.isNullOrBlank()) body.put("model", model)
-        val response = transport.post("/${HermesApiPaths.CONVERSATION}", body, session.accessToken)
-        response.toConversationEventOrNull(message.trim())
-    }
-
-    private fun buildConversationPath(sessionId: String?): String {
-        val base = "/${HermesApiPaths.CONVERSATION}"
-        val trimmed = sessionId?.trim()?.takeIf { it.isNotBlank() } ?: return base
-        val encoded = java.net.URLEncoder.encode(trimmed, Charsets.UTF_8.name())
-        return "$base?sessionId=$encoded"
-    }
-
-    override suspend fun submitApprovalAction(
-        session: HermesAuthSession,
-        approvalId: String,
-        action: String,
-        note: String?,
-    ): HermesApprovalActionResult = withContext(Dispatchers.IO) {
-        val decision = normalizeApprovalDecisionWire(action)
-        val body = JSONObject().put("decision", decision)
-        if (!note.isNullOrBlank()) {
-            body.put("reason", note)
-        }
-        val result = transport.post(
-            path = "/${HermesApiPaths.approvalDecision(approvalId)}",
-            bearerToken = session.accessToken,
-            body = body,
-        )
-        if (result.isBlank()) {
-            return@withContext HermesApprovalActionResult(
-                approvalId = approvalId,
-                action = decision,
-                status = "recorded",
-                detail = note ?: "Decision recorded.",
-                updatedAt = "now",
-            )
-        }
-        result.toJsonObject().toApprovalActionResult(approvalId, decision)
-    }
-
-    override suspend fun fetchModels(session: HermesAuthSession): com.hermescourier.android.domain.model.HermesCapabilityListing<com.hermescourier.android.domain.model.HermesModel> =
+    override suspend fun fetchModels(session: HermesAuthSession): com.hermescourier.android.domain.model.HermesCapabilityListing<HermesModel> =
         fetchCapabilityListing("/${HermesApiPaths.MODELS}", "models", session.accessToken) { it.toModel() }
 
     override suspend fun fetchSkills(session: HermesAuthSession): com.hermescourier.android.domain.model.HermesCapabilityListing<com.hermescourier.android.domain.model.HermesSkill> =
@@ -320,6 +264,73 @@ class NetworkHermesGatewayClient(
         return fetchCapabilityListing(path, "logs", session.accessToken) { it.toLogEntry() }
     }
 
+    private fun buildConversationPath(sessionId: String?): String {
+        val base = "/${HermesApiPaths.CONVERSATION}"
+        val trimmed = sessionId?.trim()?.takeIf { it.isNotBlank() } ?: return base
+        val encoded = java.net.URLEncoder.encode(trimmed, Charsets.UTF_8.name())
+        return "$base?sessionId=$encoded"
+    }
+
+    override suspend fun fetchConversation(
+        session: HermesAuthSession,
+        sessionId: String?,
+    ): List<HermesConversationEvent> = withContext(Dispatchers.IO) {
+        val path = buildConversationPath(sessionId)
+        transport.get(path, session.accessToken).toJsonArrayOrObject().toConversationList()
+    }
+
+    override suspend fun submitConversationMessage(
+        session: HermesAuthSession,
+        message: String,
+        sessionId: String?,
+        model: String?,
+    ): HermesConversationEvent? = withContext(Dispatchers.IO) {
+        val body = JSONObject().put("body", message).put("author", "You")
+        if (!sessionId.isNullOrBlank()) {
+            body.put("sessionId", sessionId)
+        }
+        
+        val path = "/${HermesApiPaths.CONVERSATION}"
+
+        if (!model.isNullOrBlank()) {
+            body.put("model", model)
+        }
+
+        println("Hermes: POST $path body: $body")
+        val response = transport.post(path, body, session.accessToken)
+        println("Hermes: POST $path response: $response")
+        
+        response.toConversationEventOrNull(message.trim())
+    }
+
+    override suspend fun submitApprovalAction(
+        session: HermesAuthSession,
+        approvalId: String,
+        action: String,
+        note: String?,
+    ): HermesApprovalActionResult = withContext(Dispatchers.IO) {
+        val decision = normalizeApprovalDecisionWire(action)
+        val body = JSONObject().put("decision", decision)
+        if (!note.isNullOrBlank()) {
+            body.put("reason", note)
+        }
+        val result = transport.post(
+            path = "/${HermesApiPaths.approvalDecision(approvalId)}",
+            bearerToken = session.accessToken,
+            body = body,
+        )
+        if (result.isBlank()) {
+            return@withContext HermesApprovalActionResult(
+                approvalId = approvalId,
+                action = decision,
+                status = "recorded",
+                detail = note ?: "Decision recorded.",
+                updatedAt = "now",
+            )
+        }
+        result.toJsonObject().toApprovalActionResult(approvalId, decision)
+    }
+
     /**
      * Fetches a list-or-unavailable capability endpoint. `404` is treated as an
      * unsupported signal (gateway has no such route); `5xx` and network errors
@@ -332,12 +343,15 @@ class NetworkHermesGatewayClient(
         bearer: String,
         mapObject: (JSONObject) -> T,
     ): com.hermescourier.android.domain.model.HermesCapabilityListing<T> = withContext(Dispatchers.IO) {
+        println("Hermes: fetchCapabilityListing start path=$path kind=$kind")
         val outcome = runCatching { transport.get(path, bearer) }
         if (outcome.isSuccess) {
             val body = outcome.getOrThrow()
+            println("Hermes: fetchCapabilityListing success path=$path")
             return@withContext parseCapabilityListing(body, mapObject)
         }
         val error = outcome.exceptionOrNull()
+        println("Hermes: fetchCapabilityListing FAILED path=$path error=$error")
         val message = error?.message ?: error?.toString().orEmpty()
         val is404 = message.contains(" 404:")
         val is405 = message.contains(" 405:")
@@ -398,20 +412,15 @@ class NetworkHermesGatewayClient(
             checks += HermesEndpointVerificationResult("realtime/events", "skipped", "Skipped because auth/bootstrap failed.")
             return@withContext checks
         }
-        checks += HermesEndpointVerificationResult("auth/bootstrap", "ok", "Challenge-response bootstrap succeeded.")
         val session = boot.getOrThrow()
-
+        checks += HermesEndpointVerificationResult("auth/bootstrap", "ok", "Session ${session.sessionId} ready.")
         checks += runCheck("dashboard") { fetchDashboard(session) }
-        val sessionsOutcome = try {
-            Result.success(fetchSessions(session))
-        } catch (e: Throwable) {
-            Result.failure(e)
-        }
+        val sessionsOutcome = runCatching { fetchSessions(session) }
         if (sessionsOutcome.isSuccess) {
-            checks += HermesEndpointVerificationResult("sessions list", "ok", "Request succeeded.")
             val sessions = sessionsOutcome.getOrThrow()
+            checks += HermesEndpointVerificationResult("sessions list", "ok", "Fetched ${sessions.size} sessions.")
             if (sessions.isEmpty()) {
-                checks += HermesEndpointVerificationResult("session detail", "skipped", "No session available to verify detail endpoint.")
+                checks += HermesEndpointVerificationResult("session detail", "skipped", "No sessions available to verify detail endpoint.")
                 checks += HermesEndpointVerificationResult("session-control pause", "skipped", "No session available to verify control endpoint.")
                 checks += HermesEndpointVerificationResult("session-control resume", "skipped", "No session available to verify control endpoint.")
                 checks += HermesEndpointVerificationResult("session-control terminate", "skipped", "No session available to verify control endpoint.")
@@ -436,7 +445,7 @@ class NetworkHermesGatewayClient(
         checks += runCheck("approvals") { fetchApprovals(session) }
         checks += runCheck("conversation list") { fetchConversation(session, sessionId = null) }
         checks += runCheck("conversation send") {
-            submitConversationMessage(session, "live verification ping", sessionId = null)
+            submitConversationMessage(session, "live verification ping", sessionId = null, model = null)
         }
         checks += runCheck("realtime/events") {
             val handle = connectRealtime(session, onStatus = {}, onEnvelope = {})
@@ -729,14 +738,14 @@ class DemoHermesGatewayClient : HermesGatewayClient {
         HermesEndpointVerificationResult("realtime/events", "demo", "Demo fallback"),
     )
 
-    override suspend fun fetchModels(session: HermesAuthSession) = com.hermescourier.android.domain.model.HermesCapabilityListing(
+    override suspend fun fetchModels(session: HermesAuthSession): com.hermescourier.android.domain.model.HermesCapabilityListing<HermesModel> = com.hermescourier.android.domain.model.HermesCapabilityListing(
         items = listOf(
-            com.hermescourier.android.domain.model.HermesModel(id = "demo-model-fast", name = "Demo Fast Model"),
-            com.hermescourier.android.domain.model.HermesModel(id = "demo-model-smart", name = "Demo Deep Model"),
+            HermesModel(id = "demo-model-fast", name = "Demo Fast Model"),
+            HermesModel(id = "demo-model-smart", name = "Demo Deep Model"),
         )
     )
 
-    override suspend fun fetchSkills(session: HermesAuthSession) = com.hermescourier.android.domain.model.HermesCapabilityListing(
+    override suspend fun fetchSkills(session: HermesAuthSession): com.hermescourier.android.domain.model.HermesCapabilityListing<com.hermescourier.android.domain.model.HermesSkill> = com.hermescourier.android.domain.model.HermesCapabilityListing(
         items = listOf(
             com.hermescourier.android.domain.model.HermesSkill(
                 skillId = "demo-skill-web-search",

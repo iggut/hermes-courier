@@ -12,6 +12,7 @@ import java.io.IOException
 interface HermesGatewayTransport {
     suspend fun get(path: String, bearerToken: String? = null): String
     suspend fun post(path: String, body: JSONObject, bearerToken: String? = null): String
+    suspend fun delete(path: String, bearerToken: String? = null): String
 }
 
 class OkHttpHermesGatewayTransport(
@@ -37,7 +38,19 @@ class OkHttpHermesGatewayTransport(
         val request = requestBuilder.build()
         return client.newCall(request).execute().use { response ->
             val responseBody = response.body?.string().orEmpty()
+            println("Hermes: POST $path status: ${response.code}")
             if (!response.isSuccessful) throw IOException("POST $path failed with ${response.code}: $responseBody")
+            responseBody
+        }
+    }
+
+    override suspend fun delete(path: String, bearerToken: String?): String {
+        val requestBuilder = Request.Builder().url(baseUrl.resolvePathAndQuery(path))
+        bearerToken?.let { requestBuilder.addHeader("Authorization", "Bearer $it") }
+        val request = requestBuilder.delete().build()
+        return client.newCall(request).execute().use { response ->
+            val responseBody = response.body?.string().orEmpty()
+            if (!response.isSuccessful) throw IOException("DELETE $path failed with ${response.code}: $responseBody")
             responseBody
         }
     }

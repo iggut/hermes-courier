@@ -10,6 +10,7 @@ import com.hermescourier.android.domain.model.HermesConversationToolCall
 import com.hermescourier.android.domain.model.HermesCronJob
 import com.hermescourier.android.domain.model.HermesDashboardSnapshot
 import com.hermescourier.android.domain.model.HermesLogEntry
+import com.hermescourier.android.domain.model.HermesModel
 import com.hermescourier.android.domain.model.HermesMemoryItem
 import com.hermescourier.android.domain.model.HermesRealtimeEnvelope
 import com.hermescourier.android.domain.model.HermesSessionControlActionResult
@@ -86,6 +87,8 @@ internal fun JSONObject.toConversationEvent(): HermesConversationEvent = HermesC
 )
 
 internal fun String.toConversationEventOrNull(fallbackMessage: String): HermesConversationEvent? {
+    println("Hermes: toConversationEventOrNull body length: ${this.length}")
+    this.chunked(500).forEach { println("Hermes: response chunk: $it") }
     if (isBlank()) {
         return HermesConversationEvent(
             eventId = "local-${System.currentTimeMillis()}",
@@ -97,13 +100,14 @@ internal fun String.toConversationEventOrNull(fallbackMessage: String): HermesCo
     val parsed = runCatching { JSONTokener(this).nextValue() }.getOrNull()
     return when (parsed) {
         is JSONObject -> {
+            println("Hermes: parsed JSON: $parsed")
             val hasExplicitSupported = parsed.has("supported")
             val isSupported = if (hasExplicitSupported) parsed.optBoolean("supported", true) else true
             if (hasExplicitSupported && !isSupported) {
                 val detail = parsed.optString("detail", "").ifBlank {
                     parsed.optString("body", "Conversation is not supported in the current runtime.")
                 }
-                throw IOException(detail)
+                throw IOException("Conversation unsupported: $detail")
             }
             parsed.toConversationEvent()
         }
@@ -243,10 +247,25 @@ internal fun JSONObject.toSkill(): HermesSkill = HermesSkill(
     scopes = optJSONArray("scopes")?.toStringList() ?: emptyList(),
 )
 
-internal fun JSONObject.toModel(): HermesModel = HermesModel(
-    id = optString("id", ""),
-    name = optString("name", optString("id", "")),
-)
+internal fun JSONObject.toModel(): HermesModel {
+    val id = optString("id", "")
+    val name = optString("name", optString("id", ""))
+    if (id.isNotBlank()) println("Hermes: Found model $id")
+    return HermesModel(id, name)
+}
+
+internal fun Any?.toModelList(): List<HermesModel> {
+    val array = when (this) {
+        is JSONArray -> this
+        is JSONObject -> this.optJSONArray("items") ?: this.optJSONArray("data") ?: JSONArray().put(this)
+        else -> return emptyList()
+    }
+    return buildList {
+        for (i in 0 until array.length()) {
+            array.optJSONObject(i)?.let { add(it.toModel()) }
+        }
+    }
+}
 
 internal fun JSONObject.toMemoryItem(): HermesMemoryItem = HermesMemoryItem(
     memoryId = optString("memoryId", optString("id", "memory-unknown")),
@@ -287,8 +306,9 @@ internal fun JSONObject.toLogEntry(): HermesLogEntry = HermesLogEntry(
 internal fun <T> parseCapabilityListing(
     body: String,
     mapObject: (JSONObject) -> T,
-): HermesCapabilityListing<T> {
-    if (body.isBlank()) return HermesCapabilityListing(items = emptyList())
+): com.hermescourier.android.domain.model.HermesCapabilityListing<T> {
+    println("Hermes: parseCapabilityListing body: $body")
+    if (body.isBlank()) return com.hermescourier.android.domain.model.HermesCapabilityListing(emptyList())
     val token = runCatching { JSONTokener(body).nextValue() }.getOrNull()
     return when (token) {
         is JSONArray -> {

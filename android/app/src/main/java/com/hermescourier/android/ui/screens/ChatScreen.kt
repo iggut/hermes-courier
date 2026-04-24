@@ -8,6 +8,8 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -83,6 +85,7 @@ fun ChatScreen(
     onExitActiveSession: () -> Unit,
     onOpenActiveSessionDetail: (String) -> Unit,
     onModelSelected: (String) -> Unit,
+    onSwitchSession: (String) -> Unit,
 ) {
     var draft by rememberSaveable { mutableStateOf("") }
     var pendingDraft by rememberSaveable { mutableStateOf<String?>(null) }
@@ -160,8 +163,16 @@ fun ChatScreen(
             ActiveSessionHeader(
                 activeSessionId = uiState.activeSessionId,
                 session = activeSession,
+                sessions = uiState.sessions,
                 onExitActiveSession = onExitActiveSession,
                 onOpenDetails = { uiState.activeSessionId.let(onOpenActiveSessionDetail) },
+                onSwitchSession = onSwitchSession,
+            )
+        } else if (uiState.sessions.isNotEmpty()) {
+            // Global conversation header with an option to pick a session
+            GlobalConversationHeader(
+                sessions = uiState.sessions,
+                onSwitchSession = onSwitchSession
             )
         }
 
@@ -290,9 +301,12 @@ fun ChatScreen(
 private fun ActiveSessionHeader(
     activeSessionId: String,
     session: HermesSessionSummary?,
+    sessions: List<HermesSessionSummary>,
     onExitActiveSession: () -> Unit,
     onOpenDetails: () -> Unit,
+    onSwitchSession: (String) -> Unit,
 ) {
+    var showSessionPicker by remember { mutableStateOf(false) }
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
@@ -321,6 +335,7 @@ private fun ActiveSessionHeader(
                     color = MaterialTheme.colorScheme.onSecondaryContainer,
                 )
             }
+            TextButton(onClick = { showSessionPicker = true }) { Text(text = "Switch") }
             TextButton(onClick = onOpenDetails) { Text(text = "Details") }
             IconButton(onClick = onExitActiveSession) {
                 Icon(
@@ -328,6 +343,122 @@ private fun ActiveSessionHeader(
                     contentDescription = "Exit session context",
                     tint = MaterialTheme.colorScheme.onSecondaryContainer,
                 )
+            }
+        }
+    }
+
+    if (showSessionPicker) {
+        SessionPickerDialog(
+            sessions = sessions,
+            currentSessionId = activeSessionId,
+            onSessionSelected = onSwitchSession,
+            onDismiss = { showSessionPicker = false }
+        )
+    }
+}
+
+@Composable
+private fun GlobalConversationHeader(
+    sessions: List<HermesSessionSummary>,
+    onSwitchSession: (String) -> Unit,
+) {
+    var showSessionPicker by remember { mutableStateOf(false) }
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "Global conversation",
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    text = "Pick a session to see its isolated history",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            TextButton(onClick = { showSessionPicker = true }) {
+                Text(text = "Select session")
+            }
+        }
+    }
+
+    if (showSessionPicker) {
+        SessionPickerDialog(
+            sessions = sessions,
+            currentSessionId = null,
+            onSessionSelected = onSwitchSession,
+            onDismiss = { showSessionPicker = false }
+        )
+    }
+}
+
+@Composable
+private fun SessionPickerDialog(
+    sessions: List<HermesSessionSummary>,
+    currentSessionId: String?,
+    onSessionSelected: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(24.dp),
+            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+        ) {
+            Column(
+                modifier = Modifier
+                    .padding(16.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text(text = "Switch session", style = MaterialTheme.typography.titleMedium)
+                sessions.take(20).forEach { session ->
+                    TextButton(
+                        onClick = {
+                            onSessionSelected(session.sessionId)
+                            onDismiss()
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(text = session.title, fontWeight = FontWeight.SemiBold)
+                                Text(
+                                    text = session.sessionId,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            if (session.sessionId == currentSessionId) {
+                                Icon(imageVector = Icons.Filled.Check, contentDescription = "Selected")
+                            }
+                        }
+                    }
+                }
+                if (sessions.size > 20) {
+                    Text(
+                        text = "Viewing 20 of ${sessions.size} sessions",
+                        style = MaterialTheme.typography.labelSmall,
+                        modifier = Modifier.padding(top = 4.dp),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
         }
     }
@@ -635,7 +766,7 @@ private fun ChatComposer(
                             color = MaterialTheme.colorScheme.primary,
                         )
                         Icon(
-                            imageVector = Icons.Default.ArrowDropDown,
+                            imageVector = Icons.Filled.ArrowDropDown,
                             contentDescription = null,
                             modifier = Modifier.size(16.dp),
                         )
@@ -656,7 +787,7 @@ private fun ChatComposer(
                 Column(
                     modifier = Modifier
                         .padding(16.dp)
-                        .androidx.compose.foundation.verticalScroll(androidx.compose.foundation.rememberScrollState()),
+                        .verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     Text(text = "Select model", style = MaterialTheme.typography.titleMedium)
@@ -675,7 +806,7 @@ private fun ChatComposer(
                             ) {
                                 Text(text = model.name)
                                 if (model.id == selectedModel) {
-                                    Icon(imageVector = Icons.Default.Check, contentDescription = "Selected")
+                                    Icon(imageVector = Icons.Filled.Check, contentDescription = "Selected")
                                 }
                             }
                         }

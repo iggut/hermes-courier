@@ -162,7 +162,7 @@ fun HermesCourierApp(
                 NavigationBar {
                     HermesCourierRoute.values().forEach { destination ->
                         val label = when (destination) {
-                            HermesCourierRoute.Chat -> navigationLabel(destination.label, uiState.conversationEvents.size)
+                            HermesCourierRoute.Chat -> destination.label
                             HermesCourierRoute.Sessions -> navigationLabel(destination.label, uiState.sessions.size)
                             HermesCourierRoute.Approvals -> navigationLabel(destination.label, uiState.approvals.size)
                             else -> destination.label
@@ -238,6 +238,7 @@ fun HermesCourierApp(
                         navController.navigate(sessionDetailRoute(sessionId))
                     },
                     onModelSelected = viewModel::updateSelectedModel,
+                    onSwitchSession = viewModel::enterSession,
                 )
             }
             composable(HermesCourierRoute.Sessions.route) {

@@ -30,8 +30,8 @@ object HermesApiPaths {
     fun memoryDetail(memoryId: String): String = "v1/memory/$memoryId"
     fun cronDetail(cronId: String): String = "v1/cron/$cronId"
 
-    // Skill mutation endpoints (WebUI parity: /api/skills/save, /api/skills/delete)
-    const val SKILLS_SAVE = "api/skills/save"
-    const val SKILLS_DELETE = "api/skills/delete"
-    const val SKILL_CONTENT = "api/skills/content"
+    // Skill mutation endpoints (WebUI parity: /v1/skills/save, /v1/skills/delete)
+    const val SKILLS_SAVE = "v1/skills/save"
+    const val SKILLS_DELETE = "v1/skills/delete"
+    const val SKILL_CONTENT = "v1/skills/content"
 }
