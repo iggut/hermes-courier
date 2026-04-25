@@ -2,6 +2,7 @@
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
+    id("com.chaquo.python")
 }
 
 android {
@@ -15,6 +16,9 @@ android {
         versionCode = 1
         versionName = "0.1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        ndk {
+            abiFilters += listOf("arm64-v8a", "x86_64")
+        }
     }
 
     buildTypes {
@@ -62,6 +66,15 @@ android {
         }
     }
 }
+
+chaquopy {
+    sourceSets {
+        getByName("main") {
+            srcDir("../../user_webui")
+        }
+    }
+}
+
 dependencies {
     implementation(platform("androidx.compose:compose-bom:2024.06.00"))
     implementation("androidx.activity:activity-compose:1.9.2")
