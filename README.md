@@ -163,6 +163,6 @@ Since the Android backend is embedded:
 
 ## Status
 
-Both mobile apps implement the shared contract paths (dashboard, sessions, approvals, conversation, approval decisions, and `/v1/events` realtime). Local/demo transports and settings flows are in place; production gateway hardening (pinning, attestation, full backend) remains on the roadmap above.
+Both mobile apps implement the shared contract paths (dashboard, sessions, approvals, conversation, approval decisions, and `/v1/events` realtime). The Android app is now successfully bootstrapped to embed the Python backend natively via Chaquopy. Local/demo transports and settings flows are in place; production gateway hardening (pinning, attestation, full backend) remains on the roadmap above.
 
 **UI navigation:** there is no separate “chat” tab — the conversation feed is embedded in **Dashboard** on both platforms (tabs: Dashboard, Sessions, Approvals, Settings).

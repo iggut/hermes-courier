@@ -124,18 +124,14 @@ fun SettingsScreen(
             )
 
             SettingsSectionCard(title = "Connection") {
-                OutlinedTextField(
-                    value = uiState.gatewaySettings.baseUrl,
-                    onValueChange = onGatewayUrlChange,
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text(text = "Gateway URL") },
-                    singleLine = true,
-                    supportingText = {
-                        Text(
-                            text = liveGatewayConnectionSummary(uiState),
-                            style = MaterialTheme.typography.bodySmall,
-                        )
-                    },
+                KeyValueRow(
+                    label = "Backend",
+                    value = "Embedded Chaquopy Backend (${uiState.gatewaySettings.baseUrl})",
+                )
+                Text(
+                    text = liveGatewayConnectionSummary(uiState),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 OutlinedTextField(
                     value = uiState.gatewaySettings.certificatePassword,
