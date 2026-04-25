@@ -1,45 +1,20 @@
 # Hermes Courier TODO
 
-Generated from a repo audit with Claude Code.
+Generated based on codebase analysis and architecture shifts.
 
-All items below were resolved in a single pass. See commit history for details.
+## Remaining Work (Chaquopy Integration)
 
-## Completed
+- [ ] **Wire Chaquopy Plugin:** The `build.gradle.kts` needs to actually apply the `com.chaquo.python` plugin and configure the python block (e.g., specifying the srcDir pointing to `user_webui/` or similar).
+- [ ] **Kotlin Interop:** Update Android Kotlin code to bootstrap the Python interpreter on application start (`Python.start(AndroidPlatform(this))`) inside `HermesCourierApplication.kt`.
+- [ ] **Local API Service Integration:** Refactor the API client on Android to directly interop with the local Python application or bind to the locally exposed Flask/FastAPI server running inside the Chaquopy environment.
 
-### P0 — Blockers ✅
+## Known Issues
 
-- [x] Fix `HermesChallengeSigner.sign()` so the nonce/device payload is actually signed.
-  - The `signature.update(buildChallengeSignableMessage(...))` call was missing; signing operated on an empty payload.
-  - Extracted `buildChallengeSignableMessage()` as an `internal` function for testability.
-  - Added `HermesChallengeSignerTest` (6 JVM tests) verifying non-empty, deterministic, verifiable signatures that cover the full signable message.
+- **Platform Divergence:** Android is now a "fat client" embedding the server via Chaquopy, while iOS remains a "thin client". This divergence means we need to carefully manage the `shared/contract` to assure both act identically from a UI perspective despite drastically different backend locations.
+- **Local Settings:** The Android settings UI might still show a "gateway URL" input which is now obsolete for local backend mode. This needs to be conditionally hidden or repurposed for remote backup.
 
-- [x] Implement `HermesAuthChallengeResponse.toJson()` so it returns the real response payload instead of an empty `JSONObject`.
-  - Populated all four fields: `challengeId`, `nonce`, `expiresAt`, `trustLevel`.
-  - Changed visibility from `private` to `internal` for test access.
-  - Existing tests in `HermesGatewaySerializationTest` already cover serialization round-trip and determinism.
+## Future Improvements
 
-### P1 — Cleanup and repo hygiene ✅
-
-- [x] Remove tracked diagnostic leftovers under `tmp/` and `artifacts/` from git.
-  - Verified: `git ls-files -- tmp artifacts` returns nothing; files were already removed from tracking.
-
-- [x] Add `tmp/` and `artifacts/` to `.gitignore` so they do not get re-added.
-  - Entries already present in `.gitignore`.
-
-- [x] Update the README CI section so it matches the current workflows.
-  - README correctly references `.github/workflows/ci.yml` which exists and runs on push/PR.
-
-- [x] Restore or replace the missing push/PR CI workflow.
-  - `.github/workflows/ci.yml` already exists with Android (JDK 17/21) and iOS unit test jobs.
-
-### P2 — Stability and maintainability ✅
-
-- [x] Replace the `runBlocking` call on the main-thread path in `HermesCourierViewModel`.
-  - Removed `runBlocking` from `pairingStatusFromTokenStore()`, converted it to a proper `suspend` function.
-  - `initialState()` now uses a static placeholder string instead of calling the now-suspend function.
-
-- [x] Normalize Kotlin DSL formatting in `android/app/build.gradle.kts`.
-  - Fixed `dependencies` block indentation (was over-indented inside `android`).
-
-- [x] Review the debug-only cleartext configuration and keep release builds locked down.
-  - Already correct: `debug` sets `usesCleartextTraffic=true`, `release` sets `usesCleartextTraffic=false`. No change needed.
+- **Biometric Authentication:** Implement gating for sensitive actions (approvals).
+- **Push Notifications:** Add local push notifications (on Android) driven by the embedded Python agent.
+- **Offline Capabilities:** Local caching for logs, queued actions, and offline-safe drafts, which may now be much easier on Android given the local backend.
