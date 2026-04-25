@@ -516,7 +516,7 @@ final class AppViewModel: ObservableObject {
         guard let components = URLComponents(string: text), components.scheme == "hermes-courier-enroll" else {
             return nil
         }
-        let items = Dictionary(uniqueKeysWithValues: (components.queryItems ?? []).compactMap { item in
+        let items = Dictionary(uniqueKeysWithValues: (components.queryItems ?? []).compactMap { item -> (String, String)? in
             guard let value = item.value else { return nil }
             return (item.name, value)
         })

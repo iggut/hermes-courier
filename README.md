@@ -89,21 +89,51 @@ Planned protections include:
 - explicit user confirmation for risky operations
 - minimal exposure of raw tokens, logs, and private memory on screen
 
-## Suggested architecture
+## Architecture
 
-- **Android app:** Kotlin + Jetpack Compose
-- **iOS app:** Swift + SwiftUI
+- **Android app:** Kotlin + Jetpack Compose with an embedded Python runtime (Chaquopy). The Android app runs the Hermes-WebUI backend natively, acting as its own local server.
+- **iOS app:** Swift + SwiftUI. Operates as a thin client connecting to a remote Hermes gateway.
 - **Auth layer:** secure session bootstrap with short-lived tokens
-- **Transport:** HTTPS / secure websocket channel to Hermes
+- **Transport:** HTTPS / secure websocket channel to Hermes (local to device on Android, remote on iOS)
 - **State:** local encrypted cache for offline-safe views
 - **Notification layer:** push events for approvals, status, and completion alerts
-- **Backend companion:** Hermes Agent + the companion routing/memory stack where applicable
+- **Backend companion:** Hermes Agent + the companion routing/memory stack. On Android, this stack is embedded directly within the app.
+
+## Chaquopy Integration and Deployment
+
+The Android application leverages [Chaquopy](https://chaquo.com/chaquopy/) to embed a Python runtime. This means the `hermes-webui` backend runs natively directly on the Android device.
+
+**Deployment Implications:**
+- **No Separate Server:** Android users do not need to host or point to a remote gateway URL. The backend runs locally.
+- **Self-Contained:** All logic, automations, and routing usually handled by the remote server happen inside the app.
+- **Embedded WebUI:** The UI is driven by the internal Python environment serving the API surface directly to the local frontend.
+
+## API Surface
+
+Because Android embeds the backend, the API surface provided by the embedded WebUI is served locally on the device. The local HTTP server provides:
+
+- `GET /v1/dashboard`
+- `GET /v1/sessions`
+- `POST /v1/sessions/{sessionId}/actions`
+- `GET /v1/approvals`
+- `GET /v1/conversation`
+- Real-time events and log streaming
+- (And other standard WebUI endpoints, all handled internally via Chaquopy)
+
+For a complete list of endpoints, refer to the OpenAPI contract. On Android, these calls never leave the device.
+
+## Configuration
+
+Since the Android backend is embedded:
+- **Android:** Users do not need to point at a remote gateway URL. The embedded Chaquopy backend is initialized automatically and binds to a local port (e.g. localhost).
+- **iOS:** Still requires pointing to a remote gateway URL or an accessible internal network address.
 
 ## Repository structure
 
-- `android/` — Jetpack Compose Android app (contract-aligned gateway client)
+- `android/` — Jetpack Compose Android app embedded with Python/Chaquopy backend
 - `ios/` — SwiftUI iOS app generated from `ios/project.yml` (XcodeGen)
 - `shared/contract/` — OpenAPI contract and path definitions shared by both clients
+- `user_webui/` — Submodule for the embedded Python web interface logic
 
 ## Roadmap
 
