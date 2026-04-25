@@ -42,7 +42,7 @@ final class HermesKeychainTokenStore: HermesTokenStoring {
     }
 
     private func upsert(data: Data) throws {
-        var query = baseQuery()
+        let query = baseQuery()
         let attributes: [String: Any] = [kSecValueData as String: data]
         let status = SecItemAdd(query.merging(attributes, uniquingKeysWith: { $1 }) as CFDictionary, nil)
         if status == errSecDuplicateItem {

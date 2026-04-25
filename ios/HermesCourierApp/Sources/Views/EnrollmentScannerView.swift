@@ -17,7 +17,7 @@ struct EnrollmentScannerView: UIViewControllerRepresentable {
         guard DataScannerViewController.isSupported, DataScannerViewController.isAvailable else {
             return ScannerUnavailableView(onDismiss: onDismiss)
         }
-        guard let scanner = try? DataScannerViewController(
+        let scanner = DataScannerViewController(
             recognizedDataTypes: [.barcode()],
             qualityLevel: .balanced,
             recognizesMultipleItems: false,
@@ -25,9 +25,7 @@ struct EnrollmentScannerView: UIViewControllerRepresentable {
             isPinchToZoomEnabled: true,
             isGuidanceEnabled: true,
             isHighlightingEnabled: true
-        ) else {
-            return ScannerUnavailableView(onDismiss: onDismiss)
-        }
+        )
         scanner.delegate = context.coordinator
         try? scanner.startScanning()
         return scanner
