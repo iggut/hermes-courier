@@ -1,5 +1,5 @@
 import XCTest
-@testable import HermesCourierApp
+@testable import HermesCourier
 
 final class HermesGatewayConfigurationTests: XCTestCase {
     var store: HermesKeychainSettingsStore!
