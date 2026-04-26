@@ -197,19 +197,7 @@ final class HermesGatewayClient: HermesGatewayClientProtocol, @unchecked Sendabl
             socket.resume()
             onStatus("Realtime stream connected")
             do {
-                while !Task.isCancelled {
-                    let message = try await socket.receive()
-                    switch message {
-                    case .string(let text):
-                        try emitEnvelope(from: text, onEnvelope: onEnvelope, onStatus: onStatus)
-                    case .data(let data):
-                        if let text = String(data: data, encoding: .utf8) {
-                            try emitEnvelope(from: text, onEnvelope: onEnvelope, onStatus: onStatus)
-                        }
-                    @unknown default:
-                        break
-                    }
-                }
+                try await consumeMessages(from: socket, onEnvelope: onEnvelope, onStatus: onStatus)
             } catch {
                 if Task.isCancelled { break }
                 onStatus("Realtime stream error: \(error.localizedDescription)")
@@ -222,6 +210,26 @@ final class HermesGatewayClient: HermesGatewayClientProtocol, @unchecked Sendabl
             try? await Task.sleep(nanoseconds: UInt64(backoffSeconds * 1_000_000_000))
         }
         onStatus("Realtime stream disconnected")
+    }
+
+    private static func consumeMessages(
+        from socket: URLSessionWebSocketTask,
+        onEnvelope: @escaping (HermesRealtimeEnvelope) -> Void,
+        onStatus: @escaping (String) -> Void
+    ) async throws {
+        while !Task.isCancelled {
+            let message = try await socket.receive()
+            switch message {
+            case .string(let text):
+                try emitEnvelope(from: text, onEnvelope: onEnvelope, onStatus: onStatus)
+            case .data(let data):
+                if let text = String(data: data, encoding: .utf8) {
+                    try emitEnvelope(from: text, onEnvelope: onEnvelope, onStatus: onStatus)
+                }
+            @unknown default:
+                break
+            }
+        }
     }
 
     private static func emitEnvelope(from text: String, onEnvelope: @escaping (HermesRealtimeEnvelope) -> Void, onStatus: @escaping (String) -> Void) throws {
