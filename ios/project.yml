@@ -1,4 +1,3 @@
-
 name: HermesCourier
 options:
   bundleIdPrefix: com.hermescourier
@@ -32,6 +31,7 @@ targets:
       - path: HermesCourierTests
     resources:
       - path: ../shared/fixtures/protocol
+        type: folder
     dependencies:
       - target: HermesCourier
     settings:
