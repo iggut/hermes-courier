@@ -1,4 +1,5 @@
-package com.hermescourier.android.domain.gateway
+with open("android/app/src/main/java/com/hermescourier/android/domain/gateway/HermesApiPaths.kt", "w") as f:
+    f.write('''package com.hermescourier.android.domain.gateway
 
 object HermesApiPaths {
     const val AUTH_CHALLENGE = "v1/auth/challenge"
@@ -19,3 +20,4 @@ object HermesApiPaths {
     const val CRON_DETAIL = "v1/cron/$" + "cronId"
     const val LOGS = "v1/logs"
 }
+''')
