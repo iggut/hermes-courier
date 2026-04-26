@@ -6,11 +6,32 @@ struct HermesGatewayConfiguration: Hashable {
     let mtlsIdentityPassword: String?
 
     static func load() -> HermesGatewayConfiguration {
+        let keychain = HermesKeychainSettingsStore()
         let defaults = UserDefaults.standard
-        let baseURLString = defaults.string(forKey: "hermes.gateway.baseURL") ?? "https://gateway.hermes.local"
+
+        // Migration from UserDefaults to Keychain
+        if let legacyBaseURL = defaults.string(forKey: "hermes.gateway.baseURL") {
+            do {
+                try keychain.saveBaseURL(legacyBaseURL)
+                defaults.removeObject(forKey: "hermes.gateway.baseURL")
+            } catch {
+                // Keep in UserDefaults if Keychain save fails
+            }
+        }
+        if let legacyIdentityPath = defaults.string(forKey: "hermes.gateway.identityPath") {
+            do {
+                try keychain.saveIdentityPath(legacyIdentityPath)
+                defaults.removeObject(forKey: "hermes.gateway.identityPath")
+            } catch {
+                // Keep in UserDefaults if Keychain save fails
+            }
+        }
+
+        let baseURLString = keychain.loadBaseURL() ?? "https://gateway.hermes.local"
         let baseURL = URL(string: baseURLString) ?? URL(string: "https://gateway.hermes.local")!
-        let identityPath = defaults.string(forKey: "hermes.gateway.identityPath")
-        let password = HermesKeychainSettingsStore().loadCertificatePassword()
+        let identityPath = keychain.loadIdentityPath()
+        let password = keychain.loadCertificatePassword()
+
         return HermesGatewayConfiguration(
             baseURL: baseURL,
             mtlsIdentityURL: identityPath.map { URL(fileURLWithPath: $0) },
@@ -19,11 +40,10 @@ struct HermesGatewayConfiguration: Hashable {
     }
 
     static func save(_ settings: HermesGatewaySettings) {
-        let defaults = UserDefaults.standard
-        defaults.set(settings.baseURL, forKey: "hermes.gateway.baseURL")
-        defaults.set(settings.certificatePath, forKey: "hermes.gateway.identityPath")
-
         let keychain = HermesKeychainSettingsStore()
+        try? keychain.saveBaseURL(settings.baseURL)
+        try? keychain.saveIdentityPath(settings.certificatePath)
+
         if settings.certificatePassword.isEmpty {
             keychain.clearCertificatePassword()
         } else {
