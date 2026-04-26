@@ -1,7 +1,7 @@
 
 import Foundation
 
-protocol HermesChallengeSigning {
+protocol HermesChallengeSigning: Sendable {
     func publicKeyFingerprint() throws -> String
     func sign(nonce: String, device: HermesDeviceIdentity) throws -> String
 }

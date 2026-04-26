@@ -1,7 +1,7 @@
 
 import Foundation
 
-protocol HermesTokenStoring {
+protocol HermesTokenStoring: Sendable {
     func save(_ session: HermesAuthSession) throws
     func load() throws -> HermesAuthSession?
     func clear() throws
