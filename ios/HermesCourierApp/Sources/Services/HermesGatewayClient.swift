@@ -13,7 +13,7 @@ protocol HermesGatewayClientProtocol {
     func connectRealtime(session: HermesAuthSession, onStatus: @escaping (String) -> Void, onEnvelope: @escaping (HermesRealtimeEnvelope) -> Void) -> HermesRealtimeStreamHandle
 }
 
-final class HermesGatewayClient: HermesGatewayClientProtocol {
+final class HermesGatewayClient: HermesGatewayClientProtocol, @unchecked Sendable {
     private let transport: HermesURLSessionTransport
     private let tokenStore: HermesTokenStoring
     private let signer: HermesChallengeSigning
