@@ -67,43 +67,51 @@ final class HermesGatewayClient: HermesGatewayClientProtocol {
             (HermesAPIPaths.sessionControlAction(sessionId: sessionId), try JSONSerialization.data(withJSONObject: ["action": normalized])),
             (HermesAPIPaths.sessionActionEndpoint(sessionId: sessionId, action: normalized), Data("{}".utf8)),
         ]
-        var unsupported = 0
-        var lastFailure = "No session-control endpoint candidates were configured."
-        for candidate in candidates {
-            do {
-                let data = try await transport.post(path: candidate.path, body: candidate.body, bearerToken: session.accessToken)
-                let fallback = HermesSessionControlActionResult(
-                    sessionId: sessionId,
-                    action: normalized,
-                    status: "submitted",
-                    detail: "Session-control action accepted.",
-                    updatedAt: "now",
-                    endpoint: candidate.path,
-                    supported: true
-                )
-                if data.isEmpty {
-                    return fallback
-                }
-                return Self.decodeSessionControlResult(data: data, fallback: fallback)
-            } catch {
-                let ns = error as NSError
-                if ns.domain == "HermesURLSessionTransport", ns.code == 404 || ns.code == 405 {
-                    unsupported += 1
-                    lastFailure = "POST \(candidate.path) failed: \(error.localizedDescription)"
-                } else {
-                    return HermesSessionControlActionResult(
-                        sessionId: sessionId,
-                        action: normalized,
-                        status: "failed",
-                        detail: error.localizedDescription,
-                        updatedAt: "now",
-                        endpoint: candidate.path,
-                        supported: true
-                    )
+        // Optimization: Use withThrowingTaskGroup to test endpoint candidates concurrently instead of sequentially.
+        return try await withThrowingTaskGroup(of: HermesSessionControlActionResult?.self) { group in
+            for candidate in candidates {
+                group.addTask {
+                    do {
+                        let data = try await self.transport.post(path: candidate.path, body: candidate.body, bearerToken: session.accessToken)
+                        let fallback = HermesSessionControlActionResult(
+                            sessionId: sessionId,
+                            action: normalized,
+                            status: "submitted",
+                            detail: "Session-control action accepted.",
+                            updatedAt: "now",
+                            endpoint: candidate.path,
+                            supported: true
+                        )
+                        if data.isEmpty {
+                            return fallback
+                        }
+                        return Self.decodeSessionControlResult(data: data, fallback: fallback)
+                    } catch {
+                        let ns = error as NSError
+                        if ns.domain == "HermesURLSessionTransport", ns.code == 404 || ns.code == 405 {
+                            return nil // Unsupported endpoint, continue searching
+                        } else {
+                            return HermesSessionControlActionResult(
+                                sessionId: sessionId,
+                                action: normalized,
+                                status: "failed",
+                                detail: error.localizedDescription,
+                                updatedAt: "now",
+                                endpoint: candidate.path,
+                                supported: true
+                            )
+                        }
+                    }
                 }
             }
-        }
-        if unsupported == candidates.count {
+
+            for try await result in group {
+                if let result = result {
+                    group.cancelAll()
+                    return result
+                }
+            }
+
             return HermesSessionControlActionResult(
                 sessionId: sessionId,
                 action: normalized,
@@ -113,14 +121,6 @@ final class HermesGatewayClient: HermesGatewayClientProtocol {
                 supported: false
             )
         }
-        return HermesSessionControlActionResult(
-            sessionId: sessionId,
-            action: normalized,
-            status: "failed",
-            detail: lastFailure,
-            updatedAt: "now",
-            supported: true
-        )
     }
 
     func fetchApprovals(session: HermesAuthSession) async throws -> [HermesApprovalSummary] {
