@@ -95,7 +95,7 @@ class MainActivity : ComponentActivity() {
         webView = WebView(this).apply {
             settings.javaScriptEnabled = true
             settings.domStorageEnabled = true
-            settings.allowFileAccess = true
+            settings.allowFileAccess = false
             settings.allowContentAccess = true
             settings.loadWithOverviewMode = true
             settings.useWideViewPort = true
