@@ -100,7 +100,7 @@ class MainActivity : ComponentActivity() {
             settings.loadWithOverviewMode = true
             settings.useWideViewPort = true
             settings.setSupportZoom(false)
-            settings.mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+            settings.mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
 
             webViewClient = object : WebViewClient() {
                 override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
