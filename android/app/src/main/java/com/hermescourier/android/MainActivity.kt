@@ -15,6 +15,8 @@ import androidx.activity.OnBackPressedCallback
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import androidx.security.crypto.EncryptedSharedPreferences
+import androidx.security.crypto.MasterKey
 
 class MainActivity : ComponentActivity() {
 
@@ -23,7 +25,19 @@ class MainActivity : ComponentActivity() {
     private lateinit var progressBar: ProgressBar
     private lateinit var settingsPanel: LinearLayout
 
-    private val prefs by lazy { getSharedPreferences("hermes_courier", Context.MODE_PRIVATE) }
+    private val prefs by lazy {
+        val masterKey = MasterKey.Builder(applicationContext)
+            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+            .build()
+
+        EncryptedSharedPreferences.create(
+            applicationContext,
+            "hermes_courier_secure",
+            masterKey,
+            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+        )
+    }
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -35,6 +49,9 @@ class MainActivity : ComponentActivity() {
             c.hide(WindowInsetsCompat.Type.systemBars())
             c.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
         }
+
+        // Migrate old unencrypted preferences if they exist
+        migrateOldPreferences()
 
         // ── Build UI ──────────────────────────────────────────────────────
         val root = LinearLayout(this).apply {
@@ -162,6 +179,18 @@ class MainActivity : ComponentActivity() {
         } else {
             urlBar.setText(savedUrl)
             webView.loadUrl(savedUrl)
+        }
+    }
+
+    private fun migrateOldPreferences() {
+        val oldPrefs = getSharedPreferences("hermes_courier", Context.MODE_PRIVATE)
+        val oldUrl = oldPrefs.getString("server_url", null)
+
+        if (oldUrl != null) {
+            // Migrate to encrypted prefs
+            prefs.edit().putString("server_url", oldUrl).apply()
+            // Clear the old unencrypted preferences
+            oldPrefs.edit().clear().apply()
         }
     }
 

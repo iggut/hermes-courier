@@ -1,0 +1,8 @@
+{
+  "sessionId": "sess-fixture-1",
+  "action": "pause",
+  "status": "unsupported",
+  "detail": "Gateway does not expose a supported session-control endpoint for this action.",
+  "updatedAt": "2026-04-21T12:03:00Z",
+  "supported": false
+}

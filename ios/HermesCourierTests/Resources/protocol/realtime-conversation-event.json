@@ -1,0 +1,11 @@
+{
+  "kind": "conversation",
+  "event": {
+    "eventId": "ev-fix-1",
+    "author": "Operator",
+    "body": "Hello from fixture stream",
+    "timestamp": "2026-04-21T12:04:00Z"
+  },
+  "id": "env-fix-1",
+  "timestamp": "2026-04-21T12:04:01Z"
+}

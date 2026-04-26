@@ -1,0 +1,12 @@
+{
+  "kind": "session_control",
+  "session_control_action": {
+    "sessionId": "sess-fix-x",
+    "action": "resume",
+    "status": "accepted",
+    "detail": "Resumed",
+    "updatedAt": "2026-04-21T12:06:00Z",
+    "endpoint": "/v1/sessions/sess-fix-x/actions",
+    "supported": true
+  }
+}
