@@ -45,7 +45,7 @@ final class AppViewModel: ObservableObject {
         let supportDirectory = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
             ?? FileManager.default.temporaryDirectory
         queuedActionsURL = supportDirectory.appendingPathComponent("hermes-queued-approval-actions.json")
-        try? FileManager.default.createDirectory(at: supportDirectory, withIntermediateDirectories: true)
+        createApplicationSupportDirectoryIfNeeded()
         loadQueuedApprovalActions()
         hydrateSettings()
         Task {
@@ -600,8 +600,10 @@ final class AppViewModel: ObservableObject {
     }
 
     private func createApplicationSupportDirectoryIfNeeded() {
-        let directory = queuedActionsURL.deletingLastPathComponent()
-        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let directory = self.queuedActionsURL.deletingLastPathComponent()
+        Task.detached(priority: .background) {
+            try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        }
     }
 }
 
