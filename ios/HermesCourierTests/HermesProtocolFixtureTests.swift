@@ -77,18 +77,28 @@ final class HermesProtocolFixtureTests: XCTestCase {
     // MARK: - Helpers (match HermesGatewayClient.decodeCollection behavior)
 
     private func loadFixtureData(name: String) throws -> Data {
-        let bundle = Bundle(for: HermesProtocolFixtureTests.self)
         let base = name.components(separatedBy: "/").last ?? name
-        if let url = bundle.url(forResource: base, withExtension: "json") {
-            return try Data(contentsOf: url)
+        for bundle in Bundle.allBundles {
+            if let url = bundle.url(forResource: base, withExtension: "json") {
+                return try Data(contentsOf: url)
+            }
+            if let url = bundle.url(forResource: base, withExtension: "json", subdirectory: "protocol") {
+                return try Data(contentsOf: url)
+            }
         }
-        if let url = bundle.url(forResource: base, withExtension: "json", subdirectory: "protocol") {
-            return try Data(contentsOf: url)
+
+        // As a last resort, we can try to find it by an explicit path if we know where the test is running from
+        let fileURL = URL(fileURLWithPath: #file)
+        let projectRoot = fileURL.deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        let fixtureURL = projectRoot.appendingPathComponent("shared/fixtures/protocol").appendingPathComponent(base).appendingPathExtension("json")
+        if FileManager.default.fileExists(atPath: fixtureURL.path) {
+            return try Data(contentsOf: fixtureURL)
         }
+
         throw NSError(
             domain: "HermesProtocolFixtureTests",
             code: 1,
-            userInfo: [NSLocalizedDescriptionKey: "Missing \(name).json in test bundle (add shared/fixtures/protocol to HermesCourierTests resources)"],
+            userInfo: [NSLocalizedDescriptionKey: "Missing \(name).json in test bundle (add shared/fixtures/protocol to HermesCourierTests resources). Checked all bundles and path \(fixtureURL.path)"],
         )
     }
 
