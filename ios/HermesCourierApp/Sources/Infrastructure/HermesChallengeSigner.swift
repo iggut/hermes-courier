@@ -22,6 +22,10 @@ final class HermesKeychainChallengeSigner: HermesChallengeSigning {
     func sign(nonce: String, device: HermesDeviceIdentity) throws -> String {
         let key = try loadOrCreateKey()
         let payload = buildPayload(nonce: nonce, device: device)
+        return try generateSignature(for: payload, using: key)
+    }
+
+    private func generateSignature(for payload: String, using key: P256.Signing.PrivateKey) throws -> String {
         let signature = try key.signature(for: Data(payload.utf8))
         return Data(signature.derRepresentation).base64EncodedString()
     }
@@ -43,12 +47,16 @@ final class HermesKeychainChallengeSigner: HermesChallengeSigning {
         let query = baseQuery().merging([kSecValueData as String: data], uniquingKeysWith: { $1 })
         let status = SecItemAdd(query as CFDictionary, nil)
         if status == errSecDuplicateItem {
-            let updateStatus = SecItemUpdate(baseQuery() as CFDictionary, [kSecValueData as String: data] as CFDictionary)
-            guard updateStatus == errSecSuccess else {
-                throw NSError(domain: NSOSStatusErrorDomain, code: Int(updateStatus))
-            }
+            try updateKeyData(data)
         } else if status != errSecSuccess {
             throw NSError(domain: NSOSStatusErrorDomain, code: Int(status))
+        }
+    }
+
+    private func updateKeyData(_ data: Data) throws {
+        let updateStatus = SecItemUpdate(baseQuery() as CFDictionary, [kSecValueData as String: data] as CFDictionary)
+        guard updateStatus == errSecSuccess else {
+            throw NSError(domain: NSOSStatusErrorDomain, code: Int(updateStatus))
         }
     }
 
