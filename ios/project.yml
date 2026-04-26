@@ -33,7 +33,6 @@ targets:
     resources:
       - path: ../shared/fixtures/protocol
         type: folder
-        group: protocol
     dependencies:
       - target: HermesCourier
     settings:
