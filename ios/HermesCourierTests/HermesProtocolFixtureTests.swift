@@ -82,7 +82,7 @@ final class HermesProtocolFixtureTests: XCTestCase {
         if let url = bundle.url(forResource: base, withExtension: "json") {
             return try Data(contentsOf: url)
         }
-        if let url = bundle.url(forResource: base, withExtension: "json", subdirectory: "protocol") {
+        if let url = bundle.url(forResource: base, withExtension: "json", subdirectory: "shared/fixtures/protocol") {
             return try Data(contentsOf: url)
         }
         throw NSError(
