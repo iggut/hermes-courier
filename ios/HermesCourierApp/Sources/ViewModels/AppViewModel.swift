@@ -426,25 +426,35 @@ final class AppViewModel: ObservableObject {
     }
 
     private func flushQueuedApprovalActions(using client: HermesGatewayClientProtocol, session: HermesAuthSession) async {
-        guard !isDemoGateway, !queuedActions.isEmpty else {
-            queuedApprovalActions = queuedActions.count
-            queuedApprovalActionQueue = queuedActions
+        guard !isDemoGateway, !self.queuedActions.isEmpty else {
+            self.queuedApprovalActions = self.queuedActions.count
+            self.queuedApprovalActionQueue = self.queuedActions
             return
         }
-        while !queuedActions.isEmpty {
-            let queued = queuedActions[0]
+
+        let actionsToFlush = self.queuedActions
+        await withThrowingTaskGroup(of: (HermesQueuedApprovalAction, HermesApprovalActionResult).self) { group in
+            for queued in actionsToFlush {
+                group.addTask { [client, session] in
+                    let result = try await client.submitApprovalAction(session: session, approvalId: queued.approvalId, action: queued.action, note: queued.note)
+                    return (queued, result)
+                }
+            }
+
             do {
-                let result = try await client.submitApprovalAction(session: session, approvalId: queued.approvalId, action: queued.action, note: queued.note)
-                queuedActions.removeFirst()
-                persistQueuedApprovalActions()
-                approvalActionStatus = "Flushed queued \(HermesApprovalDisplay.userFacingVerb(for: result.action)) for \(result.approvalId): \(result.status)"
-                queuedApprovalActions = queuedActions.count
-                queuedApprovalActionQueue = queuedActions
+                while let (queued, result) = try await group.next() {
+                    if let index = self.queuedActions.firstIndex(where: { $0.approvalId == queued.approvalId && $0.createdAt == queued.createdAt }) {
+                        self.queuedActions.remove(at: index)
+                        self.persistQueuedApprovalActions()
+                        self.approvalActionStatus = "Flushed queued \(HermesApprovalDisplay.userFacingVerb(for: result.action)) for \(result.approvalId): \(result.status)"
+                        self.queuedApprovalActions = self.queuedActions.count
+                        self.queuedApprovalActionQueue = self.queuedActions
+                    }
+                }
             } catch {
-                approvalActionStatus = "Queued approval action still pending: \(error.localizedDescription)"
-                queuedApprovalActions = queuedActions.count
-                queuedApprovalActionQueue = queuedActions
-                return
+                self.approvalActionStatus = "Queued approval action still pending: \(error.localizedDescription)"
+                self.queuedApprovalActions = self.queuedActions.count
+                self.queuedApprovalActionQueue = self.queuedActions
             }
         }
     }

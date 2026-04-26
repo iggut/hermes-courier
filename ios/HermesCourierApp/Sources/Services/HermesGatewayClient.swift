@@ -1,6 +1,6 @@
 import Foundation
 
-protocol HermesGatewayClientProtocol {
+protocol HermesGatewayClientProtocol: Sendable {
     func bootstrap(device: HermesDeviceIdentity) async throws -> HermesAuthSession
     func fetchDashboard(session: HermesAuthSession) async throws -> HermesDashboardSnapshot
     func fetchSessions(session: HermesAuthSession) async throws -> [HermesSessionSummary]
