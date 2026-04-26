@@ -85,13 +85,18 @@ final class HermesProtocolFixtureTests: XCTestCase {
         if let url = bundle.url(forResource: base, withExtension: "json", subdirectory: "protocol") {
             return try Data(contentsOf: url)
         }
+
+        let fsPath = URL(fileURLWithPath: #file).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("shared/fixtures/protocol").appendingPathComponent(base).appendingPathExtension("json")
+        if let data = try? Data(contentsOf: fsPath) {
+            return data
+        }
+
         throw NSError(
             domain: "HermesProtocolFixtureTests",
             code: 1,
             userInfo: [NSLocalizedDescriptionKey: "Missing \(name).json in test bundle (add shared/fixtures/protocol to HermesCourierTests resources)"],
         )
     }
-
     private func decodeFixture<T: Decodable>(_ type: T.Type, name: String) throws -> T {
         let data = try loadFixtureData(name: name)
         return try JSONDecoder().decode(T.self, from: data)
