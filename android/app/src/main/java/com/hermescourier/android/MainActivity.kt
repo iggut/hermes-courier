@@ -114,8 +114,13 @@ class MainActivity : ComponentActivity() {
                 }
 
                 override fun onReceivedSslError(view: WebView?, handler: SslErrorHandler?, error: SslError?) {
-                    // Allow self-signed certs for local/Tailscale servers
-                    handler?.proceed()
+                    val builder = android.app.AlertDialog.Builder(this@MainActivity)
+                    builder.setTitle("SSL Certificate Error")
+                    builder.setMessage("The security certificate for this site is invalid or untrusted. Do you want to proceed anyway?")
+                    builder.setPositiveButton("Proceed") { _, _ -> handler?.proceed() }
+                    builder.setNegativeButton("Cancel") { _, _ -> handler?.cancel() }
+                    builder.setOnCancelListener { handler?.cancel() }
+                    builder.show()
                 }
             }
 
