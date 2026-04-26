@@ -50,14 +50,20 @@ struct EnrollmentScannerView: UIViewControllerRepresentable {
 extension EnrollmentScannerView.Coordinator: DataScannerViewControllerDelegate {
     func dataScanner(_ dataScanner: DataScannerViewController, didAdd addedItems: [RecognizedItem], allItems: [RecognizedItem]) {
         guard !hasDelivered else { return }
-        for item in addedItems {
+        if let payload = extractFirstBarcodePayload(from: addedItems) {
+            hasDelivered = true
+            dataScanner.stopScanning()
+            onScan(payload)
+        }
+    }
+
+    private func extractFirstBarcodePayload(from items: [RecognizedItem]) -> String? {
+        for item in items {
             if case let .barcode(barcode) = item, let payload = barcode.payloadStringValue {
-                hasDelivered = true
-                dataScanner.stopScanning()
-                onScan(payload)
-                break
+                return payload
             }
         }
+        return nil
     }
 }
 #endif
@@ -78,19 +84,34 @@ private final class ScannerUnavailableView: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = .systemBackground
+
+        let label = createMessageLabel()
+        view.addSubview(label)
+
+        let button = createDismissButton()
+        view.addSubview(button)
+
+        setupConstraints(label: label, button: button)
+    }
+
+    private func createMessageLabel() -> UILabel {
         let label = UILabel()
         label.text = "QR scanning is unavailable on this device."
         label.textAlignment = .center
         label.numberOfLines = 0
         label.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(label)
+        return label
+    }
 
+    private func createDismissButton() -> UIButton {
         let button = UIButton(type: .system)
         button.setTitle("Dismiss", for: .normal)
         button.addTarget(self, action: #selector(dismissTapped), for: .touchUpInside)
         button.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(button)
+        return button
+    }
 
+    private func setupConstraints(label: UILabel, button: UIButton) {
         NSLayoutConstraint.activate([
             label.centerXAnchor.constraint(equalTo: view.centerXAnchor),
             label.centerYAnchor.constraint(equalTo: view.centerYAnchor, constant: -16),
