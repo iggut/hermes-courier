@@ -31,7 +31,7 @@ targets:
     sources:
       - path: HermesCourierTests
     resources:
-      - path: ../shared/fixtures/protocol
+      - path: HermesCourierTests/Resources
     dependencies:
       - target: HermesCourier
     settings:

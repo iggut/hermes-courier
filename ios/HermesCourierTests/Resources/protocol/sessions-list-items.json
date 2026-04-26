@@ -1,0 +1,10 @@
+{
+  "items": [
+    {
+      "sessionId": "sess-items-1",
+      "title": "Wrapped via items",
+      "status": "Running",
+      "updatedAt": "2026-04-21T12:07:00Z"
+    }
+  ]
+}

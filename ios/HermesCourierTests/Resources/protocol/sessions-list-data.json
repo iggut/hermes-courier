@@ -1,0 +1,10 @@
+{
+  "data": [
+    {
+      "sessionId": "sess-data-1",
+      "title": "Wrapped via data",
+      "status": "Paused",
+      "updatedAt": "2026-04-21T12:08:00Z"
+    }
+  ]
+}
