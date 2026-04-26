@@ -85,6 +85,27 @@ final class HermesProtocolFixtureTests: XCTestCase {
         if let url = bundle.url(forResource: base, withExtension: "json", subdirectory: "protocol") {
             return try Data(contentsOf: url)
         }
+
+        // XcodeGen handles relative directory resources differently sometimes. Let's recursively search or just construct a known path.
+        // In the built app, resources might be flattened, or placed in `shared/fixtures/protocol` folder
+        if let url = bundle.url(forResource: base, withExtension: "json", subdirectory: "shared/fixtures/protocol") {
+            return try Data(contentsOf: url)
+        }
+
+        // Or maybe they are placed in `fixtures/protocol`
+        if let url = bundle.url(forResource: base, withExtension: "json", subdirectory: "fixtures/protocol") {
+            return try Data(contentsOf: url)
+        }
+
+        // Final fallback: try to find it by enumerating URLs in the bundle root if all else fails
+        if let enumerator = FileManager.default.enumerator(at: bundle.bundleURL, includingPropertiesForKeys: nil) {
+            while let fileURL = enumerator.nextObject() as? URL {
+                if fileURL.pathExtension == "json" && fileURL.deletingPathExtension().lastPathComponent == base {
+                    return try Data(contentsOf: fileURL)
+                }
+            }
+        }
+
         throw NSError(
             domain: "HermesProtocolFixtureTests",
             code: 1,
