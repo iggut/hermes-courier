@@ -28,12 +28,7 @@ struct SessionsView: View {
 
                 ForEach(viewModel.sessions) { session in
                     NavigationLink(value: session.sessionId) {
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text(session.title).font(.headline)
-                            Text(session.status)
-                            Text(session.updatedAt).font(.caption).foregroundStyle(.secondary)
-                        }
-                        .padding(.vertical, 4)
+                        SessionRowView(session: session)
                     }
                 }
             }
@@ -42,5 +37,18 @@ struct SessionsView: View {
                 SessionDetailContainerView(sessionId: sessionId)
             }
         }
+    }
+}
+
+struct SessionRowView: View {
+    let session: HermesSessionSummary
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(session.title).font(.headline)
+            Text(session.status)
+            Text(session.updatedAt).font(.caption).foregroundStyle(.secondary)
+        }
+        .padding(.vertical, 4)
     }
 }
