@@ -313,6 +313,11 @@ final class HermesGatewayClient: HermesGatewayClientProtocol, @unchecked Sendabl
 }
 
 final class HermesDemoGatewayClient: HermesGatewayClientProtocol {
+    private static let demoSessions: [String: HermesSessionSummary] = [
+        "demo-1": HermesSessionSummary(sessionId: "demo-1", title: "Morning planning", status: "Running", updatedAt: "2m ago"),
+        "demo-2": HermesSessionSummary(sessionId: "demo-2", title: "Tooling review", status: "Paused", updatedAt: "15m ago"),
+    ]
+
     func bootstrap(device: HermesDeviceIdentity) async throws -> HermesAuthSession {
         HermesAuthSession(
             sessionId: "demo-session",
@@ -335,14 +340,11 @@ final class HermesDemoGatewayClient: HermesGatewayClientProtocol {
     }
 
     func fetchSessions(session: HermesAuthSession) async throws -> [HermesSessionSummary] {
-        [
-            HermesSessionSummary(sessionId: "demo-1", title: "Morning planning", status: "Running", updatedAt: "2m ago"),
-            HermesSessionSummary(sessionId: "demo-2", title: "Tooling review", status: "Paused", updatedAt: "15m ago"),
-        ]
+        Self.demoSessions.values.sorted { $0.sessionId < $1.sessionId }
     }
 
     func fetchSessionDetail(session: HermesAuthSession, sessionId: String) async throws -> HermesSessionSummary {
-        try await fetchSessions(session: session).first { $0.sessionId == sessionId }
+        Self.demoSessions[sessionId]
             ?? HermesSessionSummary(sessionId: sessionId, title: "Demo session", status: "Unknown", updatedAt: "now")
     }
 
