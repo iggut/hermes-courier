@@ -54,6 +54,16 @@ final class AppViewModel: ObservableObject {
     }
 
     func refresh() async {
+        resetRefreshState()
+
+        do {
+            try await attemptLiveConnection()
+        } catch {
+            await attemptFallbackConnection(with: error)
+        }
+    }
+
+    private func resetRefreshState() {
         hydrateSettings()
         bootstrapState = "Negotiating secure gateway"
         authStatus = "Requesting device challenge"
@@ -65,42 +75,44 @@ final class AppViewModel: ObservableObject {
         realtimeReconnectProgress = 0
         sessionDetailLoading = false
         sessionDetailLoadError = nil
+    }
 
+    private func attemptLiveConnection() async throws {
+        let authManager = HermesAuthManager()
+        let liveClient = HermesGatewayClient()
+        isDemoGateway = false
+        let session = try await authManager.bootstrapSession()
+        currentSession = session
+        bootstrapState = "Secure gateway ready"
+        authStatus = "Session \(session.sessionId) authenticated through \(session.gatewayUrl)"
+        dashboard = try await liveClient.fetchDashboard(session: session)
+        sessions = try await liveClient.fetchSessions(session: session)
+        approvals = try await liveClient.fetchApprovals(session: session)
+        messages = try await liveClient.fetchConversation(session: session)
+        realtimeReconnectCountdown = "Connected"
+        realtimeReconnectProgress = 0
+        connectRealtime(using: liveClient, session: session)
+        await flushQueuedApprovalActions(using: liveClient, session: session)
+    }
+
+    private func attemptFallbackConnection(with liveError: Error) async {
         do {
-            let authManager = HermesAuthManager()
-            let liveClient = HermesGatewayClient()
-            isDemoGateway = false
-            let session = try await authManager.bootstrapSession()
+            let session = try await fallbackClient.bootstrap(device: currentDeviceIdentity())
             currentSession = session
-            bootstrapState = "Secure gateway ready"
-            authStatus = "Session \(session.sessionId) authenticated through \(session.gatewayUrl)"
-            dashboard = try await liveClient.fetchDashboard(session: session)
-            sessions = try await liveClient.fetchSessions(session: session)
-            approvals = try await liveClient.fetchApprovals(session: session)
-            messages = try await liveClient.fetchConversation(session: session)
+            isDemoGateway = true
+            bootstrapState = "Demo fallback active"
+            authStatus = "Using offline-safe sample data (\(liveError.localizedDescription))"
+            dashboard = try await fallbackClient.fetchDashboard(session: session)
+            sessions = try await fallbackClient.fetchSessions(session: session)
+            approvals = try await fallbackClient.fetchApprovals(session: session)
+            messages = try await fallbackClient.fetchConversation(session: session)
             realtimeReconnectCountdown = "Connected"
             realtimeReconnectProgress = 0
-            connectRealtime(using: liveClient, session: session)
-            await flushQueuedApprovalActions(using: liveClient, session: session)
+            connectRealtime(using: fallbackClient, session: session)
         } catch {
-            do {
-                let session = try await fallbackClient.bootstrap(device: currentDeviceIdentity())
-                currentSession = session
-                isDemoGateway = true
-                bootstrapState = "Demo fallback active"
-                authStatus = "Using offline-safe sample data (\(error.localizedDescription))"
-                dashboard = try await fallbackClient.fetchDashboard(session: session)
-                sessions = try await fallbackClient.fetchSessions(session: session)
-                approvals = try await fallbackClient.fetchApprovals(session: session)
-                messages = try await fallbackClient.fetchConversation(session: session)
-                realtimeReconnectCountdown = "Connected"
-                realtimeReconnectProgress = 0
-                connectRealtime(using: fallbackClient, session: session)
-            } catch {
-                bootstrapState = "Gateway unavailable"
-                authStatus = error.localizedDescription
-                streamStatus = "Realtime stream unavailable"
-            }
+            bootstrapState = "Gateway unavailable"
+            authStatus = error.localizedDescription
+            streamStatus = "Realtime stream unavailable"
         }
     }
 
