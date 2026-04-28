@@ -71,37 +71,7 @@ final class HermesGatewayClient: HermesGatewayClientProtocol, @unchecked Sendabl
         return try await withThrowingTaskGroup(of: HermesSessionControlActionResult?.self) { group in
             for candidate in candidates {
                 group.addTask {
-                    do {
-                        let data = try await self.transport.post(path: candidate.path, body: candidate.body, bearerToken: session.accessToken)
-                        let fallback = HermesSessionControlActionResult(
-                            sessionId: sessionId,
-                            action: normalized,
-                            status: "submitted",
-                            detail: "Session-control action accepted.",
-                            updatedAt: "now",
-                            endpoint: candidate.path,
-                            supported: true
-                        )
-                        if data.isEmpty {
-                            return fallback
-                        }
-                        return Self.decodeSessionControlResult(data: data, fallback: fallback)
-                    } catch {
-                        let ns = error as NSError
-                        if ns.domain == "HermesURLSessionTransport", ns.code == 404 || ns.code == 405 {
-                            return nil // Unsupported endpoint, continue searching
-                        } else {
-                            return HermesSessionControlActionResult(
-                                sessionId: sessionId,
-                                action: normalized,
-                                status: "failed",
-                                detail: error.localizedDescription,
-                                updatedAt: "now",
-                                endpoint: candidate.path,
-                                supported: true
-                            )
-                        }
-                    }
+                    return try await self.attemptSessionControl(session: session, sessionId: sessionId, action: normalized, candidate: candidate)
                 }
             }
 
@@ -120,6 +90,40 @@ final class HermesGatewayClient: HermesGatewayClientProtocol, @unchecked Sendabl
                 updatedAt: "now",
                 supported: false
             )
+        }
+    }
+
+    private func attemptSessionControl(session: HermesAuthSession, sessionId: String, action: String, candidate: (path: String, body: Data)) async throws -> HermesSessionControlActionResult? {
+        do {
+            let data = try await transport.post(path: candidate.path, body: candidate.body, bearerToken: session.accessToken)
+            let fallback = HermesSessionControlActionResult(
+                sessionId: sessionId,
+                action: action,
+                status: "submitted",
+                detail: "Session-control action accepted.",
+                updatedAt: "now",
+                endpoint: candidate.path,
+                supported: true
+            )
+            if data.isEmpty {
+                return fallback
+            }
+            return Self.decodeSessionControlResult(data: data, fallback: fallback)
+        } catch {
+            let ns = error as NSError
+            if ns.domain == "HermesURLSessionTransport", ns.code == 404 || ns.code == 405 {
+                return nil // Unsupported endpoint, continue searching
+            } else {
+                return HermesSessionControlActionResult(
+                    sessionId: sessionId,
+                    action: action,
+                    status: "failed",
+                    detail: error.localizedDescription,
+                    updatedAt: "now",
+                    endpoint: candidate.path,
+                    supported: true
+                )
+            }
         }
     }
 
