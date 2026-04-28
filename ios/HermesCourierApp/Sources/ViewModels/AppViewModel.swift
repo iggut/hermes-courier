@@ -373,7 +373,7 @@ final class AppViewModel: ObservableObject {
 
     func loadSessionDetailIfMissing(sessionId: String) {
         Task {
-            if sessions.contains(where: { $0.sessionId == sessionId }) {
+            if hasSessionLocally(sessionId: sessionId) {
                 await MainActor.run { sessionDetailLoadError = nil }
                 return
             }
@@ -388,27 +388,39 @@ final class AppViewModel: ObservableObject {
                 sessionDetailLoading = true
                 sessionDetailLoadError = nil
             }
-            let client = HermesGatewayClient()
-            do {
-                let detail = try await client.fetchSessionDetail(session: session, sessionId: sessionId)
-                await MainActor.run {
-                    var merged = sessions
-                    if let idx = merged.firstIndex(where: { $0.sessionId == detail.sessionId }) {
-                        merged[idx] = detail
-                    } else {
-                        merged.append(detail)
-                    }
-                    sessions = merged
-                    sessionDetailLoading = false
-                    sessionDetailLoadError = nil
-                }
-            } catch {
-                await MainActor.run {
-                    sessionDetailLoading = false
-                    sessionDetailLoadError = error.localizedDescription
-                }
+            await fetchAndMergeSessionDetail(session: session, sessionId: sessionId)
+        }
+    }
+
+    private func hasSessionLocally(sessionId: String) -> Bool {
+        return sessions.contains(where: { $0.sessionId == sessionId })
+    }
+
+    private func fetchAndMergeSessionDetail(session: HermesAuthSession, sessionId: String) async {
+        let client = HermesGatewayClient()
+        do {
+            let detail = try await client.fetchSessionDetail(session: session, sessionId: sessionId)
+            await MainActor.run {
+                updateSessionWithDetail(detail)
+                sessionDetailLoading = false
+                sessionDetailLoadError = nil
+            }
+        } catch {
+            await MainActor.run {
+                sessionDetailLoading = false
+                sessionDetailLoadError = error.localizedDescription
             }
         }
+    }
+
+    private func updateSessionWithDetail(_ detail: HermesSessionSummary) {
+        var merged = sessions
+        if let idx = merged.firstIndex(where: { $0.sessionId == detail.sessionId }) {
+            merged[idx] = detail
+        } else {
+            merged.append(detail)
+        }
+        sessions = merged
     }
 
     private func queueApprovalAction(_ approvalId: String, _ action: String, _ note: String?, reason: String) {
