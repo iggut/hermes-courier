@@ -465,11 +465,17 @@ final class AppViewModel: ObservableObject {
                 }
             }
 
+            var needsPersist = false
+            defer {
+                if needsPersist {
+                    self.persistQueuedApprovalActions()
+                }
+            }
             do {
                 while let (queued, result) = try await group.next() {
                     if let index = self.queuedActions.firstIndex(where: { $0.approvalId == queued.approvalId && $0.createdAt == queued.createdAt }) {
                         self.queuedActions.remove(at: index)
-                        self.persistQueuedApprovalActions()
+                        needsPersist = true
                         self.approvalActionStatus = "Flushed queued \(HermesApprovalDisplay.userFacingVerb(for: result.action)) for \(result.approvalId): \(result.status)"
                         self.queuedApprovalActions = self.queuedActions.count
                         self.queuedApprovalActionQueue = self.queuedActions
