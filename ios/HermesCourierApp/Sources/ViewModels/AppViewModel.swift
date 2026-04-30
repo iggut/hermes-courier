@@ -193,13 +193,8 @@ final class AppViewModel: ObservableObject {
             let client = HermesGatewayClient()
             do {
                 let result = try await client.submitApprovalAction(session: session, approvalId: queued.approvalId, action: queued.action, note: queued.note)
-                if let index = queuedActions.firstIndex(of: queued) {
-                    queuedActions.remove(at: index)
-                    persistQueuedApprovalActions()
-                }
+                removeQueuedAction(where: { $0 == queued })
                 approvalActionStatus = "Retried queued \(HermesApprovalDisplay.userFacingVerb(for: result.action)) for \(result.approvalId): \(result.status)"
-                queuedApprovalActions = queuedActions.count
-                queuedApprovalActionQueue = queuedActions
             } catch {
                 approvalActionStatus = "Queued retry failed: \(error.localizedDescription)"
             }
@@ -218,30 +213,25 @@ final class AppViewModel: ObservableObject {
     }
 
     func dismissQueuedApprovalAction(_ queued: HermesQueuedApprovalAction) -> HermesQueuedApprovalAction? {
-        guard let index = queuedActions.firstIndex(of: queued) else {
+        if removeQueuedAction(where: { $0 == queued }) {
+            approvalActionStatus = "Dismissed queued \(HermesApprovalDisplay.userFacingVerb(for: queued.action)) for \(queued.approvalId)"
+            return queued
+        } else {
             approvalActionStatus = "Queued approval was already removed"
             return nil
         }
-        queuedActions.remove(at: index)
-        persistQueuedApprovalActions()
-        approvalActionStatus = "Dismissed queued \(HermesApprovalDisplay.userFacingVerb(for: queued.action)) for \(queued.approvalId)"
-        queuedApprovalActions = queuedActions.count
-        queuedApprovalActionQueue = queuedActions
-        return queued
     }
 
     func restoreQueuedApprovalAction(_ queued: HermesQueuedApprovalAction) {
         guard !queuedActions.contains(queued) else {
             approvalActionStatus = "Queued approval already present"
-            queuedApprovalActions = queuedActions.count
-            queuedApprovalActionQueue = queuedActions
+            syncQueuedActionsState()
             return
         }
         queuedActions.insert(queued, at: 0)
         persistQueuedApprovalActions()
+        syncQueuedActionsState()
         approvalActionStatus = "Restored dismissed \(HermesApprovalDisplay.userFacingVerb(for: queued.action)) for \(queued.approvalId)"
-        queuedApprovalActions = queuedActions.count
-        queuedApprovalActionQueue = queuedActions
     }
 
     func approveApproval(_ approvalId: String, note: String? = nil) {
@@ -444,9 +434,8 @@ final class AppViewModel: ObservableObject {
         )
         queuedActions.append(queued)
         persistQueuedApprovalActions()
+        syncQueuedActionsState()
         approvalActionStatus = reason
-        queuedApprovalActions = queuedActions.count
-        queuedApprovalActionQueue = queuedActions
     }
 
     private func flushQueuedApprovalActions(using client: HermesGatewayClientProtocol, session: HermesAuthSession) async {
@@ -467,18 +456,13 @@ final class AppViewModel: ObservableObject {
 
             do {
                 while let (queued, result) = try await group.next() {
-                    if let index = self.queuedActions.firstIndex(where: { $0.approvalId == queued.approvalId && $0.createdAt == queued.createdAt }) {
-                        self.queuedActions.remove(at: index)
-                        self.persistQueuedApprovalActions()
+                    if self.removeQueuedAction(where: { $0.approvalId == queued.approvalId && $0.createdAt == queued.createdAt }) {
                         self.approvalActionStatus = "Flushed queued \(HermesApprovalDisplay.userFacingVerb(for: result.action)) for \(result.approvalId): \(result.status)"
-                        self.queuedApprovalActions = self.queuedActions.count
-                        self.queuedApprovalActionQueue = self.queuedActions
                     }
                 }
             } catch {
                 self.approvalActionStatus = "Queued approval action still pending: \(error.localizedDescription)"
-                self.queuedApprovalActions = self.queuedActions.count
-                self.queuedApprovalActionQueue = self.queuedActions
+                self.syncQueuedActionsState()
             }
         }
     }
@@ -589,6 +573,22 @@ final class AppViewModel: ObservableObject {
         return "Certificate bundle enrolled and ready"
     }
 
+    private func syncQueuedActionsState() {
+        queuedApprovalActions = queuedActions.count
+        queuedApprovalActionQueue = queuedActions
+    }
+
+    @discardableResult
+    private func removeQueuedAction(where condition: (HermesQueuedApprovalAction) -> Bool) -> Bool {
+        if let index = queuedActions.firstIndex(where: condition) {
+            queuedActions.remove(at: index)
+            persistQueuedApprovalActions()
+            syncQueuedActionsState()
+            return true
+        }
+        return false
+    }
+
     private func persistQueuedApprovalActions() {
         do {
             let data = try JSONEncoder().encode(queuedActions)
@@ -601,8 +601,7 @@ final class AppViewModel: ObservableObject {
     private func loadQueuedApprovalActions() {
         guard let data = try? Data(contentsOf: queuedActionsURL) else {
             queuedActions = []
-            queuedApprovalActions = 0
-            queuedApprovalActionQueue = []
+            syncQueuedActionsState()
             return
         }
         do {
@@ -618,13 +617,11 @@ final class AppViewModel: ObservableObject {
                     createdAt: queued.createdAt
                 )
             }
-            queuedApprovalActions = queuedActions.count
-            queuedApprovalActionQueue = queuedActions
+            syncQueuedActionsState()
             if needsPersist { persistQueuedApprovalActions() }
         } catch {
             queuedActions = []
-            queuedApprovalActions = 0
-            queuedApprovalActionQueue = []
+            syncQueuedActionsState()
         }
     }
 
