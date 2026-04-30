@@ -465,21 +465,32 @@ final class AppViewModel: ObservableObject {
                 }
             }
 
+            var successfulActions = Set<HermesQueuedApprovalAction>()
+            var lastStatus: String?
+            var errorStatus: String?
+
             do {
                 while let (queued, result) = try await group.next() {
-                    if let index = self.queuedActions.firstIndex(where: { $0.approvalId == queued.approvalId && $0.createdAt == queued.createdAt }) {
-                        self.queuedActions.remove(at: index)
-                        self.persistQueuedApprovalActions()
-                        self.approvalActionStatus = "Flushed queued \(HermesApprovalDisplay.userFacingVerb(for: result.action)) for \(result.approvalId): \(result.status)"
-                        self.queuedApprovalActions = self.queuedActions.count
-                        self.queuedApprovalActionQueue = self.queuedActions
-                    }
+                    successfulActions.insert(queued)
+                    lastStatus = "Flushed queued \(HermesApprovalDisplay.userFacingVerb(for: result.action)) for \(result.approvalId): \(result.status)"
                 }
             } catch {
-                self.approvalActionStatus = "Queued approval action still pending: \(error.localizedDescription)"
-                self.queuedApprovalActions = self.queuedActions.count
-                self.queuedApprovalActionQueue = self.queuedActions
+                errorStatus = "Queued approval action still pending: \(error.localizedDescription)"
             }
+
+            if !successfulActions.isEmpty {
+                self.queuedActions.removeAll(where: { successfulActions.contains($0) })
+                self.persistQueuedApprovalActions()
+            }
+
+            if let errorStatus = errorStatus {
+                self.approvalActionStatus = errorStatus
+            } else if let lastStatus = lastStatus {
+                self.approvalActionStatus = lastStatus
+            }
+
+            self.queuedApprovalActions = self.queuedActions.count
+            self.queuedApprovalActionQueue = self.queuedActions
         }
     }
 
