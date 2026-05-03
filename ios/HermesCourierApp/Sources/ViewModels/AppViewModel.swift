@@ -85,10 +85,17 @@ final class AppViewModel: ObservableObject {
         currentSession = session
         bootstrapState = "Secure gateway ready"
         authStatus = "Session \(session.sessionId) authenticated through \(session.gatewayUrl)"
-        dashboard = try await liveClient.fetchDashboard(session: session)
-        sessions = try await liveClient.fetchSessions(session: session)
-        approvals = try await liveClient.fetchApprovals(session: session)
-        messages = try await liveClient.fetchConversation(session: session)
+        async let fetchedDashboard = liveClient.fetchDashboard(session: session)
+        async let fetchedSessions = liveClient.fetchSessions(session: session)
+        async let fetchedApprovals = liveClient.fetchApprovals(session: session)
+        async let fetchedMessages = liveClient.fetchConversation(session: session)
+
+        let (newDashboard, newSessions, newApprovals, newMessages) = try await (fetchedDashboard, fetchedSessions, fetchedApprovals, fetchedMessages)
+
+        dashboard = newDashboard
+        sessions = newSessions
+        approvals = newApprovals
+        messages = newMessages
         realtimeReconnectCountdown = "Connected"
         realtimeReconnectProgress = 0
         connectRealtime(using: liveClient, session: session)
@@ -102,10 +109,17 @@ final class AppViewModel: ObservableObject {
             isDemoGateway = true
             bootstrapState = "Demo fallback active"
             authStatus = "Using offline-safe sample data (\(liveError.localizedDescription))"
-            dashboard = try await fallbackClient.fetchDashboard(session: session)
-            sessions = try await fallbackClient.fetchSessions(session: session)
-            approvals = try await fallbackClient.fetchApprovals(session: session)
-            messages = try await fallbackClient.fetchConversation(session: session)
+            async let fetchedDashboard = fallbackClient.fetchDashboard(session: session)
+            async let fetchedSessions = fallbackClient.fetchSessions(session: session)
+            async let fetchedApprovals = fallbackClient.fetchApprovals(session: session)
+            async let fetchedMessages = fallbackClient.fetchConversation(session: session)
+
+            let (newDashboard, newSessions, newApprovals, newMessages) = try await (fetchedDashboard, fetchedSessions, fetchedApprovals, fetchedMessages)
+
+            dashboard = newDashboard
+            sessions = newSessions
+            approvals = newApprovals
+            messages = newMessages
             realtimeReconnectCountdown = "Connected"
             realtimeReconnectProgress = 0
             connectRealtime(using: fallbackClient, session: session)
