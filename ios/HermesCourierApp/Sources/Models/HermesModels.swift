@@ -8,13 +8,6 @@ enum HermesConversationActionState: Equatable {
     case failed
 }
 
-struct HermesSession: Identifiable, Hashable {
-    let id = UUID()
-    let title: String
-    let status: String
-    let updatedAt: String
-}
-
 struct HermesApproval: Identifiable, Hashable {
     let id = UUID()
     let title: String
