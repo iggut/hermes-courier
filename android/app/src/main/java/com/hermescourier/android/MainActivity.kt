@@ -122,7 +122,7 @@ class MainActivity : ComponentActivity() {
             settings.loadWithOverviewMode = true
             settings.useWideViewPort = true
             settings.setSupportZoom(false)
-            settings.mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
+            settings.mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
 
             webViewClient = createWebViewClient()
 
@@ -190,18 +190,18 @@ class MainActivity : ComponentActivity() {
             }
 
             override fun onReceivedSslError(view: WebView?, handler: SslErrorHandler?, error: SslError?) {
-                val isDebug = (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
-                if (isDebug) {
-                    val builder = android.app.AlertDialog.Builder(this@MainActivity)
-                    builder.setTitle("SSL Certificate Error")
-                    builder.setMessage("The security certificate for this site is invalid or untrusted. Do you want to proceed anyway?")
-                    builder.setPositiveButton("Proceed") { _, _ -> handler?.proceed() }
-                    builder.setNegativeButton("Cancel") { _, _ -> handler?.cancel() }
-                    builder.setOnCancelListener { handler?.cancel() }
-                    builder.show()
-                } else {
-                    handler?.cancel()
-                }
+                // SECURITY FIX: Never bypass SSL errors, even in debug mode
+                // Allowing users to click through SSL errors trains bad behavior and can
+                // mask real MitM attacks during development. Developers should configure
+                // valid certificates or use Network Security Configuration for local dev.
+                handler?.cancel()
+
+                // Show an informational dialog to the user
+                val builder = android.app.AlertDialog.Builder(this@MainActivity)
+                builder.setTitle("SSL Certificate Error")
+                builder.setMessage("The security certificate for this site is invalid or untrusted. For your security, the connection has been blocked.")
+                builder.setPositiveButton("OK") { _, _ -> }
+                builder.show()
             }
         }
     }
