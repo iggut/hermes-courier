@@ -33,7 +33,9 @@ final class AppViewModel: ObservableObject {
     @Published var sessionDetailLoading: Bool = false
     @Published var sessionDetailLoadError: String?
 
-    private let fallbackClient: HermesGatewayClientProtocol = HermesDemoGatewayClient()
+    private let authManager: HermesAuthManaging
+    private let liveClient: HermesGatewayClientProtocol
+    private let fallbackClient: HermesGatewayClientProtocol
     private var currentSession: HermesAuthSession?
     private var realtimeHandle: HermesRealtimeStreamHandle?
     private var isDemoGateway = false
@@ -41,7 +43,14 @@ final class AppViewModel: ObservableObject {
     private var reconnectCountdownTask: Task<Void, Never>?
     private let queuedActionsURL: URL
 
-    init() {
+    init(
+        authManager: HermesAuthManaging = HermesAuthManager(),
+        liveClient: HermesGatewayClientProtocol = HermesGatewayClient(),
+        fallbackClient: HermesGatewayClientProtocol = HermesDemoGatewayClient()
+    ) {
+        self.authManager = authManager
+        self.liveClient = liveClient
+        self.fallbackClient = fallbackClient
         let supportDirectory = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
             ?? FileManager.default.temporaryDirectory
         queuedActionsURL = supportDirectory.appendingPathComponent("hermes-queued-approval-actions.json")
@@ -78,8 +87,6 @@ final class AppViewModel: ObservableObject {
     }
 
     private func attemptLiveConnection() async throws {
-        let authManager = HermesAuthManager()
-        let liveClient = HermesGatewayClient()
         isDemoGateway = false
         let session = try await authManager.bootstrapSession()
         currentSession = session
@@ -179,7 +186,6 @@ final class AppViewModel: ObservableObject {
                 approvalActionStatus = "Queued approval actions can be retried after connecting to the live gateway"
                 return
             }
-            let liveClient = HermesGatewayClient()
             await flushQueuedApprovalActions(using: liveClient, session: session)
         }
     }
@@ -204,9 +210,8 @@ final class AppViewModel: ObservableObject {
                 approvalActionStatus = "Unable to retry queued action until connected to the live gateway"
                 return
             }
-            let client = HermesGatewayClient()
             do {
-                let result = try await client.submitApprovalAction(session: session, approvalId: queued.approvalId, action: queued.action, note: queued.note)
+                let result = try await liveClient.submitApprovalAction(session: session, approvalId: queued.approvalId, action: queued.action, note: queued.note)
                 if let index = queuedActions.firstIndex(of: queued) {
                     queuedActions.remove(at: index)
                     persistQueuedApprovalActions()
@@ -276,9 +281,8 @@ final class AppViewModel: ObservableObject {
                 queueApprovalAction(approvalId, action, note, reason: "Offline demo session; approval action queued locally")
                 return
             }
-            let client = HermesGatewayClient()
             do {
-                let result = try await client.submitApprovalAction(session: session, approvalId: approvalId, action: action, note: note)
+                let result = try await liveClient.submitApprovalAction(session: session, approvalId: approvalId, action: action, note: note)
                 approvalActionStatus = "\(HermesApprovalDisplay.userFacingVerb(for: result.action)) approval \(result.approvalId): \(result.status)"
                 await refresh()
             } catch {
@@ -351,9 +355,8 @@ final class AppViewModel: ObservableObject {
                 }
                 return
             }
-            let client = HermesGatewayClient()
             do {
-                let echoed = try await client.submitConversationMessage(session: session, message: trimmed)
+                let echoed = try await liveClient.submitConversationMessage(session: session, message: trimmed)
                 await MainActor.run {
                     if let echoed {
                         messages = messages.upsertConversationEvent(echoed)
@@ -383,9 +386,8 @@ final class AppViewModel: ObservableObject {
                 sessionControlStatus = "Session-control unavailable on demo fallback (use a live gateway)"
                 return
             }
-            let client = HermesGatewayClient()
             do {
-                let result = try await client.submitSessionControlAction(session: session, sessionId: sessionId, action: action)
+                let result = try await liveClient.submitSessionControlAction(session: session, sessionId: sessionId, action: action)
                 await MainActor.run {
                     sessionControlStatus = "\(result.action) \(result.sessionId): \(result.status) (\(result.detail))"
                 }
@@ -423,9 +425,8 @@ final class AppViewModel: ObservableObject {
     }
 
     private func fetchAndMergeSessionDetail(session: HermesAuthSession, sessionId: String) async {
-        let client = HermesGatewayClient()
         do {
-            let detail = try await client.fetchSessionDetail(session: session, sessionId: sessionId)
+            let detail = try await liveClient.fetchSessionDetail(session: session, sessionId: sessionId)
             await MainActor.run {
                 updateSessionWithDetail(detail)
                 sessionDetailLoading = false
